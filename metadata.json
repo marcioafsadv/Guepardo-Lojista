@@ -1,0 +1,7 @@
+{
+  "name": "Guepardo Entregador - Lojista",
+  "description": "Painel de despacho rápido para lojistas solicitarem motoboys em segundos.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

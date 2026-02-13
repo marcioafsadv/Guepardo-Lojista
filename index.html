@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="https://lucide.dev/icons/bike.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guepardo Lojista - Padaria Rebeca</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Chakra+Petch:ital,wght@1,700&display=swap"
+    rel="stylesheet">
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Chakra Petch', 'sans-serif'],
+          },
+          colors: {
+            guepardo: {
+              gray: {
+                900: '#121212', // Background Main
+                800: '#1E1E1E', // Cards / Secondary
+                700: '#2D2D2D', // Borders
+              },
+              accent: '#D35400', // Branding Orange (was Yellow)
+              gold: '#D35400',   // Legacy support mapped to new Orange
+              orange: '#E67E22', // Secondary Brand (Lighter Orange)
+            },
+            status: {
+              green: '#22C55E',
+              amber: '#F59E0B',
+              blue: '#3B82F6',
+            }
+          },
+          backgroundImage: {
+            'brand-gradient': 'linear-gradient(135deg, #D35400 0%, #E67E22 100%)',
+            'brand-glow': 'radial-gradient(circle at center, rgba(211, 84, 0, 0.15) 0%, transparent 70%)',
+          },
+          boxShadow: {
+            'glow': '0 0 15px rgba(211, 84, 0, 0.3)',
+            'glow-sm': '0 0 8px rgba(211, 84, 0, 0.2)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #121212;
+      color: #E5E5E5;
+    }
+
+    /* Custom scrollbar for history */
+    .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .text-shadow-sm {
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Custom styled scrollbar */
+    .scrollbar-guepardo::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .scrollbar-guepardo::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+    }
+
+    .scrollbar-guepardo::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+
+    .scrollbar-guepardo::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Leaflet specific overrides */
+    .leaflet-container {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .custom-div-icon {
+      background: transparent;
+      border: none;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@0.460.0?external=react",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "react": "https://esm.sh/react@18.3.1",
+    "recharts": "https://esm.sh/recharts@2.13.0?external=react,react-dom"
+  }
+}
+</script>
+
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
