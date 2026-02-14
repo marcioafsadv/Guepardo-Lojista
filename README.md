@@ -1,20 +1,68 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🐆 Guepardo Lojista
 
-# Run and deploy your AI Studio app
+Painel administrativo para lojistas parceiros da plataforma Guepardo. Este aplicativo permite o gerenciamento de pedidos, acompanhamento de entregadores em tempo real e análise de desempenho.
 
-This contains everything you need to run your app locally.
+![Status do Deploy](https://github.com/marcioafsadv/Guepardo-Lojista/actions/workflows/deploy-hostinger.yml/badge.svg)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1z3Jslip-6Ast2o4uPod_VG4W59mf7Fkf
+## 🚀 Funcionalidades
 
-## Run Locally
+- **Dashboard Operacional:** Visualização e gerenciamento de pedidos em tempo real.
+- **Rastreamento ao Vivo:** Mapa interativo mostrando a localização dos entregadores e rotas de entrega.
+- **Gestão de Clientes:** CRM básico com histórico de pedidos e classificação de clientes (Bronze/Prata/Ouro).
+- **Relatórios:** Gráficos e tabelas de desempenho financeiro e operacional.
+- **Configurações:** Gerenciamento de perfil da loja, horários de funcionamento e taxas.
 
-**Prerequisites:**  Node.js
+## 🛠️ Tecnologias
 
+- **Frontend:** React + Vite + TypeScript
+- **Estilização:** TailwindCSS
+- **Mapas:** Leaflet + React Leaflet
+- **Backend/Banco de Dados:** Sincronização em tempo real com Supabase
+- **Ícones:** Lucide React
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 📦 Como rodar localmente
+
+1.  **Clone o repositório:**
+    ```bash
+    git clone https://github.com/marcioafsadv/Guepardo-Lojista.git
+    cd Guepardo-Lojista
+    ```
+
+2.  **Instale as dependências:**
+    ```bash
+    npm install
+    ```
+
+3.  **Variáveis de Ambiente:**
+    Crie um arquivo `.env` ou `.env.local` na raiz do projeto com suas credenciais do Supabase:
+    ```env
+    VITE_SUPABASE_URL=sua_url_supabase
+    VITE_SUPABASE_ANON_KEY=sua_chave_anon_supabase
+    ```
+
+4.  **Inicie o servidor de desenvolvimento:**
+    ```bash
+    npm run dev
+    ```
+
+## 🚢 Deploy Automático (Hostinger)
+
+Este projeto está configurado com **GitHub Actions** para fazer o deploy automático para a Hostinger via FTP sempre que houver um `push` na branch `main`.
+
+### Configuração do Workflow
+
+O arquivo de configuração está em `.github/workflows/deploy-hostinger.yml`.
+
+Para que funcione, os seguintes **Secrets** devem estar configurados no repositório do GitHub:
+
+| Secret | Descrição |
+| :--- | :--- |
+| `FTP_SERVER` | Endereço IP ou Host do FTP da Hostinger |
+| `FTP_USERNAME` | Usuário FTP |
+| `FTP_PASSWORD` | Senha do FTP |
+| `VITE_SUPABASE_URL` | (Opcional) URL do projeto Supabase para build |
+| `VITE_SUPABASE_ANON_KEY` | (Opcional) Chave Anon do projeto Supabase para build |
+
+---
+
+Desenvolvido para Guepardo Entregas.
