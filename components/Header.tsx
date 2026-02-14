@@ -60,13 +60,7 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
 
             {/* RIGHT SIDE ACTIONS */}
             <div className="flex items-center gap-4">
-                {/* TEMP WIZARD BUTTON */}
-                <button
-                    onClick={() => window.location.href = '/cadastro'}
-                    className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-xs font-bold border border-white/20 transition-all uppercase tracking-wider"
-                >
-                    Testar Cadastro
-                </button>
+
 
                 {/* Notification Bell */}
                 <button className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white hover:text-white transition-colors border border-transparent hover:border-white/10 group">
