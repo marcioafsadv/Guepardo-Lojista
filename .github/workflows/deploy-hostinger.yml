@@ -21,6 +21,11 @@ jobs:
       - name: 🔨 Install Dependencies
         run: npm ci
 
+      - name: 📝 Create .env file
+        run: |
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" > .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+
       - name: 🏗️ Build Project
         run: npm run build
         env:
@@ -36,3 +41,4 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: ./public_html/ # Ajuste se sua pasta na Hostinger for diferente (ex: ./domains/seu-site/public_html/)
+          timeout: 300000 # 5 minutos de timeout para evitar desconexões
