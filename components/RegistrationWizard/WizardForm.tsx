@@ -6,6 +6,7 @@ import Step3Access from './Step3Access';
 
 import WelcomeScreen from './WelcomeScreen';
 import { ChevronRight } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 const WizardForm: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0); // Start at Welcome Screen
@@ -46,13 +47,62 @@ const WizardForm: React.FC = () => {
         window.scrollTo(0, 0);
     };
 
-    const handleFinish = () => {
-        // Redirect to Dashboard (Root) as logged in
-        console.log("Form Data Submitted:", formData);
-        // Simulate login state persistence if needed
-        localStorage.setItem('guepardo_user', JSON.stringify(formData));
-        window.location.href = '/';
-    }
+    const handleFinish = async () => {
+        // Prepare Data
+        const { email, senha, nomeResponsavel, cnpj, razaoSocial, nomeFantasia, telefone, cep, rua, numero, complemento, bairro, cidade, estado } = formData;
+
+        try {
+            // 1. Register User in Auth
+            const { data: authData, error: authError } = await supabase.auth.signUp({
+                email,
+                password: senha,
+                options: {
+                    data: {
+                        role: 'lojista',
+                        full_name: nomeResponsavel
+                    }
+                }
+            });
+
+            if (authError) throw authError;
+
+            if (authData.user) {
+                // 2. Insert Store Data linked to User ID
+                const { error: storeError } = await supabase
+                    .from('stores')
+                    .insert({
+                        id: authData.user.id,
+                        cnpj,
+                        company_name: razaoSocial,
+                        fantasy_name: nomeFantasia,
+                        phone: telefone,
+                        address: {
+                            zip_code: cep,
+                            street: rua,
+                            number: numero,
+                            complement: complemento,
+                            district: bairro,
+                            city: cidade,
+                            state: estado
+                        }
+                    });
+
+                if (storeError) {
+                    // Decide if rollback or proceed (usually proceed and fix later manually or retry, but for now allow)
+                    console.error('Error creating store profile:', storeError);
+                    alert('Erro ao criar perfil da loja. Contate o suporte.');
+                    return;
+                }
+
+                // 3. Success -> Redirect
+                // No need to set localStorage manually as AuthContext handles session
+                window.location.href = '/';
+            }
+        } catch (error: any) {
+            console.error('Registration Error:', error);
+            alert(`Erro no cadastro: ${error.message}`);
+        }
+    };
 
     const renderStep = () => {
         switch (currentStep) {

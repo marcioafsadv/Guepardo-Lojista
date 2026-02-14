@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 interface WelcomeScreenProps {
     onStart: () => void;
@@ -14,14 +15,26 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [loginError, setLoginError] = useState('');
 
-    const handleLoginSubmit = () => {
+    const handleLoginSubmit = async () => {
         if (!email || !password) {
             setLoginError('Preencha todos os campos');
             return;
         }
-        // Mock Login Success
-        localStorage.setItem('guepardo_user', JSON.stringify({ email, name: 'Usuário Teste' }));
-        window.location.reload();
+
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
+
+            if (error) {
+                setLoginError('Erro ao entrar: ' + error.message);
+            } else {
+                // Session handled by AuthContext
+            }
+        } catch (err) {
+            setLoginError('Ocorreu um erro inesperado.');
+        }
     };
 
     return (

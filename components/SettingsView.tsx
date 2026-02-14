@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StoreSettings } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -8,6 +9,7 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
+    const { signOut } = useAuth();
     // Local state for form handling before save
     const [localSettings, setLocalSettings] = useState<StoreSettings>(settings);
     const [hasChanges, setHasChanges] = useState(false);
@@ -294,10 +296,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                 {/* 6. LOGOUT */}
                 <section className="flex justify-end pt-8 border-t border-gray-200 dark:border-guepardo-gray-800">
                     <button
-                        onClick={() => {
+                        onClick={async () => {
                             if (confirm('Tem certeza que deseja sair?')) {
-                                localStorage.removeItem('guepardo_user');
-                                window.location.reload();
+                                await signOut();
                             }
                         }}
                         className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-500 border border-red-500/20 transition-all"

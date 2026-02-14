@@ -15,238 +15,26 @@ import { GestaoDePedidos } from './components/GestaoDePedidos';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
+import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
 import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, Users, Clock } from 'lucide-react';
+import { supabase } from './lib/supabaseClient';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
-// --- CONFIGURAÇÃO DA LOJA (PADARIA REBECA - ITU/SP) ---
+// --- CONFIGURAÇÃO PADRÃO (FALLBACK) ---
 const STORE_PROFILE: StoreProfile = {
-    name: "Padaria e Conveniência Rebeca",
-    address: "Rua Luiz Scavone - Centro, Itu - SP",
+    name: "Carregando Loja...",
+    address: "Localizando...",
     lat: -23.257217,
     lng: -47.300549
 };
 
 // --- MOCK CUSTOMERS (INITIAL DATA) ---
-const INITIAL_CUSTOMERS: Customer[] = [
-    {
-        id: 'cust_1',
-        name: 'Carlos da Silva',
-        phone: '11999887766',
-        totalOrders: 15, // Gold Client
-        totalSpent: 250.50,
-        lastOrderDate: new Date(Date.now() - 86400000 * 2), // 2 days ago
-        averageWaitTime: 2.5, // Fast
-        addresses: [{
-            street: 'Rua Floriano Peixoto',
-            number: '120',
-            neighborhood: 'Centro',
-            city: 'Itu/SP',
-            cep: '13300-000',
-            lastUsed: new Date()
-        }],
-        notes: 'Campainha não funciona, gritar "Entregador"'
-    },
-    {
-        id: 'cust_2',
-        name: 'Ana Pereira',
-        phone: '11988776655',
-        totalOrders: 6, // Frequent Client
-        totalSpent: 65.90,
-        lastOrderDate: new Date(Date.now() - 86400000 * 15), // 15 days ago
-        averageWaitTime: 8.0, // Slow
-        addresses: [{
-            street: 'Av. Prudente de Moraes',
-            number: '500',
-            complement: 'Apt 42',
-            neighborhood: 'Vila Nova',
-            city: 'Itu/SP',
-            cep: '13309-050',
-            lastUsed: new Date()
-        }]
-    },
-    {
-        id: 'cust_3',
-        name: 'Roberto Mendes',
-        phone: '11977665544',
-        totalOrders: 2, // New Client
-        totalSpent: 25.00,
-        lastOrderDate: new Date(Date.now() - 86400000 * 1), // Yesterday
-        averageWaitTime: 4.0,
-        addresses: [{
-            street: 'Rua Santa Rita',
-            number: '88',
-            neighborhood: 'Centro',
-            city: 'Itu/SP',
-            cep: '13300-100',
-            lastUsed: new Date()
-        }],
-        notes: 'Deixar na portaria'
-    }
-];
+// --- MOCK CUSTOMERS REMOVED ---
+const INITIAL_CUSTOMERS: Customer[] = [];
 
-// --- MOCK COURIERS (20 ENTREGADORES - CENÁRIO REALISTA EM ITU) ---
-const INITIAL_COURIERS: Courier[] = [
-    {
-        "id": "1",
-        "name": "Roberto Almeida",
-        "vehiclePlate": "BRA-2E19",
-        "photoUrl": "https://ui-avatars.com/api/?name=Roberto+Almeida&background=FFC107&color=000",
-        "phone": "11999990001",
-        "lat": -23.264201, "lng": -47.299205
-    },
-    {
-        "id": "2",
-        "name": "Fernanda Costa",
-        "vehiclePlate": "FGT-5H42",
-        "photoUrl": "https://ui-avatars.com/api/?name=Fernanda+Costa&background=F57C00&color=fff",
-        "phone": "11999990002",
-        "lat": -23.268500, "lng": -47.301500
-    },
-    {
-        "id": "3",
-        "name": "Lucas Pereira",
-        "vehiclePlate": "JKS-9L12",
-        "photoUrl": "https://ui-avatars.com/api/?name=Lucas+Pereira&background=3E1F11&color=fff",
-        "phone": "11999990003",
-        "lat": -23.261000, "lng": -47.295000
-    },
-    {
-        "id": "4",
-        "name": "Julia Santos",
-        "vehiclePlate": "XYZ-1A23",
-        "photoUrl": "https://ui-avatars.com/api/?name=Julia+Santos&background=FFC107&color=000",
-        "phone": "11999990004",
-        "lat": -23.259800, "lng": -47.305100
-    },
-    {
-        "id": "5",
-        "name": "Marcos Oliveira",
-        "vehiclePlate": "ABC-4D56",
-        "photoUrl": "https://ui-avatars.com/api/?name=Marcos+Oliveira&background=F57C00&color=fff",
-        "phone": "11999990005",
-        "lat": -23.272100, "lng": -47.290500
-    },
-    {
-        "id": "6",
-        "name": "Rafael Souza",
-        "vehiclePlate": "GHI-7J89",
-        "photoUrl": "https://ui-avatars.com/api/?name=Rafael+Souza&background=3E1F11&color=fff",
-        "phone": "11999990006",
-        "lat": -23.265500, "lng": -47.308800
-    },
-    {
-        "id": "7",
-        "name": "Bruno Lima",
-        "vehiclePlate": "MNO-2P34",
-        "photoUrl": "https://ui-avatars.com/api/?name=Bruno+Lima&background=FFC107&color=000",
-        "phone": "11999990007",
-        "lat": -23.263000, "lng": -47.292000
-    },
-    {
-        "id": "8",
-        "name": "Gabriela Rocha",
-        "vehiclePlate": "QRS-5T67",
-        "photoUrl": "https://ui-avatars.com/api/?name=Gabriela+Rocha&background=F57C00&color=fff",
-        "phone": "11999990008",
-        "lat": -23.266700, "lng": -47.297500
-    },
-    {
-        "id": "9",
-        "name": "Thiago Alves",
-        "vehiclePlate": "UVW-8X90",
-        "photoUrl": "https://ui-avatars.com/api/?name=Thiago+Alves&background=3E1F11&color=fff",
-        "phone": "11999990009",
-        "lat": -23.260500, "lng": -47.303200
-    },
-    {
-        "id": "10",
-        "name": "Daniel Ferreira",
-        "vehiclePlate": "YZA-1B23",
-        "photoUrl": "https://ui-avatars.com/api/?name=Daniel+Ferreira&background=FFC107&color=000",
-        "phone": "11999990010",
-        "lat": -23.269900, "lng": -47.294400
-    },
-    {
-        "id": "11",
-        "name": "Eduardo Ribeiro",
-        "vehiclePlate": "CDE-4F56",
-        "photoUrl": "https://ui-avatars.com/api/?name=Eduardo+Ribeiro&background=F57C00&color=fff",
-        "phone": "11999990011",
-        "lat": -23.264800, "lng": -47.306600
-    },
-    {
-        "id": "12",
-        "name": "Carla Martins",
-        "vehiclePlate": "GHI-7J89",
-        "photoUrl": "https://ui-avatars.com/api/?name=Carla+Martins&background=3E1F11&color=fff",
-        "phone": "11999990012",
-        "lat": -23.262500, "lng": -47.299900
-    },
-    {
-        "id": "13",
-        "name": "Vinicius Gomes",
-        "vehiclePlate": "KLM-2N34",
-        "photoUrl": "https://ui-avatars.com/api/?name=Vinicius+Gomes&background=FFC107&color=000",
-        "phone": "11999990013",
-        "lat": -23.267800, "lng": -47.288800
-    },
-    {
-        "id": "14",
-        "name": "Gustavo Barbosa",
-        "vehiclePlate": "OPQ-5R67",
-        "photoUrl": "https://ui-avatars.com/api/?name=Gustavo+Barbosa&background=F57C00&color=fff",
-        "phone": "11999990014",
-        "lat": -23.261200, "lng": -47.310200
-    },
-    {
-        "id": "15",
-        "name": "Leonardo Melo",
-        "vehiclePlate": "STU-8V90",
-        "photoUrl": "https://ui-avatars.com/api/?name=Leonardo+Melo&background=3E1F11&color=fff",
-        "phone": "11999990015",
-        "lat": -23.270500, "lng": -47.302100
-    },
-    {
-        "id": "16",
-        "name": "Felipe Nascimento",
-        "vehiclePlate": "WXY-1Z23",
-        "photoUrl": "https://ui-avatars.com/api/?name=Felipe+Nascimento&background=FFC107&color=000",
-        "phone": "11999990016",
-        "lat": -23.263900, "lng": -47.296500
-    },
-    {
-        "id": "17",
-        "name": "João Silva",
-        "vehiclePlate": "ABC-4D56",
-        "photoUrl": "https://ui-avatars.com/api/?name=Joao+Silva&background=F57C00&color=fff",
-        "phone": "11999990017",
-        "lat": -23.265100, "lng": -47.300500
-    },
-    {
-        "id": "18",
-        "name": "Pedro Rodrigues",
-        "vehiclePlate": "EFG-7H89",
-        "photoUrl": "https://ui-avatars.com/api/?name=Pedro+Rodrigues&background=3E1F11&color=fff",
-        "phone": "11999990018",
-        "lat": -23.268200, "lng": -47.307700
-    },
-    {
-        "id": "19",
-        "name": "Mateus Carvalho",
-        "vehiclePlate": "IJK-2L34",
-        "photoUrl": "https://ui-avatars.com/api/?name=Mateus+Carvalho&background=FFC107&color=000",
-        "phone": "11999990019",
-        "lat": -23.262100, "lng": -47.293300
-    },
-    {
-        "id": "20",
-        "name": "Ricardo Araujo",
-        "vehiclePlate": "MNO-5P67",
-        "photoUrl": "https://ui-avatars.com/api/?name=Ricardo+Araujo&background=F57C00&color=fff",
-        "phone": "11999990020",
-        "lat": -23.266600, "lng": -47.304400
-    }
-];
+// --- MOCK COURIERS REMOVED ---
+const INITIAL_COURIERS: Courier[] = [];
 
 const SOUNDS = {
     default: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', // Simple Bell
@@ -270,6 +58,7 @@ const moveTowards = (currentLat: number, currentLng: number, targetLat: number, 
 };
 
 function App() {
+    const { session, loading } = useAuth();
     const [currentView, setCurrentView] = useState<AppView>('operational');
     const [orders, setOrders] = useState<Order[]>([]);
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
@@ -278,9 +67,8 @@ function App() {
 
     // --- MANUAL ROUTING (TRACKING PAGE) ---
     // Since we don't have react-router-dom, we check URL manually
-    if (window.location.pathname.startsWith('/track/')) {
-        return <TrackingPage />;
-    }
+    // --- MANUAL ROUTING (TRACKING PAGE) ---
+    // Moved to bottom to prevent Hook errors
 
     // --- DEFAULT: REGISTRATION WIZARD (SIMULATING NOT LOGGED IN) ---
     // To allow access to dashboard, we would need a login state.
@@ -292,13 +80,203 @@ function App() {
     // Let's use a temporary state override if the user manually navigates in previous valid sessions, but here
     // we force it.
 
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        return !!localStorage.getItem('guepardo_user');
-    });
+    // --- AUTH CHECKS ---
+    // Moved to bottom to prevent Hook errors
 
-    if (!isLoggedIn) {
-        return <WizardForm />;
-    }
+    const [realStoreProfile, setRealStoreProfile] = useState<StoreProfile | null>(null);
+
+    // Fetch Store Profile & Realtime Subscription
+    useEffect(() => {
+        if (!session?.user) return;
+
+        // 1. Fetch Profile
+        const fetchProfile = async () => {
+            const { data, error } = await supabase
+                .from('stores')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+
+            if (data) {
+                setRealStoreProfile({
+                    name: data.fantasy_name || data.company_name,
+                    address: `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`,
+                    lat: -23.257217, // Mock coords for now as we don't have geocoding in stores table yet
+                    lng: -47.300549
+                });
+            }
+        };
+        fetchProfile();
+    }, [session]);
+
+    // Fetch Couriers (Profiles + Vehicles)
+    // We fetch "approved" profiles that have a vehicle.
+    useEffect(() => {
+        const fetchCouriers = async () => {
+            try {
+                // 1. Fetch Approved Profiles
+                const { data: profiles, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('status', 'approved');
+
+                if (profileError) throw profileError;
+
+                if (profiles && profiles.length > 0) {
+                    const profileIds = profiles.map(p => p.id);
+
+                    // 2. Fetch Vehicles for these profiles
+                    const { data: vehicles, error: vehicleError } = await supabase
+                        .from('vehicles')
+                        .select('*')
+                        .in('user_id', profileIds);
+
+                    if (vehicleError) throw vehicleError;
+
+                    // 3. Merge Data
+                    const realCouriers: Courier[] = profiles.map(p => {
+                        const vehicle = vehicles?.find(v => v.user_id === p.id);
+                        if (!vehicle) return null; // Only show if has vehicle
+
+                        // Filter offline couriers (or those without location updates recently)
+                        if (!p.is_online || !p.current_lat || !p.current_lng) return null;
+
+                        return {
+                            id: p.id,
+                            name: p.full_name || 'Entregador',
+                            vehiclePlate: vehicle.plate || '---',
+                            photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
+                            phone: p.phone || '',
+                            lat: p.current_lat,
+                            lng: p.current_lng
+                        };
+                    }).filter(Boolean) as Courier[];
+
+                    console.log('Real Couriers Fetched:', realCouriers);
+                    setAvailableCouriers(realCouriers);
+                }
+            } catch (err) {
+                console.error("Error fetching couriers:", err);
+            }
+        };
+
+        fetchCouriers();
+
+        // Optional: Realtime Presence or Location updates could go here
+    }, [realStoreProfile]); // Re-fetch if store moves/init
+
+    // Realtime Subscription
+    useEffect(() => {
+        if (!session?.user) return;
+
+        const channel = supabase
+            .channel('orders-updates')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'deliveries',
+                    filter: `store_id=eq.${session.user.id}`
+                },
+                (payload) => {
+                    console.log('Realtime Update:', payload);
+                    const newStatus = payload.new.status;
+                    const orderId = payload.new.id;
+
+                    setOrders(prev => prev.map(o => {
+                        if (o.id === orderId) {
+                            // Update Status
+                            const mappedStatus = mapSupabaseStatusToLocal(newStatus);
+                            if (mappedStatus !== o.status) {
+                                // Add Event
+                                const newEvent: OrderEvent = {
+                                    status: mappedStatus,
+                                    label: getStatusLabel(mappedStatus),
+                                    timestamp: new Date(),
+                                    description: `Atualizado via App Entregador`
+                                };
+
+                                // Trigger Notifications
+                                if (mappedStatus === OrderStatus.ACCEPTED) {
+                                    setNotification({ title: "Entregador Encontrado!", message: "Um Guepardo aceitou sua corrida." });
+                                    playAlert();
+                                } else if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                                    setNotification({ title: "Entregador na Loja", message: "Entregador chegou para coleta." });
+                                    playAlert();
+                                } else if (mappedStatus === OrderStatus.DELIVERED) {
+                                    setNotification({ title: "Entrega Finalizada", message: "Pedido entregue ao cliente." });
+                                    playAlert();
+                                }
+
+                                return { ...o, status: mappedStatus, events: [...o.events, newEvent] };
+                            }
+                        }
+                        return o;
+                    }));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+
+    }, [session]);
+
+    // Fetch Customers
+    useEffect(() => {
+        if (!session?.user) return;
+
+        const fetchCustomers = async () => {
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('store_id', session.user.id);
+
+            if (data) {
+                const mapCustomers: Customer[] = data.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone || '',
+                    totalOrders: c.total_orders || 0,
+                    totalSpent: c.total_spent || 0,
+                    lastOrderDate: c.last_order_date ? new Date(c.last_order_date) : new Date(),
+                    averageWaitTime: c.average_wait_time || 0,
+                    addresses: (c.addresses as any[])?.map((a: any) => ({
+                        ...a,
+                        lastUsed: new Date(a.lastUsed || Date.now())
+                    })) || [],
+                    notes: c.notes || ''
+                }));
+                setCustomers(mapCustomers);
+            }
+        };
+        fetchCustomers();
+    }, [session]);
+
+    // Helper for Status Mapping
+    const mapSupabaseStatusToLocal = (status: string): OrderStatus => {
+        switch (status) {
+            case 'pending': return OrderStatus.PENDING;
+            case 'accepted': return OrderStatus.ACCEPTED;
+            case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
+            case 'in_transit': return OrderStatus.IN_TRANSIT;
+            case 'completed': return OrderStatus.DELIVERED;
+            case 'canceled': return OrderStatus.CANCELED;
+            default: return OrderStatus.PENDING;
+        }
+    };
+
+    const getStatusLabel = (status: OrderStatus) => {
+        switch (status) {
+            case OrderStatus.ACCEPTED: return "Aceito";
+            case OrderStatus.ARRIVED_AT_STORE: return "Na Loja";
+            case OrderStatus.IN_TRANSIT: return "Em Rota";
+            case OrderStatus.DELIVERED: return "Concluído";
+            default: return "Atualização";
+        }
+    };
 
 
     // Initial Store Settings
@@ -331,6 +309,7 @@ function App() {
     // Refs for Simulation (To access fresh state in timeouts/intervals)
     const ordersRef = useRef(orders);
     const couriersRef = useRef(availableCouriers);
+    const storeProfileRef = useRef(STORE_PROFILE); // Default
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     // Keep Refs synced
@@ -341,6 +320,12 @@ function App() {
     useEffect(() => {
         couriersRef.current = availableCouriers;
     }, [availableCouriers]);
+
+    useEffect(() => {
+        if (realStoreProfile) {
+            storeProfileRef.current = realStoreProfile;
+        }
+    }, [realStoreProfile]);
 
     // SOUND EFFECT SYNC
     useEffect(() => {
@@ -380,12 +365,15 @@ function App() {
         }
     };
 
-    const updateCustomerDatabase = (orderData: Partial<Order>) => {
-        if (!orderData.clientName) return;
+    const updateCustomerDatabase = async (orderData: Partial<Order>) => {
+        if (!orderData.clientName || !session?.user) return;
+
+        // Optimistic Update
+        let currentCustomer: Customer | undefined;
+        let isNew = false;
 
         setCustomers(prevCustomers => {
             const existingIndex = prevCustomers.findIndex(c => c.name.toLowerCase() === orderData.clientName!.toLowerCase());
-
             const newAddress: SavedAddress = {
                 street: orderData.addressStreet!,
                 number: orderData.addressNumber!,
@@ -398,19 +386,24 @@ function App() {
 
             if (existingIndex >= 0) {
                 const updatedCustomers = [...prevCustomers];
-                const cust = updatedCustomers[existingIndex];
+                const cust = { ...updatedCustomers[existingIndex] };
                 cust.totalOrders += 1;
                 cust.totalSpent += (orderData.deliveryValue || 0);
                 cust.lastOrderDate = new Date();
                 cust.phone = orderData.clientPhone || cust.phone;
+
                 const addressExists = cust.addresses.some(a => a.street === newAddress.street && a.number === newAddress.number);
                 if (!addressExists) {
                     cust.addresses = [newAddress, ...cust.addresses];
                 }
+
+                updatedCustomers[existingIndex] = cust;
+                currentCustomer = cust;
                 return updatedCustomers;
             } else {
+                isNew = true;
                 const newCustomer: Customer = {
-                    id: Date.now().toString(),
+                    id: crypto.randomUUID(), // Temp ID
                     name: orderData.clientName!,
                     phone: orderData.clientPhone || '',
                     totalOrders: 1,
@@ -420,10 +413,43 @@ function App() {
                     addresses: [newAddress],
                     notes: ''
                 };
-
+                currentCustomer = newCustomer;
                 return [...prevCustomers, newCustomer];
             }
         });
+
+        // Supabase Upsert
+        if (currentCustomer) {
+            // Check if exists by name/phone to get real ID if new locally
+            // Ideally we used the ID from currentCustomer but if it was just created locally it's random.
+            // We should use Upsert with ON CONFLICT? But we don't have a unique constraint on name/store_id yet.
+            // For now, let's try to match by name or insert.
+
+            // Simplest Strategy: 
+            // 1. Check if exists
+            const { data: existing } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('store_id', session.user.id)
+                .ilike('name', currentCustomer.name)
+                .single();
+
+            const payload = {
+                store_id: session.user.id,
+                name: currentCustomer.name,
+                phone: currentCustomer.phone,
+                total_orders: currentCustomer.totalOrders,
+                total_spent: currentCustomer.totalSpent,
+                last_order_date: currentCustomer.lastOrderDate,
+                addresses: currentCustomer.addresses
+            };
+
+            if (existing) {
+                await supabase.from('customers').update(payload).eq('id', existing.id);
+            } else {
+                await supabase.from('customers').insert(payload);
+            }
+        }
     };
 
     const handleSimulateAccept = (orderId: string) => {
@@ -458,29 +484,22 @@ function App() {
         playAlert();
     };
 
-    const handleNewOrder = (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee'> & { isReturnRequired?: boolean }) => {
+    const handleNewOrder = async (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee'> & { isReturnRequired?: boolean }) => {
+        if (!session?.user) return;
+
         let destCoords = { lat: STORE_PROFILE.lat + (Math.random() - 0.5) * 0.02, lng: STORE_PROFILE.lng + (Math.random() - 0.5) * 0.02 };
         if (data.destination.includes('Carlos Scalet')) destCoords = { lat: -23.2680, lng: -47.3000 };
 
         const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
-
-        // BUSINESS RULE: Force return if CARD payment, even if flag missed from UI
         const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
-
-        // Calculate Base + Return Fee using SETTINGS
-        const basePrice = settings.baseFreight + (Math.random() * 2); // Keep random variation or remove? "Frete Base (R$ 8,50)" suggests fixed base. let's keep variation as "dynamic surge" or just use base.
-        // User asked for "Configuração do Frete Base". It implies the starting point. I will keep the small random variation as a "distance factor" simulation for now, or maybe just use basePrice.
-        // Let's use settings.baseFreight directly + distance factor simulation if we want, but for now let's stick closer to the requested "Frete Base".
-        // Actually, the previous code was `8.50 + Math.random() * 2`. I'll replace 8.50 with settings.baseFreight.
         const calculatedBase = settings.baseFreight + (Math.random() * 2);
-
         const returnFee = (mustReturn && settings.returnFeeActive) ? calculatedBase * 0.5 : 0;
         const finalPrice = calculatedBase + returnFee;
 
-        const newEvent: OrderEvent = { status: OrderStatus.PENDING, label: "Pedido Feito", timestamp: new Date(), description: "Aguardando entregador..." };
+        const newEvent: OrderEvent = { status: OrderStatus.PENDING, label: "Solicitado", timestamp: new Date(), description: "Aguardando entregadores..." };
         const newOrder: Order = {
             ...data,
-            id: Date.now().toString(),
+            id: crypto.randomUUID(), // Temp ID for local state, will be replaced or synced? Ideally use returned ID.
             status: OrderStatus.PENDING,
             createdAt: new Date(),
             estimatedPrice: finalPrice,
@@ -493,16 +512,49 @@ function App() {
             pickupCode: generatedPin,
         };
 
+        // Update Local State Optimistically
         setOrders(prev => [newOrder, ...prev]);
         setActiveOrder(newOrder);
-        updateCustomerDatabase(newOrder);
-        setNotification({ title: "Solicitação Enviada", message: `Procurando entregador para ${newOrder.clientName}...` });
-        setTimeout(() => setNotification(null), 4000);
+        setNotification({ title: "Solicitando Entregador...", message: "Transmitindo pedido para a rede Guepardo." });
 
-        // Simulate finding a courier automatically after 5 seconds
-        setTimeout(() => {
-            handleSimulateAccept(newOrder.id);
-        }, 5000);
+        try {
+            // INSERT INTO SUPABASE
+            const { data: insertedData, error } = await supabase
+                .from('deliveries')
+                .insert({
+                    id: newOrder.id, // Use same UUID
+                    store_id: session.user.id,
+                    store_name: realStoreProfile?.name || STORE_PROFILE.name,
+                    store_address: realStoreProfile?.address || STORE_PROFILE.address,
+                    customer_name: data.clientName,
+                    customer_address: data.destination,
+                    customer_phone_suffix: data.clientPhone, // Mapping to existing column
+                    status: 'pending',
+                    items: {
+                        paymentMethod: data.paymentMethod,
+                        deliveryValue: data.deliveryValue,
+                        changeFor: data.changeFor,
+                        isReturnRequired: mustReturn,
+                        pickupCode: generatedPin,
+                        destinationLat: destCoords.lat,
+                        destinationLng: destCoords.lng
+                    },
+                    earnings: finalPrice // Store the delivery price
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log("Order created in Supabase:", insertedData);
+            updateCustomerDatabase(newOrder);
+
+        } catch (err: any) {
+            console.error("Error creating order:", err);
+            setNotification({ title: "Erro", message: "Falha ao criar pedido no sistema." });
+            // Rollback local state if needed
+            setOrders(prev => prev.filter(o => o.id !== newOrder.id));
+        }
     };
 
     // --- STATE MACHINE ACTIONS (MANDATORY VALIDATION) ---
@@ -715,7 +767,7 @@ function App() {
                         // Handle Route Fetching logic inside the loop (Self-Correcting)
                         if (!order.simulationRoute && updatedStep === 0 && order.status !== OrderStatus.ARRIVED_AT_STORE && order.status !== OrderStatus.READY_FOR_PICKUP) {
                             // Trigger fetch (async)
-                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng })
+                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: storeProfileRef.current.lat, lng: storeProfileRef.current.lng })
                                 .then(route => {
                                     if (route.length > 0) {
                                         setOrders(prev => {
@@ -768,7 +820,7 @@ function App() {
                                 }
                             } else {
                                 // FALLBACK: LINEAR
-                                const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, STORE_PROFILE.lat, STORE_PROFILE.lng, 0.0004); // Fast linear 
+                                const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, storeProfileRef.current.lat, storeProfileRef.current.lng, 0.0004); // Fast linear 
                                 nextCourierPos = { lat: move.lat, lng: move.lng };
                                 if (move.reached) {
                                     // Same reach logic...
@@ -784,8 +836,8 @@ function App() {
 
                     // --- PHASE 2: GOING TO CLIENT (60 Seconds) ---
                     else if (order.status === OrderStatus.IN_TRANSIT) {
-                        const destLat = order.destinationLat || STORE_PROFILE.lat;
-                        const destLng = order.destinationLng || STORE_PROFILE.lng;
+                        const destLat = order.destinationLat || storeProfileRef.current.lat;
+                        const destLng = order.destinationLng || storeProfileRef.current.lng;
                         const TARGET_TICKS = 600; // 60s -> 600 ticks
 
                         // Route Fetching for Phase 2
@@ -850,7 +902,7 @@ function App() {
                         const TARGET_TICKS = 300; // 30s return
 
                         if (!order.simulationRoute && updatedStep === 0) {
-                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng })
+                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: storeProfileRef.current.lat, lng: storeProfileRef.current.lng })
                                 .then(route => {
                                     if (route.length > 0) {
                                         setOrders(prev => {
@@ -877,7 +929,7 @@ function App() {
                                 // Wait at store
                             }
                         } else {
-                            const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, STORE_PROFILE.lat, STORE_PROFILE.lng, 0.0004);
+                            const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, storeProfileRef.current.lat, storeProfileRef.current.lng, 0.0004);
                             nextCourierPos = { lat: move.lat, lng: move.lng };
                         }
                     }
@@ -1039,6 +1091,22 @@ function App() {
         );
     };
 
+    // --- CONDITIONAL RENDERS (Moved here to ensure Hooks run first) ---
+    // 1. Tracking Page
+    if (window.location.pathname.startsWith('/track/')) {
+        return <TrackingPage />;
+    }
+
+    // 2. Loading State
+    if (loading) {
+        return <div className="h-screen w-full flex items-center justify-center bg-gray-900 text-white">Carregando...</div>;
+    }
+
+    // 3. Unauthenticated State (Wizard)
+    if (!session) {
+        return <WizardForm />;
+    }
+
     return (
         <div className="h-screen w-full flex bg-gray-100 font-sans overflow-hidden">
 
@@ -1053,7 +1121,7 @@ function App() {
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
 
                 {/* GLOBAL HEADER */}
-                <Header storeProfile={STORE_PROFILE} notificationCount={2} />
+                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} />
 
                 <div className="flex-1 overflow-hidden relative flex flex-col">
 
@@ -1083,7 +1151,7 @@ function App() {
                     {currentView === 'operational' && (
                         <GestaoDePedidos
                             orders={orders}
-                            storeProfile={STORE_PROFILE}
+                            storeProfile={realStoreProfile || STORE_PROFILE}
                             availableCouriers={availableCouriers}
                             customers={customers}
                             onNewOrder={handleNewOrder}
@@ -1120,7 +1188,7 @@ function App() {
             {/* OVERLAYS & MODALS */}
             <OrderDetailsModal
                 order={selectedOrderDetails}
-                storeProfile={STORE_PROFILE}
+                storeProfile={realStoreProfile || STORE_PROFILE}
                 onClose={() => setSelectedOrderDetails(null)}
                 theme={settings.theme}
             />
