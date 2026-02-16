@@ -114,16 +114,25 @@ function App() {
     useEffect(() => {
         const fetchCouriers = async () => {
             try {
+                console.log('🔍 [DEBUG] Fetching couriers from Supabase...');
+
                 // 1. Fetch Approved Profiles
                 const { data: profiles, error: profileError } = await supabase
                     .from('profiles')
                     .select('*')
                     .eq('status', 'approved');
 
-                if (profileError) throw profileError;
+                if (profileError) {
+                    console.error('❌ [ERROR] Failed to fetch profiles:', profileError);
+                    throw profileError;
+                }
+
+                console.log(`✅ [DEBUG] Found ${profiles?.length || 0} approved profiles`);
 
                 if (profiles && profiles.length > 0) {
                     const profileIds = profiles.map(p => p.id);
+                    console.log(`🔍 [DEBUG] Profile IDs to search for vehicles:`, profileIds);
+                    console.log(`🔍 [DEBUG] Full profiles data:`, profiles.map(p => ({ id: p.id, name: p.full_name })));
 
                     // 2. Fetch Vehicles for these profiles
                     const { data: vehicles, error: vehicleError } = await supabase
@@ -131,15 +140,51 @@ function App() {
                         .select('*')
                         .in('user_id', profileIds);
 
-                    if (vehicleError) throw vehicleError;
+                    if (vehicleError) {
+                        console.error('❌ [ERROR] Failed to fetch vehicles:', vehicleError);
+                        throw vehicleError;
+                    }
+
+                    console.log(`✅ [DEBUG] Found ${vehicles?.length || 0} vehicles`);
+                    console.log(`🔍 [DEBUG] Vehicles data:`, vehicles);
 
                     // 3. Merge Data
                     const realCouriers: Courier[] = profiles.map(p => {
                         const vehicle = vehicles?.find(v => v.user_id === p.id);
-                        if (!vehicle) return null; // Only show if has vehicle
 
-                        // Filter offline couriers (or those without location updates recently)
-                        if (!p.is_online || !p.current_lat || !p.current_lng) return null;
+                        console.log(`🔍 [DEBUG] Processing courier:`, {
+                            id: p.id,
+                            name: p.full_name,
+                            has_vehicle: !!vehicle,
+                            vehicle_user_id: vehicle?.user_id,
+                            is_online: p.is_online,
+                            has_location: !!(p.current_lat && p.current_lng),
+                            current_lat: p.current_lat,
+                            current_lng: p.current_lng
+                        });
+
+                        if (!vehicle) {
+                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} has no vehicle registered`);
+                            return null; // Only show if has vehicle
+                        }
+
+                        // TEMPORARILY RELAXED FILTER FOR DEBUGGING
+                        // Original filter was too restrictive:
+                        // if (!p.is_online || !p.current_lat || !p.current_lng) return null;
+
+                        // Filter: Only show ONLINE couriers with LOCATION
+                        const hasLocation = !!(p.current_lat && p.current_lng);
+                        const isOnline = p.is_online === true;
+
+                        if (!isOnline) {
+                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} is OFFLINE (is_online=${p.is_online})`);
+                            return null; // Don't show offline couriers
+                        }
+
+                        if (!hasLocation) {
+                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} has NO LOCATION (lat=${p.current_lat}, lng=${p.current_lng})`);
+                            return null; // Don't show couriers without location
+                        }
 
                         return {
                             id: p.id,
@@ -152,77 +197,189 @@ function App() {
                         };
                     }).filter(Boolean) as Courier[];
 
-                    console.log('Real Couriers Fetched:', realCouriers);
+                    console.log(`✅ [RESULT] ${realCouriers.length} couriers available:`, realCouriers);
                     setAvailableCouriers(realCouriers);
+                } else {
+                    console.warn('⚠️ [WARNING] No approved profiles found in database');
                 }
             } catch (err) {
-                console.error("Error fetching couriers:", err);
+                console.error('❌ [ERROR] Error fetching couriers:', err);
             }
         };
 
         fetchCouriers();
 
-        // Optional: Realtime Presence or Location updates could go here
-    }, [realStoreProfile]); // Re-fetch if store moves/init
-
-    // Realtime Subscription
-    useEffect(() => {
-        if (!session?.user) return;
-
-        const channel = supabase
-            .channel('orders-updates')
+        // Realtime Subscription for Courier Location/Status Updates
+        const courierChannel = supabase
+            .channel('courier-updates')
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: '*', // INSERT, UPDATE, DELETE
                     schema: 'public',
-                    table: 'deliveries',
-                    filter: `store_id=eq.${session.user.id}`
+                    table: 'profiles',
+                    filter: `status=eq.approved`
                 },
                 (payload) => {
-                    console.log('Realtime Update:', payload);
-                    const newStatus = payload.new.status;
-                    const orderId = payload.new.id;
+                    console.log('🔄 [REALTIME] Courier profile updated:', payload);
+                    // Re-fetch all couriers when any approved profile changes
+                    fetchCouriers();
+                }
+            )
+            .subscribe((status) => {
+                console.log('📡 [REALTIME] Courier subscription status:', status);
+            });
 
+        return () => {
+            console.log('🔌 [REALTIME] Unsubscribing from courier updates');
+            supabase.removeChannel(courierChannel);
+        };
+    }, [realStoreProfile]); // Re-fetch if store moves/init
+
+    // Realtime Subscription
+    // Polling approach since Realtime is not working
+    useEffect(() => {
+        if (!session?.user) return;
+
+        console.log('🔄 Setting up polling for delivery updates (Realtime unavailable)');
+
+        // Poll every 3 seconds for updates
+        const pollInterval = setInterval(async () => {
+            try {
+                // Fetch all deliveries for this store
+                const { data: deliveries, error } = await supabase
+                    .from('deliveries')
+                    .select('*')
+                    .eq('store_id', session.user.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('❌ Error polling deliveries:', error);
+                    return;
+                }
+
+                if (!deliveries) return;
+
+                // Update orders state with latest data
+                for (const delivery of deliveries) {
+                    const orderId = delivery.id;
+                    const newStatus = delivery.status;
+                    const driverId = delivery.driver_id;
+
+                    // Check if this order exists and status changed
+                    const existingOrder = orders.find(o => o.id === orderId);
+                    if (!existingOrder) continue;
+
+                    // Map delivery status to OrderStatus
+                    const statusMap: Record<string, OrderStatus> = {
+                        'pending': OrderStatus.PENDING,
+                        'accepted': OrderStatus.ACCEPTED,
+                        'arrived_pickup': OrderStatus.ARRIVED_AT_STORE,
+                        'in_transit': OrderStatus.IN_TRANSIT, // Courier left store, going to customer
+                        'arrived_at_customer': OrderStatus.IN_TRANSIT, // Courier arrived at customer (still in transit until delivered)
+                        'completed': OrderStatus.DELIVERED, // Delivery completed
+                        'COMPLETED': OrderStatus.DELIVERED, // Handle uppercase variant
+                        'cancelled': OrderStatus.CANCELED
+                    };
+
+                    const mappedStatus = statusMap[newStatus] || OrderStatus.PENDING;
+
+                    // Only update if status actually changed
+                    if (existingOrder.status === mappedStatus) continue;
+
+                    console.log(`🔄 Status changed: ${existingOrder.status} → ${mappedStatus} for order ${orderId}`);
+
+                    // Fetch courier details if driver was assigned
+                    let courierData: Courier | null = null;
+                    if (driverId && !existingOrder.courier) {
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('*, vehicles(*)')
+                            .eq('id', driverId)
+                            .single();
+
+                        if (profile) {
+                            courierData = {
+                                id: profile.id,
+                                name: profile.name || 'Entregador',
+                                vehiclePlate: profile.vehicles?.[0]?.plate || '---',
+                                photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name}&background=random`,
+                                phone: profile.phone || '',
+                                lat: profile.current_lat || 0,
+                                lng: profile.current_lng || 0
+                            };
+                        }
+                    }
+
+                    // Update orders state
                     setOrders(prev => prev.map(o => {
                         if (o.id === orderId) {
-                            // Update Status
-                            const mappedStatus = mapSupabaseStatusToLocal(newStatus);
-                            if (mappedStatus !== o.status) {
-                                // Add Event
-                                const newEvent: OrderEvent = {
-                                    status: mappedStatus,
-                                    label: getStatusLabel(mappedStatus),
-                                    timestamp: new Date(),
-                                    description: `Atualizado via App Entregador`
-                                };
+                            const newEvent: OrderEvent = {
+                                status: mappedStatus,
+                                label: getStatusLabel(mappedStatus),
+                                timestamp: new Date(),
+                                description: courierData ? `${courierData.name} (${courierData.vehiclePlate})` : 'Atualizado'
+                            };
 
-                                // Trigger Notifications
-                                if (mappedStatus === OrderStatus.ACCEPTED) {
-                                    setNotification({ title: "Entregador Encontrado!", message: "Um Guepardo aceitou sua corrida." });
-                                    playAlert();
-                                } else if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
-                                    setNotification({ title: "Entregador na Loja", message: "Entregador chegou para coleta." });
-                                    playAlert();
-                                } else if (mappedStatus === OrderStatus.DELIVERED) {
-                                    setNotification({ title: "Entrega Finalizada", message: "Pedido entregue ao cliente." });
-                                    playAlert();
+                            // Show notifications for status changes
+                            if (mappedStatus === OrderStatus.ACCEPTED) {
+                                setNotification({ title: "Entregador Encontrado", message: "Um entregador aceitou o pedido!" });
+                                playAlert();
+                                setTimeout(() => setNotification(null), 4000);
+                            } else if (mappedStatus === OrderStatus.IN_TRANSIT) {
+                                setNotification({ title: "Pedido em Trânsito", message: "Entregador está a caminho." });
+                                playAlert();
+                                setTimeout(() => setNotification(null), 4000);
+                            } else if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                                setNotification({ title: "Entregador na Loja", message: "Entregador chegou para coleta." });
+                                playAlert();
+                                setTimeout(() => setNotification(null), 4000);
+                            } else if (mappedStatus === OrderStatus.DELIVERED) {
+                                setNotification({ title: "Entrega Finalizada", message: "Pedido entregue ao cliente." });
+                                playAlert();
+                                setTimeout(() => setNotification(null), 4000);
+
+                                // Close active order if this is the one being viewed
+                                if (activeOrder?.id === orderId) {
+                                    setActiveOrder(null);
                                 }
-
-                                return { ...o, status: mappedStatus, events: [...o.events, newEvent] };
+                                // Close order details if this is the one being viewed
+                                if (selectedOrderDetails?.id === orderId) {
+                                    setSelectedOrderDetails(null);
+                                }
+                            } else if (mappedStatus === OrderStatus.CANCELED) {
+                                // Close active order if this is the one being viewed
+                                if (activeOrder?.id === orderId) {
+                                    setActiveOrder(null);
+                                }
+                                // Close order details if this is the one being viewed
+                                if (selectedOrderDetails?.id === orderId) {
+                                    setSelectedOrderDetails(null);
+                                }
                             }
+
+                            return {
+                                ...o,
+                                status: mappedStatus,
+                                courier: courierData || o.courier,
+                                events: [...o.events, newEvent]
+                            };
                         }
                         return o;
                     }));
                 }
-            )
-            .subscribe();
+            } catch (err) {
+                console.error('❌ Polling error:', err);
+            }
+        }, 3000); // Poll every 3 seconds
+
+        console.log('✅ Polling started (every 3 seconds)');
 
         return () => {
-            supabase.removeChannel(channel);
+            console.log('🛑 Stopping polling');
+            clearInterval(pollInterval);
         };
-
-    }, [session]);
+    }, [session, orders]);
 
     // Fetch Customers
     useEffect(() => {
@@ -484,7 +641,7 @@ function App() {
         playAlert();
     };
 
-    const handleNewOrder = async (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee'> & { isReturnRequired?: boolean }) => {
+    const handleNewOrder = async (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean }) => {
         if (!session?.user) return;
 
         let destCoords = { lat: STORE_PROFILE.lat + (Math.random() - 0.5) * 0.02, lng: STORE_PROFILE.lng + (Math.random() - 0.5) * 0.02 };
@@ -518,6 +675,9 @@ function App() {
         setNotification({ title: "Solicitando Entregador...", message: "Transmitindo pedido para a rede Guepardo." });
 
         try {
+            // Extract last 4 digits of phone
+            const phoneSuffix = data.clientPhone?.replace(/\D/g, '').slice(-4) || '';
+
             // INSERT INTO SUPABASE
             const { data: insertedData, error } = await supabase
                 .from('deliveries')
@@ -528,14 +688,14 @@ function App() {
                     store_address: realStoreProfile?.address || STORE_PROFILE.address,
                     customer_name: data.clientName,
                     customer_address: data.destination,
-                    customer_phone_suffix: data.clientPhone, // Mapping to existing column
+                    customer_phone_suffix: phoneSuffix, // Last 4 digits only
+                    collection_code: generatedPin, // Pickup code in dedicated column
                     status: 'pending',
                     items: {
                         paymentMethod: data.paymentMethod,
                         deliveryValue: data.deliveryValue,
                         changeFor: data.changeFor,
                         isReturnRequired: mustReturn,
-                        pickupCode: generatedPin,
                         destinationLat: destCoords.lat,
                         destinationLng: destCoords.lng
                     },
@@ -731,7 +891,7 @@ function App() {
                     const order = nextOrders[idx];
                     if (!order || order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELED || !order.courier) return;
 
-                    let nextStatus = order.status;
+                    let nextStatus: OrderStatus = order.status;
                     let nextCourierPos = { lat: order.courier.lat, lng: order.courier.lng };
                     let newEvents = [...order.events];
                     let updatedRoute = order.simulationRoute;
@@ -1150,7 +1310,7 @@ function App() {
 
                     {currentView === 'operational' && (
                         <GestaoDePedidos
-                            orders={orders}
+                            orders={activeOrdersList}
                             storeProfile={realStoreProfile || STORE_PROFILE}
                             availableCouriers={availableCouriers}
                             customers={customers}

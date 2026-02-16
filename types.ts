@@ -13,6 +13,7 @@ export interface StoreSettings {
 
   // 3. Gamificação (Metas de Pedidos)
   tierGoals: {
+    bronze: number; // e.g., 3
     silver: number; // e.g., 5
     gold: number; // e.g., 10
   };
@@ -79,6 +80,7 @@ export interface Order {
 
   pickupCode: string; // The security code for validation
   cancellationReason?: string; // Reason for cancellation
+  storeArrivalTimestamp?: Date; // When courier arrived at store
 
   // Tracking
   trackingToken?: string; // UUID for public tracking link

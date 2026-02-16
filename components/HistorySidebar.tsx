@@ -54,7 +54,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpe
 
             {/* --- DASHBOARD TAB CONTENT --- */}
             {activeTab === 'dashboard' && (
-                <DashboardTab orders={orders} totalSpent={totalSpent} customers={customers} />
+                <DashboardTab orders={orders} totalSpent={totalSpent} customers={customers} onViewChange={() => { }} />
             )}
 
             {/* --- HISTORY TAB CONTENT --- */}

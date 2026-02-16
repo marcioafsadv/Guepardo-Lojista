@@ -35,7 +35,7 @@ const calculateETA = (distanceKm: number): number => {
     return Math.ceil((distanceKm / speedKmH) * 60);
 };
 
-export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOrders = [], availableCouriers = [], onCourierLocationUpdate, theme = 'dark', isDrawerOpen = false }) => {
+export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOrders = [], availableCouriers = [], onCourierLocationUpdate, theme = 'dark' }) => {
     const mapContainerRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<any>(null);
     const tileLayerRef = useRef<any>(null);

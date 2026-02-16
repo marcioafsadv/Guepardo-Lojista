@@ -69,7 +69,7 @@ const OrderContent: React.FC<{
                             <img src={order.courier.photoUrl} className="w-14 h-14 rounded-full border-2 border-orange-500" />
                             <div>
                                 <h3 className={`text-lg font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.courier.name}</h3>
-                                <p className={`text-xs font-mono ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{order.courier.vehicleModel} • {order.courier.vehiclePlate}</p>
+                                <p className={`text-xs font-mono ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{order.courier.vehiclePlate}</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3">

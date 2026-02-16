@@ -34,7 +34,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
 
   // Timer logic for Pending state
   useEffect(() => {
-    let interval: number;
+    let interval: ReturnType<typeof setInterval>;
     if (order.status === OrderStatus.PENDING) {
       interval = setInterval(() => {
         setSecondsWaiting(prev => prev + 1);
@@ -148,8 +148,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
           return (
             <div key={step.label} className="relative z-10 flex flex-col items-center group">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted
-                  ? 'bg-[#FFB800] border-[#FFB800] text-black shadow-sm scale-110'
-                  : 'bg-white dark:bg-[#2D2D2D] border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600'
+                ? 'bg-[#FFB800] border-[#FFB800] text-black shadow-sm scale-110'
+                : 'bg-white dark:bg-[#2D2D2D] border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600'
                 } ${isCurrent ? 'ring-4 ring-[#FFB800]/20' : ''}`}>
                 {isCompleted ? <CheckCircle2 size={14} strokeWidth={3} /> : <Circle size={10} fill="currentColor" />}
               </div>

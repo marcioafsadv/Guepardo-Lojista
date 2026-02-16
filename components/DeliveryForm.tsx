@@ -4,7 +4,7 @@ import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, Fil
 import { Order, Customer, SavedAddress } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
 
-type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee'>;
+type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean };
 
 interface DeliveryFormProps {
   onSubmit: (data: OrderFormData) => void;
