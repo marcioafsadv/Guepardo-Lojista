@@ -719,7 +719,8 @@ function App() {
 
     // --- STATE MACHINE ACTIONS (MANDATORY VALIDATION) ---
 
-    const handleMarkAsReady = (orderId: string) => {
+    const handleMarkAsReady = async (orderId: string) => {
+        // Optimistic update
         setOrders(prev => prev.map(o => {
             if (o.id !== orderId) return o;
             const newEvent: OrderEvent = { status: OrderStatus.READY_FOR_PICKUP, label: "Pronto p/ Coleta", timestamp: new Date(), description: "Lojista marcou como pronto." };
@@ -730,6 +731,22 @@ function App() {
             };
         }));
 
+        try {
+            const { error } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'ready_for_pickup',
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (error) throw error;
+            console.log("✅ Order marked as ready in DB:", orderId);
+        } catch (err) {
+            console.error("❌ Error marking order as ready:", err);
+            // Revert optimistic update if needed, but for now we keep it to not disrupt UI
+            setNotification({ title: "Erro", message: "Falha ao atualizar status no sistema." });
+        }
     };
 
     const handleValidatePickup = (orderId: string) => {
