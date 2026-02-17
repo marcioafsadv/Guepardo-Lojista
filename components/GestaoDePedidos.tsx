@@ -117,6 +117,16 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         if (activeOrder?.id === orderId) {
             handleCloseDrawer();
         }
+        // SAFETY: Clear draft route if it happens to be lingering
+        setDraftAddress('');
+        setRouteStats(null);
+    };
+
+    const handleNewOrderSubmit = (data: any) => {
+        onNewOrder(data);
+        // Clear draft route upon successful submission
+        setDraftAddress('');
+        setRouteStats(null);
     };
 
     const handleCardClick = (order: Order) => {
@@ -125,6 +135,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
     // --- FILTER LOGIC ---
     const activeOrders = useMemo(() => {
+        // Define statuses that should appear in the Active Board
         const validStatuses = [
             OrderStatus.PENDING,
             OrderStatus.ACCEPTED,
@@ -133,14 +144,16 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             OrderStatus.READY_FOR_PICKUP,
             OrderStatus.IN_TRANSIT,
             OrderStatus.RETURNING
+            // CANCELED and DELIVERED are excluded
         ];
 
         let filtered = orders.filter(o => validStatuses.includes(o.status));
 
         if (searchTerm) {
+            const term = searchTerm.toLowerCase();
             filtered = filtered.filter(o =>
-                o.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                o.id.includes(searchTerm)
+                o.clientName.toLowerCase().includes(term) ||
+                o.id.toLowerCase().includes(term)
             );
         }
 
@@ -276,7 +289,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         <div className="bg-white dark:bg-white/5 backdrop-blur-md rounded-2xl shadow-sm dark:shadow-lg border border-gray-200 dark:border-white/10 overflow-hidden transition-shadow hover:shadow-md dark:hover:shadow-glow-sm">
                             <div className="p-5">
                                 <DeliveryForm
-                                    onSubmit={onNewOrder}
+                                    onSubmit={handleNewOrderSubmit}
                                     isSubmitting={false}
                                     existingCustomers={customers}
                                     onAddressChange={setDraftAddress}

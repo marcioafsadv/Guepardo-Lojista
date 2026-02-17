@@ -859,6 +859,25 @@ function App() {
 
         setNotification({ title: "Pedido Cancelado", message: "Solicitação interrompida e motoboy liberado." });
         setTimeout(() => setNotification(null), 4000);
+
+        // 4. Persist to Supabase
+        const cancelOrderInDB = async () => {
+            try {
+                const { error } = await supabase
+                    .from('deliveries')
+                    .update({
+                        status: 'cancelled'
+                    })
+                    .eq('id', orderId);
+
+                if (error) throw error;
+                console.log("✅ Order cancelled in DB:", orderId);
+            } catch (err) {
+                console.error("❌ Error cancelling order in DB:", err);
+                setNotification({ title: "Erro", message: "Falha ao cancelar no servidor." });
+            }
+        };
+        cancelOrderInDB();
     };
 
 
