@@ -385,7 +385,14 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                                         <div className="flex gap-2">
                                                             {/* Courier Mini-Card - High Contrast & Green for Contact */}
                                                             <div
-                                                                onClick={() => order.courier?.phone && window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank')}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (order.courier?.phone) {
+                                                                        window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank');
+                                                                    } else {
+                                                                        alert('Entregador sem telefone cadastrado.');
+                                                                    }
+                                                                }}
                                                                 className="flex-1 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg p-2 border border-green-200 dark:border-green-800 shadow-sm cursor-pointer group transition-all"
                                                                 title="Falar com Entregador via WhatsApp"
                                                             >
