@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Order, OrderStatus, Courier, StoreProfile, Customer } from '../types';
+import { Order, OrderStatus, Courier, StoreProfile, Customer, RouteStats } from '../types';
 import { DeliveryForm } from './DeliveryForm';
 import { LiveMap } from './LiveMap';
 import { PickupValidationModal } from './PickupValidationModal';
@@ -59,6 +59,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [validationModalOpen, setValidationModalOpen] = useState(false);
     const [cancellationModalOpen, setCancellationModalOpen] = useState(false);
     const [orderToInteract, setOrderToInteract] = useState<Order | null>(null); // Shared for Validation & Cancellation
+
+    // --- VISUAL ROUTE FEEDBACK STATE ---
+    const [draftAddress, setDraftAddress] = useState<string>('');
+    const [routeStats, setRouteStats] = useState<RouteStats | null>(null);
 
     // Drawer State
     const [showDetailDrawer, setShowDetailDrawer] = useState(false);
@@ -252,6 +256,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     filteredOrders={activeOrders}
                     availableCouriers={availableCouriers}
                     theme={theme}
+                    draftDestinationAddress={draftAddress}
+                    onRouteCalculated={setRouteStats}
                 />
             </div>
 
@@ -273,6 +279,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                     onSubmit={onNewOrder}
                                     isSubmitting={false}
                                     existingCustomers={customers}
+                                    onAddressChange={setDraftAddress}
+                                    routeStats={routeStats}
                                 />
                             </div>
                         </div>

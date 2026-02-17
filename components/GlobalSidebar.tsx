@@ -16,7 +16,7 @@ interface GlobalSidebarProps {
 export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onChangeView, hasActiveOrders }) => {
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'operational', label: 'Chamar Guepardo', icon: MapPin },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'history', label: 'Histórico', icon: History },

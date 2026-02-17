@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight } from 'lucide-react';
-import { Order, Customer, SavedAddress } from '../types';
+import { Order, Customer, SavedAddress, RouteStats } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
 
 type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean };
@@ -10,9 +10,11 @@ interface DeliveryFormProps {
   onSubmit: (data: OrderFormData) => void;
   isSubmitting: boolean;
   existingCustomers: Customer[];
+  onAddressChange: (address: string) => void;
+  routeStats: RouteStats | null;
 }
 
-export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitting, existingCustomers }) => {
+export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitting, existingCustomers, onAddressChange, routeStats }) => {
   // Client & Payment
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -96,6 +98,18 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitti
     setCustomerNote(null);
     setIsReturnRequired(false);
   };
+
+
+  // --- ADDRESS CHANGE DEBOUNCER ---
+  useEffect(() => {
+    // Only trigger if we have at least Street and Number
+    if (street && number) {
+      const full = `${street}, ${number} - ${cityState}`;
+      onAddressChange(full);
+    } else {
+      onAddressChange('');
+    }
+  }, [street, number, cityState, onAddressChange]);
 
   // --- AUTOCOMPLETE LOGIC ---
   const filteredCustomers = clientName.length > 1
@@ -442,6 +456,14 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitti
             <div className="flex justify-between items-center text-xs text-guepardo-orange font-medium">
               <span className="flex items-center gap-1"><ArrowLeftRight size={10} /> Taxa Retorno (50%):</span>
               <span>+ R$ {returnFee.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* DYNAMIC ROUTE STATS */}
+          {routeStats && (
+            <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 font-medium animate-in fade-in">
+              <span className="flex items-center gap-1"><MapPin size={10} /> Distância:</span>
+              <span>{routeStats.distanceText} ({routeStats.durationText})</span>
             </div>
           )}
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Courier, Order, OrderStatus, StoreProfile } from '../types';
-import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
+import { Courier, Order, OrderStatus, StoreProfile, RouteStats } from '../types';
+import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow, DirectionsService, DirectionsRenderer } from '@react-google-maps/api';
 import { Crosshair, Plus, Minus } from 'lucide-react';
 
 interface LiveMapProps {
@@ -10,6 +10,8 @@ interface LiveMapProps {
     availableCouriers?: Courier[];
     onCourierLocationUpdate?: (lat: number, lng: number) => void;
     theme?: string;
+    draftDestinationAddress?: string;
+    onRouteCalculated?: (stats: RouteStats | null) => void;
 }
 
 const containerStyle = {
@@ -101,7 +103,7 @@ const darkMapStyle = [
     }
 ];
 
-export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOrders = [], availableCouriers = [], theme = 'dark' }) => {
+export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOrders = [], availableCouriers = [], theme = 'dark', draftDestinationAddress, onRouteCalculated }) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: "AIzaSyBIttodmc3z2FrmG4rBFgD_Xct7UYt43es",
@@ -110,6 +112,10 @@ export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOr
 
     const [map, setMap] = useState<google.maps.Map | null>(null);
     const [selectedMarker, setSelectedMarker] = useState<any>(null);
+
+    // Draft Route State
+    const [draftRoute, setDraftRoute] = useState<google.maps.DirectionsResult | null>(null);
+    const lastDraftAddressRef = React.useRef<string>('');
 
     const onLoad = useCallback(function callback(map: google.maps.Map) {
         setMap(map);
@@ -129,11 +135,49 @@ export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOr
             bounds.extend({ lat: activeOrder.destinationLat, lng: activeOrder.destinationLng });
             bounds.extend({ lat: store.lat, lng: store.lng }); // Include store
             map.fitBounds(bounds, 50);
-        } else if (map) {
-            // If no active order, perform a simpler recenter or bounds fit
-            // Maybe fit bounds of all filtered orders?
+        } else if (map && draftRoute && draftRoute.routes[0] && draftRoute.routes[0].bounds) {
+            // Fit bounds to draft route
+            map.fitBounds(draftRoute.routes[0].bounds, 50);
         }
-    }, [map, activeOrder]);
+    }, [map, activeOrder, draftRoute]);
+
+    // --- EFFECT: GEOCODE & ROUTE DRAFT ADDRESS ---
+    useEffect(() => {
+        if (!isLoaded || !draftDestinationAddress || draftDestinationAddress.length < 10) {
+            setDraftRoute(null);
+            if (onRouteCalculated) onRouteCalculated(null);
+            return;
+        }
+
+        if (draftDestinationAddress === lastDraftAddressRef.current) return;
+        lastDraftAddressRef.current = draftDestinationAddress;
+
+        const directionsService = new google.maps.DirectionsService();
+
+        directionsService.route({
+            origin: { lat: store.lat, lng: store.lng },
+            destination: draftDestinationAddress,
+            travelMode: google.maps.TravelMode.DRIVING,
+        }, (result, status) => {
+            if (status === google.maps.DirectionsStatus.OK && result) {
+                setDraftRoute(result);
+                // Extract stats
+                const leg = result.routes[0].legs[0];
+                if (onRouteCalculated && leg.distance && leg.duration) {
+                    onRouteCalculated({
+                        distanceText: leg.distance.text,
+                        distanceValue: leg.distance.value,
+                        durationText: leg.duration.text,
+                        durationValue: leg.duration.value
+                    });
+                }
+            } else {
+                // setDraftRoute(null); // Optional: keep old or clear
+                console.error("Directions lookup failed", status);
+            }
+        });
+
+    }, [draftDestinationAddress, store.lat, store.lng]); // Warning: stable prop dependency needed usually, but basic strings/numbers ok
 
 
     // Styles
@@ -239,6 +283,21 @@ export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOr
                     </>
                 )}
 
+                {/* DRAFT ROUTE RENDERER */}
+                {draftRoute && (
+                    <DirectionsRenderer
+                        directions={draftRoute}
+                        options={{
+                            suppressMarkers: false, // Show A/B markers for clarity on draft
+                            polylineOptions: {
+                                strokeColor: '#FF6B00', // Guepardo Orange
+                                strokeOpacity: 0.7,
+                                strokeWeight: 5
+                            },
+                        }}
+                    />
+                )}
+
 
                 {/* INFO WINDOW */}
                 {selectedMarker && (
@@ -312,6 +371,6 @@ export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOr
                     <Crosshair size={18} />
                 </button>
             </div>
-        </div>
+        </div >
     );
 };

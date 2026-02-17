@@ -238,7 +238,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
       {/* HEADER & FILTERS */}
       <div className="px-8 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Dashboard Operacional</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Painel Operacional</h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-status-green animate-pulse"></span>
             Loja Online • Padaria Rebeca

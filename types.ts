@@ -132,3 +132,10 @@ export interface StoreProfile {
   lat: number;
   lng: number;
 }
+
+export interface RouteStats {
+  distanceText: string;
+  distanceValue: number; // meters
+  durationText: string;
+  durationValue: number; // seconds
+}
