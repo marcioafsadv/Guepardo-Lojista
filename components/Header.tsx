@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, ChevronDown } from 'lucide-react';
+import { Bell, ChevronDown, Store } from 'lucide-react';
 import { StoreProfile } from '../types';
 
 interface HeaderProps {
@@ -26,12 +26,8 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
                         }`}
                 >
                     {/* Client Logo/Avatar */}
-                    <div className={`w-8 h-8 rounded-full border-2 overflow-hidden relative transition-colors ${isOpen ? 'bg-white border-white/20' : 'bg-red-900/50 border-red-500/50 grayscale'}`}>
-                        <img
-                            src="https://ui-avatars.com/api/?name=Padaria+Rebeca&background=1E1E1E&color=D35400"
-                            alt="Store Logo"
-                            className={`w-full h-full object-cover transition-all ${!isOpen && 'opacity-50'}`}
-                        />
+                    <div className={`w-8 h-8 rounded-full border-2 overflow-hidden relative transition-colors flex items-center justify-center ${isOpen ? 'bg-white border-white/20' : 'bg-red-900/50 border-red-500/50 grayscale'}`}>
+                        <Store className={`w-5 h-5 transition-colors ${isOpen ? 'text-black' : 'text-red-300'}`} />
                     </div>
 
                     {/* Client Info */}

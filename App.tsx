@@ -86,6 +86,7 @@ function App() {
     const [realStoreProfile, setRealStoreProfile] = useState<StoreProfile | null>(null);
 
     // Fetch Store Profile & Realtime Subscription
+    // Fetch Store Profile & Realtime Subscription
     useEffect(() => {
         if (!session?.user) return;
 
@@ -98,11 +99,34 @@ function App() {
                 .single();
 
             if (data) {
+                const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
+                let lat = -23.257217; // Default Fallback
+                let lng = -47.300549; // Default Fallback
+
+                // Attempt Geocoding
+                try {
+                    const encodedAddress = encodeURIComponent(fullAddress);
+                    const apiKey = "AIzaSyBIttodmc3z2FrmG4rBFgD_Xct7UYt43es";
+                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`);
+                    const result = await response.json();
+
+                    if (result.status === 'OK' && result.results && result.results.length > 0) {
+                        const location = result.results[0].geometry.location;
+                        lat = location.lat;
+                        lng = location.lng;
+                        console.log("📍 [GEOCODING] Found coordinates:", lat, lng);
+                    } else {
+                        console.warn("⚠️ [GEOCODING] Failed:", result.status);
+                    }
+                } catch (geoError) {
+                    console.error("❌ [GEOCODING] Error:", geoError);
+                }
+
                 setRealStoreProfile({
                     name: data.fantasy_name || data.company_name,
-                    address: `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`,
-                    lat: -23.257217, // Mock coords for now as we don't have geocoding in stores table yet
-                    lng: -47.300549
+                    address: fullAddress,
+                    lat: lat,
+                    lng: lng
                 });
             }
         };

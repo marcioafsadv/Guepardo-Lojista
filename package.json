@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-google-maps/api": "^2.20.8",
     "@supabase/supabase-js": "^2.95.3",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
