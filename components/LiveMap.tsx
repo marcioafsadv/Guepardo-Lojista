@@ -107,6 +107,7 @@ export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOr
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
         googleMapsApiKey: "AIzaSyBIttodmc3z2FrmG4rBFgD_Xct7UYt43es",
+        language: 'pt-BR',
         libraries: LIBRARIES
     });
 
