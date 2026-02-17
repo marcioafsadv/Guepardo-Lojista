@@ -7,7 +7,7 @@ import { PickupValidationModal } from './PickupValidationModal';
 import { OrderServiceDetail } from './OrderServiceDetail';
 import { CancellationModal } from './CancellationModal';
 import {
-    Clock, MapPin, AlertCircle, Lock, LockOpen, PackageCheck, Send, Loader2,
+    Clock, MapPin, AlertCircle, Lock, LockOpen, PackageCheck, Send, Loader2, MessageCircle,
     ChevronRight, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck
 } from 'lucide-react';
 
@@ -383,12 +383,24 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                                     {/* ACTION: PREPARE (Entregador chegando) */}
                                                     {config.action === 'PREPARE' && (
                                                         <div className="flex gap-2">
-                                                            {/* Courier Mini-Card - High Contrast */}
-                                                            <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-white rounded-lg p-2 border border-gray-100 dark:border-transparent shadow-sm">
-                                                                <img src={order.courier?.photoUrl} className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-gray-200" />
+                                                            {/* Courier Mini-Card - High Contrast & Green for Contact */}
+                                                            <div
+                                                                onClick={() => order.courier?.phone && window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank')}
+                                                                className="flex-1 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg p-2 border border-green-200 dark:border-green-800 shadow-sm cursor-pointer group transition-all"
+                                                                title="Falar com Entregador via WhatsApp"
+                                                            >
+                                                                <div className="relative">
+                                                                    <img src={order.courier?.photoUrl} className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-green-200 dark:border-green-700" />
+                                                                    <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border border-white">
+                                                                        <MessageCircle size={8} color="white" strokeWidth={3} />
+                                                                    </div>
+                                                                </div>
                                                                 <div className="overflow-hidden">
-                                                                    <p className="text-[10px] font-bold text-gray-900 truncate">{order.courier?.name}</p>
-                                                                    <p className="text-[9px] text-gray-500 font-mono truncate">{order.courier?.vehiclePlate}</p>
+                                                                    <p className="text-[10px] font-bold text-green-900 dark:text-green-100 truncate group-hover:text-green-700 transition-colors">{order.courier?.name}</p>
+                                                                    <p className="text-[9px] text-green-700 dark:text-green-300 font-mono truncate flex items-center gap-1">
+                                                                        {order.courier?.vehiclePlate}
+                                                                        <span className="text-[8px] opacity-70">(WhatsApp)</span>
+                                                                    </p>
                                                                 </div>
                                                             </div>
                                                             <button
