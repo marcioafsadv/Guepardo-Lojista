@@ -54,6 +54,7 @@ export interface OrderEvent {
 
 export interface Order {
   id: string;
+  display_id?: string; // 4-digit numeric ID for display
   clientName: string;
   clientPhone?: string; // New field for CRM
   destination: string; // Full concatenated string for display

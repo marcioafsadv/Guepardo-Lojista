@@ -261,7 +261,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                             filteredOrders.map(order => (
                                 <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-guepardo-gray-800/50 group transition-colors cursor-pointer print:break-inside-avoid" onClick={() => onSelectOrder(order)}>
                                     <td className="p-4">
-                                        <span className="block font-mono text-xs font-bold text-gray-900 dark:text-guepardo-accent">#{order.id.slice(-4)}</span>
+                                        <span className="block font-mono text-xs font-bold text-gray-900 dark:text-guepardo-accent">#{order.display_id || order.id.slice(-4)}</span>
                                         <span className="text-xs text-gray-500">{new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     </td>
                                     <td className="p-4">

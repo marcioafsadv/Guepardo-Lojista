@@ -109,7 +109,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
       <div className="flex justify-between items-start mb-4">
         <div>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 text-[10px] font-mono font-bold uppercase tracking-wider mb-1.5">
-            #{order.id.slice(-4)}
+            #{order.display_id || order.id.slice(-4)}
           </span>
           {/* Client Name: High Contrast */}
           <h3 className="font-bold text-[18px] leading-tight text-[#121212] dark:text-white font-sans">

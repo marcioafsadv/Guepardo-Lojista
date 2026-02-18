@@ -349,7 +349,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                                 <div className="flex justify-between items-start mb-2 pr-6">
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded border border-gray-200 dark:border-transparent">
-                                                            #{order.id.slice(-4)}
+                                                            #{order.display_id || order.id.slice(-4)}
                                                         </span>
                                                         {/* PAYMENT ICON */}
                                                         <div className="p-1 rounded bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10" title={order.paymentMethod}>

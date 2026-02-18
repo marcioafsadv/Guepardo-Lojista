@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { StoreSettings } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2 } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -293,7 +294,42 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                     </div>
                 </section>
 
-                {/* 6. LOGOUT */}
+                {/* 6. ZONA DE PERIGO (RESET) */}
+                <section className="bg-red-50 dark:bg-red-900/10 rounded-2xl p-6 border border-red-200 dark:border-red-900/30 transition-colors duration-300">
+                    <h3 className="text-lg font-bold text-red-600 dark:text-red-500 mb-4 flex items-center gap-2">
+                        <Trash2 size={20} /> Zona de Perigo
+                    </h3>
+                    <p className="text-sm text-red-800 dark:text-red-400 mb-4">
+                        Ações irreversíveis. Tenha cuidado.
+                    </p>
+                    <button
+                        onClick={async () => {
+                            if (confirm('ATENÇÃO: Isso apagará TODO o histórico de pedidos da loja e dos entregadores.\n\nTem certeza absoluta?')) {
+                                if (confirm('Esta ação não pode ser desfeita. Confirmar exclusão total?')) {
+                                    try {
+                                        const { error } = await supabase
+                                            .from('deliveries')
+                                            .delete()
+                                            .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all rows
+
+                                        if (error) throw error;
+                                        alert('Histórico limpo com sucesso!');
+                                        window.location.reload(); // Refresh to clear local state
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        alert('Erro ao limpar histórico: ' + (err.message || 'Erro desconhecido'));
+                                    }
+                                }
+                            }
+                        }}
+                        className="w-full md:w-auto px-6 py-3 rounded-xl font-bold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2"
+                    >
+                        <Trash2 size={18} />
+                        Zerar Pedidos e Histórico
+                    </button>
+                </section>
+
+                {/* 7. LOGOUT */}
                 <section className="flex justify-end pt-8 border-t border-gray-200 dark:border-guepardo-gray-800">
                     <button
                         onClick={async () => {

@@ -89,11 +89,11 @@ const OrderContent: React.FC<{
                     </div>
                 )}
 
-                {/* Security PIN */}
+                {/* Order Number (Previously Security PIN) */}
                 <div className={`bg-gradient-to-r from-orange-500/10 ${isDark ? 'to-orange-900/10' : 'to-orange-100/50'} border border-orange-500/30 rounded-2xl p-4 text-center`}>
-                    <span className="text-[10px] font-bold text-orange-600 dark:text-orange-500 uppercase tracking-widest block mb-1">PIN de Segurança</span>
+                    <span className="text-[10px] font-bold text-orange-600 dark:text-orange-500 uppercase tracking-widest block mb-1">Número do Pedido</span>
                     <span className={`text-4xl font-mono font-black tracking-[0.2em] drop-shadow-[0_0_10px_rgba(249,115,22,0.5)] ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-white' : 'text-gray-900')}`}>
-                        {securityPin}
+                        #{order.display_id || order.id.slice(-4)}
                     </span>
                 </div>
 

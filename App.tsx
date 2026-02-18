@@ -284,7 +284,46 @@ function App() {
 
                 if (!deliveries) return;
 
-                // Update orders state with latest data
+                // 1. Handle NEW Orders (Sync from Supabase)
+                const newDeliveries = deliveries.filter(d => !orders.some(o => o.id === d.id));
+                if (newDeliveries.length > 0) {
+                    console.log(`📥 [SYNC] Found ${newDeliveries.length} new orders`);
+                    const newOrdersList: Order[] = newDeliveries.map(d => {
+                        const items = d.items as any || {};
+                        const parsedStatus = mapSupabaseStatusToLocal(d.status);
+                        return {
+                            id: d.id,
+                            display_id: items.displayId, // Retrieve 4-digit ID
+                            clientName: d.customer_name,
+                            destination: d.customer_address,
+                            // Map required address fields from the single string (best effort fallback)
+                            addressStreet: d.customer_address?.split(',')[0] || d.customer_address,
+                            addressNumber: d.customer_address?.split(',')[1] || 'S/N',
+                            addressNeighborhood: '',
+                            addressCity: 'Itu',
+                            deliveryValue: items.deliveryValue || 0,
+                            paymentMethod: items.paymentMethod || 'PIX',
+                            changeFor: items.changeFor,
+                            status: parsedStatus,
+                            createdAt: new Date(d.created_at),
+                            estimatedPrice: d.earnings || 0,
+                            distanceKm: 1.2,
+                            events: [{
+                                status: parsedStatus,
+                                label: getStatusLabel(parsedStatus),
+                                timestamp: new Date(d.created_at),
+                                description: 'Sincronizado'
+                            }],
+                            pickupCode: d.collection_code,
+                            isReturnRequired: items.isReturnRequired,
+                            destinationLat: items.destinationLat,
+                            destinationLng: items.destinationLng
+                        };
+                    });
+                    setOrders(prev => [...newOrdersList, ...prev]);
+                }
+
+                // 2. Update existing orders
                 for (const delivery of deliveries) {
                     const orderId = delivery.id;
                     const newStatus = delivery.status;
@@ -672,6 +711,7 @@ function App() {
         if (data.destination.includes('Carlos Scalet')) destCoords = { lat: -23.2680, lng: -47.3000 };
 
         const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+        const generatedId = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit layout ID
         const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
         const calculatedBase = settings.baseFreight + (Math.random() * 2);
         const returnFee = (mustReturn && settings.returnFeeActive) ? calculatedBase * 0.5 : 0;
@@ -691,6 +731,7 @@ function App() {
             destinationLng: destCoords.lng,
             events: [newEvent],
             pickupCode: generatedPin,
+            display_id: generatedId, // Add to local state
         };
 
         // Update Local State Optimistically
@@ -716,6 +757,7 @@ function App() {
                     collection_code: generatedPin, // Pickup code in dedicated column
                     status: 'pending',
                     items: {
+                        displayId: generatedId, // Store in JSON to avoid schema change
                         paymentMethod: data.paymentMethod,
                         deliveryValue: data.deliveryValue,
                         changeFor: data.changeFor,
