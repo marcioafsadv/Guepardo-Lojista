@@ -106,7 +106,7 @@ const darkMapStyle = [
 export const LiveMap: React.FC<LiveMapProps> = ({ store, activeOrder, filteredOrders = [], availableCouriers = [], theme = 'dark', draftDestinationAddress, onRouteCalculated }) => {
     const { isLoaded } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: "AIzaSyBIttodmc3z2FrmG4rBFgD_Xct7UYt43es",
+        googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
         language: 'pt-BR',
         libraries: LIBRARIES
     });

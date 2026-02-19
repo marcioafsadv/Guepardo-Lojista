@@ -55,7 +55,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         value={formData.cnpj}
                         onChange={handleChange}
                         placeholder="00.000.000/0000-00"
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cnpj ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cnpj ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         maxLength={18}
                     />
                     {errors?.cnpj && <p className="text-red-500 text-sm mt-1">{errors.cnpj}</p>}
@@ -68,7 +68,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         name="razaoSocial"
                         value={formData.razaoSocial}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.razaoSocial ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.razaoSocial ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                     />
                     {errors?.razaoSocial && <p className="text-red-500 text-sm mt-1">{errors.razaoSocial}</p>}
                 </div>
@@ -80,7 +80,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         name="nomeFantasia"
                         value={formData.nomeFantasia}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeFantasia ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeFantasia ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                     />
                     {errors?.nomeFantasia && <p className="text-red-500 text-sm mt-1">{errors.nomeFantasia}</p>}
                 </div>
@@ -93,7 +93,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         value={formData.telefone}
                         onChange={handleChange}
                         placeholder="(00) 00000-0000"
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.telefone ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.telefone ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         maxLength={15}
                     />
                     {errors?.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}

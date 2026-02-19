@@ -106,7 +106,7 @@ function App() {
                 // Attempt Geocoding
                 try {
                     const encodedAddress = encodeURIComponent(fullAddress);
-                    const apiKey = "AIzaSyBIttodmc3z2FrmG4rBFgD_Xct7UYt43es";
+                    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
                     const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`);
                     const result = await response.json();
 
@@ -713,9 +713,11 @@ function App() {
         const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
         const generatedId = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit layout ID
         const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
-        const calculatedBase = settings.baseFreight + (Math.random() * 2);
-        const returnFee = (mustReturn && settings.returnFeeActive) ? calculatedBase * 0.5 : 0;
-        const finalPrice = calculatedBase + returnFee;
+
+        // Use real calculated values from form if available
+        const distanceKm = (data as any).calculatedDistance || 1.2;
+        const finalPrice = (data as any).calculatedEarnings || 7.50;
+        const returnFee = mustReturn ? (finalPrice / 1.5) * 0.5 : 0; // Approximate backport if needed
 
         const newEvent: OrderEvent = { status: OrderStatus.PENDING, label: "Solicitado", timestamp: new Date(), description: "Aguardando entregadores..." };
         const newOrder: Order = {
@@ -726,7 +728,7 @@ function App() {
             estimatedPrice: finalPrice,
             returnFee: returnFee,
             isReturnRequired: mustReturn,
-            distanceKm: 1.2,
+            distanceKm: distanceKm,
             destinationLat: destCoords.lat,
             destinationLng: destCoords.lng,
             events: [newEvent],
@@ -765,7 +767,8 @@ function App() {
                         destinationLat: destCoords.lat,
                         destinationLng: destCoords.lng
                     },
-                    earnings: finalPrice // Store the delivery price
+                    earnings: finalPrice, // Store the final delivery price
+                    delivery_distance: distanceKm // Save the actual distance
                 })
                 .select()
                 .single();

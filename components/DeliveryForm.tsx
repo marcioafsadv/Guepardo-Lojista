@@ -4,7 +4,11 @@ import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, Fil
 import { Order, Customer, SavedAddress, RouteStats } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
 
-type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean };
+type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & {
+  isReturnRequired?: boolean;
+  calculatedDistance?: number;
+  calculatedEarnings?: number;
+};
 
 interface DeliveryFormProps {
   onSubmit: (data: OrderFormData) => void;
@@ -80,7 +84,10 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitti
       deliveryValue: parseFloat(deliveryValue) || 0,
       paymentMethod,
       changeFor: paymentMethod === 'CASH' && changeFor ? parseFloat(changeFor) : null,
-      isReturnRequired
+      isReturnRequired,
+      // Pass calculated values to parent
+      calculatedDistance: routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 1.2,
+      calculatedEarnings: totalFreight
     });
 
     // Reset form
@@ -177,8 +184,20 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, isSubmitti
     setComplement("Casa Verde");
   };
 
-  // --- FREIGHT CALCULATION LOGIC ---
-  const baseFreight = street ? 8.50 + (street.length * 0.10) : 8.50;
+  // --- FREIGHT CALCULATION LOGIC (Base iFood 2025/26) ---
+  const MIN_DELIVERY_FEE = 7.50;
+  const PER_KM_RATE = 1.50;
+
+  const calculateBaseFreight = () => {
+    if (!routeStats?.distanceValue) return MIN_DELIVERY_FEE;
+
+    const distanceKm = routeStats.distanceValue / 1000;
+    const calculatedFee = distanceKm * PER_KM_RATE;
+
+    return Math.max(MIN_DELIVERY_FEE, calculatedFee);
+  };
+
+  const baseFreight = calculateBaseFreight();
   const returnFee = isReturnRequired ? baseFreight * 0.5 : 0;
   const totalFreight = baseFreight + returnFee;
 

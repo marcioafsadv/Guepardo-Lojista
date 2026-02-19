@@ -54,7 +54,7 @@ const Step3Access: React.FC<StepProps> = ({ formData, updateFormData, nextStep, 
                         value={formData.nomeResponsavel}
                         onChange={handleChange}
                         placeholder="Nome completo"
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeResponsavel ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeResponsavel ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                     />
                     {errors?.nomeResponsavel && <p className="text-red-500 text-sm mt-1">{errors.nomeResponsavel}</p>}
                 </div>
@@ -67,7 +67,7 @@ const Step3Access: React.FC<StepProps> = ({ formData, updateFormData, nextStep, 
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="seu@email.com"
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                     />
                     {errors?.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
                 </div>
@@ -80,7 +80,7 @@ const Step3Access: React.FC<StepProps> = ({ formData, updateFormData, nextStep, 
                             name="senha"
                             value={formData.senha}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.senha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.senha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         <button
                             type="button"
@@ -102,7 +102,7 @@ const Step3Access: React.FC<StepProps> = ({ formData, updateFormData, nextStep, 
                             name="confirmarSenha"
                             value={formData.confirmarSenha}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.confirmarSenha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.confirmarSenha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         <button
                             type="button"

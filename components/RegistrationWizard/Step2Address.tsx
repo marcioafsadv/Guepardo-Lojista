@@ -89,7 +89,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                                 value={formData.cep}
                                 onChange={handleChange}
                                 placeholder="00000-000"
-                                className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cep ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                                className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cep ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                                 maxLength={9}
                             />
                             {loadingCep && (
@@ -111,7 +111,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                             name="rua"
                             value={formData.rua}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.rua ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.rua ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         {errors?.rua && <p className="text-red-500 text-sm mt-1">{errors.rua}</p>}
                     </div>
@@ -122,7 +122,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                             name="numero"
                             value={formData.numero}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.numero ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.numero ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         {errors?.numero && <p className="text-red-500 text-sm mt-1">{errors.numero}</p>}
                     </div>
@@ -136,7 +136,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         value={formData.complemento}
                         onChange={handleChange}
                         placeholder="Apto, Sala, Bloco..."
-                        className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all"
+                        className="w-full p-3 border border-gray-200 rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all"
                     />
                 </div>
 
@@ -147,7 +147,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         name="bairro"
                         value={formData.bairro}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.bairro ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.bairro ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                     />
                     {errors?.bairro && <p className="text-red-500 text-sm mt-1">{errors.bairro}</p>}
                 </div>
@@ -160,7 +160,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                             name="cidade"
                             value={formData.cidade}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cidade ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cidade ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         {errors?.cidade && <p className="text-red-500 text-sm mt-1">{errors.cidade}</p>}
                     </div>
@@ -172,7 +172,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                             value={formData.estado}
                             onChange={handleChange}
                             maxLength={2}
-                            className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all uppercase ${errors?.estado ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all uppercase ${errors?.estado ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                         />
                         {errors?.estado && <p className="text-red-500 text-sm mt-1">{errors.estado}</p>}
                     </div>
