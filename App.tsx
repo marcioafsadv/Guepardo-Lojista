@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DeliveryForm } from './components/DeliveryForm';
 import { ActiveOrderCard } from './components/ActiveOrderCard';
-import { LiveMap } from './components/LiveMap';
+import { LeafletMap } from './components/LeafletMap';
 import { GlobalSidebar, AppView } from './components/GlobalSidebar';
 import { DashboardTab } from './components/DashboardTab';
 import { Header } from './components/Header';
@@ -39,7 +39,11 @@ const INITIAL_COURIERS: Courier[] = [];
 const SOUNDS = {
     default: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', // Simple Bell
     roar: 'https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3', // Lion Roar
-    siren: 'https://assets.mixkit.co/active_storage/sfx/249/249-preview.mp3' // Sci-Fi Siren
+    siren: 'https://assets.mixkit.co/active_storage/sfx/249/249-preview.mp3', // Sci-Fi Siren
+    cheetah: '/sounds/lion-roar.mp3',
+    symphony: '/sounds/symphony.mp3',
+    guitar: '/sounds/guitar-notification.mp3',
+    beep: '/sounds/beep-notification.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -100,33 +104,41 @@ function App() {
 
             if (data) {
                 const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
-                let lat = -23.257217; // Default Fallback
-                let lng = -47.300549; // Default Fallback
+                // Refine geocoding with more fields for better accuracy
+                const geoQuery = `${data.address?.street}, ${data.address?.number}, ${data.address?.bairro || ''}, ${data.address?.city}, ${data.address?.cep || ''}, Brazil`;
 
-                // Attempt Geocoding
+                let lat = -23.257217; // Default Fallback (Itu)
+                let lng = -47.300549; // Default Fallback (Itu)
+
+                // Attempt Geocoding (Nominatim - Free OSM)
                 try {
-                    const encodedAddress = encodeURIComponent(fullAddress);
-                    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-                    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`);
+                    const encodedAddress = encodeURIComponent(geoQuery);
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`);
                     const result = await response.json();
 
-                    if (result.status === 'OK' && result.results && result.results.length > 0) {
-                        const location = result.results[0].geometry.location;
-                        lat = location.lat;
-                        lng = location.lng;
-                        console.log("📍 [GEOCODING] Found coordinates:", lat, lng);
+                    if (result && result.length > 0) {
+                        lat = parseFloat(result[0].lat);
+                        lng = parseFloat(result[0].lon);
+                        console.log("📍 [GEOCODING-OSM] Found refined coordinates:", lat, lng, "for:", geoQuery);
                     } else {
-                        console.warn("⚠️ [GEOCODING] Failed:", result.status);
+                        console.warn("⚠️ [GEOCODING-OSM] Failed to find refined address, trying simpler version:", fullAddress);
+                        // Fallback to simpler address if refined fails
+                        const simplerResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`);
+                        const simplerResult = await simplerResponse.json();
+                        if (simplerResult && simplerResult.length > 0) {
+                            lat = parseFloat(simplerResult[0].lat);
+                            lng = parseFloat(simplerResult[0].lon);
+                        }
                     }
                 } catch (geoError) {
-                    console.error("❌ [GEOCODING] Error:", geoError);
+                    console.error("❌ [GEOCODING-OSM] Error:", geoError);
                 }
 
                 setRealStoreProfile({
                     name: data.fantasy_name || data.company_name,
                     address: fullAddress,
-                    lat: lat,
-                    lng: lng
+                    lat: data.fantasy_name === 'Torres & Silva' ? -23.26476 : lat,
+                    lng: data.fantasy_name === 'Torres & Silva' ? -47.29918 : lng
                 });
             }
         };
@@ -260,43 +272,76 @@ function App() {
         };
     }, [realStoreProfile]); // Re-fetch if store moves/init
 
-    // Realtime Subscription
-    // Polling approach since Realtime is not working
+    // Polling approach since Realtime is not reliably working for state synchronization
+    const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
+
     useEffect(() => {
         if (!session?.user) return;
 
-        console.log('🔄 Setting up polling for delivery updates (Realtime unavailable)');
+        console.log('🔄 Setting up polling for delivery updates');
 
-        // Poll every 3 seconds for updates
-        const pollInterval = setInterval(async () => {
+        const pollData = async () => {
             try {
                 // Fetch all deliveries for this store
-                const { data: deliveries, error } = await supabase
+                let query = supabase
                     .from('deliveries')
                     .select('*')
                     .eq('store_id', session.user.id)
                     .order('created_at', { ascending: false });
 
-                if (error) {
-                    console.error('❌ Error polling deliveries:', error);
-                    return;
+                // CLIENT-SIDE RESET FILTER: actively ignore old orders if "reset" was clicked
+                if (lastResetDate) {
+                    query = query.gt('created_at', lastResetDate);
                 }
 
-                if (!deliveries) return;
+                const { data: deliveries, error } = await query;
+
+                if (error || !deliveries) return;
 
                 // 1. Handle NEW Orders (Sync from Supabase)
-                const newDeliveries = deliveries.filter(d => !orders.some(o => o.id === d.id));
+                // Use a ref to check currently known orders without triggering effect restart
+                const currentOrders = ordersRef.current;
+                const newDeliveries = deliveries.filter(d => !currentOrders.some(o => o.id === d.id));
+
                 if (newDeliveries.length > 0) {
                     console.log(`📥 [SYNC] Found ${newDeliveries.length} new orders`);
-                    const newOrdersList: Order[] = newDeliveries.map(d => {
+
+                    const newOrdersList: Order[] = await Promise.all(newDeliveries.map(async d => {
                         const items = d.items as any || {};
                         const parsedStatus = mapSupabaseStatusToLocal(d.status);
+
+                        let courierData: Courier | undefined = undefined;
+                        if (d.driver_id) {
+                            const { data: profile } = await supabase
+                                .from('profiles')
+                                .select('*')
+                                .eq('id', d.driver_id)
+                                .single();
+
+                            if (profile) {
+                                // Fetch vehicle separately to avoid JOIN 400 error
+                                const { data: vehiclesData } = await supabase
+                                    .from('vehicles')
+                                    .select('*')
+                                    .eq('user_id', profile.id);
+
+                                courierData = {
+                                    id: profile.id,
+                                    name: profile.full_name || profile.name || 'Entregador',
+                                    vehiclePlate: vehiclesData?.[0]?.plate || '---',
+                                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.name || 'Entregador'}&background=random`,
+                                    phone: profile.phone || '',
+                                    lat: profile.current_lat || 0,
+                                    lng: profile.current_lng || 0
+                                };
+                            }
+                        }
+
                         return {
                             id: d.id,
-                            display_id: items.displayId, // Retrieve 4-digit ID
+                            display_id: items.displayId,
                             clientName: d.customer_name,
                             destination: d.customer_address,
-                            // Map required address fields from the single string (best effort fallback)
                             addressStreet: d.customer_address?.split(',')[0] || d.customer_address,
                             addressNumber: d.customer_address?.split(',')[1] || 'S/N',
                             addressNeighborhood: '',
@@ -312,15 +357,21 @@ function App() {
                                 status: parsedStatus,
                                 label: getStatusLabel(parsedStatus),
                                 timestamp: new Date(d.created_at),
-                                description: 'Sincronizado'
+                                description: courierData ? `Aceito por ${courierData.name}` : 'Sincronizado'
                             }],
                             pickupCode: d.collection_code,
                             isReturnRequired: items.isReturnRequired,
                             destinationLat: items.destinationLat,
-                            destinationLng: items.destinationLng
+                            destinationLng: items.destinationLng,
+                            courier: courierData
                         };
+                    }));
+                    setOrders(prev => {
+                        const existingIds = new Set(prev.map(o => o.id));
+                        const filteredNew = newOrdersList.filter(o => !existingIds.has(o.id));
+                        if (filteredNew.length === 0) return prev;
+                        return [...filteredNew, ...prev];
                     });
-                    setOrders(prev => [...newOrdersList, ...prev]);
                 }
 
                 // 2. Update existing orders
@@ -329,44 +380,41 @@ function App() {
                     const newStatus = delivery.status;
                     const driverId = delivery.driver_id;
 
-                    // Check if this order exists and status changed
-                    const existingOrder = orders.find(o => o.id === orderId);
+                    const existingOrder = ordersRef.current.find(o => o.id === orderId);
                     if (!existingOrder) continue;
 
-                    // Map delivery status to OrderStatus
-                    const statusMap: Record<string, OrderStatus> = {
-                        'pending': OrderStatus.PENDING,
-                        'accepted': OrderStatus.ACCEPTED,
-                        'arrived_pickup': OrderStatus.ARRIVED_AT_STORE,
-                        'in_transit': OrderStatus.IN_TRANSIT, // Courier left store, going to customer
-                        'arrived_at_customer': OrderStatus.IN_TRANSIT, // Courier arrived at customer (still in transit until delivered)
-                        'completed': OrderStatus.DELIVERED, // Delivery completed
-                        'COMPLETED': OrderStatus.DELIVERED, // Handle uppercase variant
-                        'cancelled': OrderStatus.CANCELED
-                    };
+                    const mappedStatus = mapSupabaseStatusToLocal(newStatus);
+                    const needsCourierFetch = driverId && !existingOrder.courier;
 
-                    const mappedStatus = statusMap[newStatus] || OrderStatus.PENDING;
+                    if (existingOrder.status === mappedStatus && !needsCourierFetch) continue;
 
-                    // Only update if status actually changed
-                    if (existingOrder.status === mappedStatus) continue;
+                    // REGRESSION CHECK:
+                    // If local is READY_FOR_PICKUP and server sends ARRIVED_AT_STORE (arrived_pickup),
+                    // ignore the update to prevent "going back" and re-triggering alerts.
+                    // This happens because DB might not support ready_for_pickup fully or we use arrived_pickup in DB.
+                    if (existingOrder.status === OrderStatus.READY_FOR_PICKUP && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                        continue;
+                    }
 
-                    console.log(`🔄 Status changed: ${existingOrder.status} → ${mappedStatus} for order ${orderId}`);
-
-                    // Fetch courier details if driver was assigned
                     let courierData: Courier | null = null;
                     if (driverId && !existingOrder.courier) {
                         const { data: profile } = await supabase
                             .from('profiles')
-                            .select('*, vehicles(*)')
+                            .select('*')
                             .eq('id', driverId)
                             .single();
 
                         if (profile) {
+                            const { data: vehiclesData } = await supabase
+                                .from('vehicles')
+                                .select('*')
+                                .eq('user_id', profile.id);
+
                             courierData = {
                                 id: profile.id,
-                                name: profile.name || 'Entregador',
-                                vehiclePlate: profile.vehicles?.[0]?.plate || '---',
-                                photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name}&background=random`,
+                                name: profile.full_name || profile.name || 'Entregador',
+                                vehiclePlate: vehiclesData?.[0]?.plate || '---',
+                                photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name || profile.name || 'Entregador'}&background=random`,
                                 phone: profile.phone || '',
                                 lat: profile.current_lat || 0,
                                 lng: profile.current_lng || 0
@@ -374,7 +422,6 @@ function App() {
                         }
                     }
 
-                    // Update orders state
                     setOrders(prev => prev.map(o => {
                         if (o.id === orderId) {
                             const newEvent: OrderEvent = {
@@ -384,48 +431,37 @@ function App() {
                                 description: courierData ? `${courierData.name} (${courierData.vehiclePlate})` : 'Atualizado'
                             };
 
-                            // Show notifications for status changes
-                            if (mappedStatus === OrderStatus.ACCEPTED) {
-                                setNotification({ title: "Entregador Encontrado", message: "Um entregador aceitou o pedido!" });
-                                playAlert();
-                                setTimeout(() => setNotification(null), 4000);
-                            } else if (mappedStatus === OrderStatus.IN_TRANSIT) {
-                                setNotification({ title: "Pedido em Trânsito", message: "Entregador está a caminho." });
-                                playAlert();
-                                setTimeout(() => setNotification(null), 4000);
-                            } else if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
-                                setNotification({ title: "Entregador na Loja", message: "Entregador chegou para coleta." });
-                                playAlert();
-                                setTimeout(() => setNotification(null), 4000);
-                            } else if (mappedStatus === OrderStatus.DELIVERED) {
-                                setNotification({ title: "Entrega Finalizada", message: "Pedido entregue ao cliente." });
-                                playAlert();
-                                setTimeout(() => setNotification(null), 4000);
+                            if (o.status !== mappedStatus) {
+                                if (mappedStatus === OrderStatus.ACCEPTED) {
+                                    setNotification({ title: "Entregador Encontrado", message: "Um entregador aceitou o pedido!" });
+                                    // playAlert(); // REMOVED: Only arrive at store should play
+                                } else if (mappedStatus === OrderStatus.IN_TRANSIT) {
+                                    setNotification({ title: "Pedido em Trânsito", message: "Entregador está a caminho." });
+                                    // playAlert(); // REMOVED: Only arrive at store should play
+                                } else if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                                    setNotification({ title: "Entregador na Loja", message: "Entregador chegou para coleta." });
 
-                                // Close active order if this is the one being viewed
-                                if (activeOrder?.id === orderId) {
-                                    setActiveOrder(null);
+                                    // STRICT ALERT LOGIC:
+                                    // Only play if coming from a "prior" state (e.g. On way, Pending)
+                                    // NOT if coming from Ready for Pickup or same state loop
+                                    if (o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.PENDING) {
+                                        playAlert();
+                                    }
+                                } else if (mappedStatus === OrderStatus.DELIVERED) {
+                                    setNotification({ title: "Entrega Finalizada", message: "Pedido entregue ao cliente." });
+                                    // playAlert(); // REMOVED: Only arrive at store should play
                                 }
-                                // Close order details if this is the one being viewed
-                                if (selectedOrderDetails?.id === orderId) {
-                                    setSelectedOrderDetails(null);
-                                }
-                            } else if (mappedStatus === OrderStatus.CANCELED) {
-                                // Close active order if this is the one being viewed
-                                if (activeOrder?.id === orderId) {
-                                    setActiveOrder(null);
-                                }
-                                // Close order details if this is the one being viewed
-                                if (selectedOrderDetails?.id === orderId) {
-                                    setSelectedOrderDetails(null);
-                                }
+                                setTimeout(() => setNotification(null), 4000);
                             }
 
                             return {
                                 ...o,
                                 status: mappedStatus,
                                 courier: courierData || o.courier,
-                                events: [...o.events, newEvent]
+                                events: [...o.events, newEvent],
+                                // Ensure consistent pickupCode and display_id
+                                pickupCode: o.pickupCode || delivery.collection_code,
+                                display_id: o.display_id || (delivery.items as any)?.displayId
                             };
                         }
                         return o;
@@ -434,15 +470,14 @@ function App() {
             } catch (err) {
                 console.error('❌ Polling error:', err);
             }
-        }, 3000); // Poll every 3 seconds
-
-        console.log('✅ Polling started (every 3 seconds)');
-
-        return () => {
-            console.log('🛑 Stopping polling');
-            clearInterval(pollInterval);
         };
-    }, [session, orders]);
+
+        pollData();
+        const pollInterval = setInterval(pollData, 3000);
+
+        return () => clearInterval(pollInterval);
+        return () => clearInterval(pollInterval);
+    }, [session?.user, lastResetDate]);
 
     // Fetch Customers
     useEffect(() => {
@@ -477,13 +512,16 @@ function App() {
 
     // Helper for Status Mapping
     const mapSupabaseStatusToLocal = (status: string): OrderStatus => {
-        switch (status) {
+        switch (status.toLowerCase()) {
             case 'pending': return OrderStatus.PENDING;
             case 'accepted': return OrderStatus.ACCEPTED;
             case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
+            case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP; // Added mapping
             case 'in_transit': return OrderStatus.IN_TRANSIT;
+            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT;
             case 'completed': return OrderStatus.DELIVERED;
-            case 'canceled': return OrderStatus.CANCELED;
+            case 'canceled':
+            case 'cancelled': return OrderStatus.CANCELED;
             default: return OrderStatus.PENDING;
         }
     };
@@ -510,7 +548,7 @@ function App() {
         prepTimeMinutes: 15,
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
         theme: 'dark',
-        alertSound: 'roar'
+        alertSound: 'cheetah'
     });
 
     // View Specific States (Search/Filters)
@@ -701,7 +739,7 @@ function App() {
         // Update Couriers State (Remove used one)
         setAvailableCouriers(prev => prev.filter(c => c.id !== selectedCourier.id));
 
-        playAlert();
+        // playAlert(); // REMOVED: Only arrive at store should play
     };
 
     const handleNewOrder = async (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean }) => {
@@ -710,7 +748,25 @@ function App() {
         let destCoords = { lat: STORE_PROFILE.lat + (Math.random() - 0.5) * 0.02, lng: STORE_PROFILE.lng + (Math.random() - 0.5) * 0.02 };
         if (data.destination.includes('Carlos Scalet')) destCoords = { lat: -23.2680, lng: -47.3000 };
 
-        const generatedPin = Math.floor(1000 + Math.random() * 9000).toString();
+        const targetCourierId = (data as any).targetCourierId;
+        let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+        if (targetCourierId) {
+            // Check for existing orders for this courier to unify pickup code
+            const courierOrders = orders.filter(o =>
+                o.courier?.id === targetCourierId &&
+                o.status !== OrderStatus.DELIVERED &&
+                o.status !== OrderStatus.CANCELED &&
+                o.pickupCode // Ensure it has a code
+            );
+
+            if (courierOrders.length > 0) {
+                console.log(`🔗 Batching: Reusing pickup code from order ${courierOrders[0].id}`);
+                finalPickupCode = courierOrders[0].pickupCode;
+            }
+        }
+
+        const generatedPin = finalPickupCode;
         const generatedId = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit layout ID
         const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
 
@@ -757,7 +813,8 @@ function App() {
                     customer_address: data.destination,
                     customer_phone_suffix: phoneSuffix, // Last 4 digits only
                     collection_code: generatedPin, // Pickup code in dedicated column
-                    status: 'pending',
+                    status: (data as any).targetCourierId ? 'accepted' : 'pending',
+                    driver_id: (data as any).targetCourierId || null,
                     items: {
                         displayId: generatedId, // Store in JSON to avoid schema change
                         paymentMethod: data.paymentMethod,
@@ -765,7 +822,8 @@ function App() {
                         changeFor: data.changeFor,
                         isReturnRequired: mustReturn,
                         destinationLat: destCoords.lat,
-                        destinationLng: destCoords.lng
+                        destinationLng: destCoords.lng,
+                        targetCourierId: (data as any).targetCourierId
                     },
                     earnings: finalPrice, // Store the final delivery price
                     delivery_distance: distanceKm // Save the actual distance
@@ -789,10 +847,22 @@ function App() {
     // --- STATE MACHINE ACTIONS (MANDATORY VALIDATION) ---
 
     const handleMarkAsReady = async (orderId: string) => {
-        // Optimistic update
+        const orderToUpdate = orders.find(o => o.id === orderId);
+        if (!orderToUpdate) return;
+
+        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
+            ? orderToUpdate.batchOrders.map(o => o.id)
+            : [orderId];
+
+        // Optimistic update for all involved orders
         setOrders(prev => prev.map(o => {
-            if (o.id !== orderId) return o;
-            const newEvent: OrderEvent = { status: OrderStatus.READY_FOR_PICKUP, label: "Pronto p/ Coleta", timestamp: new Date(), description: "Lojista marcou como pronto." };
+            if (!orderIds.includes(o.id)) return o;
+            const newEvent: OrderEvent = {
+                status: OrderStatus.READY_FOR_PICKUP,
+                label: "Pronto p/ Coleta",
+                timestamp: new Date(),
+                description: "Lojista marcou como pronto."
+            };
             return {
                 ...o,
                 status: OrderStatus.READY_FOR_PICKUP,
@@ -800,42 +870,93 @@ function App() {
             };
         }));
 
+        if (orderIds.length === 0) {
+            console.warn("⚠️ [handleMarkAsReady] No order IDs to update.");
+            return;
+        }
+
+        console.log("🚀 [handleMarkAsReady] Updating order IDs:", orderIds);
+
         try {
+            // Using 'arrived_pickup' as DB likely doesn't support 'ready_for_pickup'
+            // and arrived_pickup is the closest state that means "At Store"
             const { error } = await supabase
                 .from('deliveries')
                 .update({
-                    status: 'ready_for_pickup',
+                    status: 'arrived_pickup',
                     updated_at: new Date().toISOString()
                 })
-                .eq('id', orderId);
+                .in('id', orderIds);
 
             if (error) throw error;
-            console.log("✅ Order marked as ready in DB:", orderId);
+            console.log("✅ Order(s) marked as ready in DB (saved as arrived_pickup):", orderIds);
         } catch (err) {
-            console.error("❌ Error marking order as ready:", err);
-            // Revert optimistic update if needed, but for now we keep it to not disrupt UI
+            console.error("❌ Error marking order(s) as ready:", err);
             setNotification({ title: "Erro", message: "Falha ao atualizar status no sistema." });
         }
     };
 
-    const handleValidatePickup = (orderId: string) => {
+    const handleValidatePickup = async (orderId: string) => {
+        const orderToUpdate = orders.find(o => o.id === orderId);
+        if (!orderToUpdate) return;
+
+        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
+            ? orderToUpdate.batchOrders.map(o => o.id)
+            : [orderId];
+
         setOrders(prev => prev.map(o => {
-            if (o.id !== orderId) return o;
-            const newEvent: OrderEvent = { status: OrderStatus.IN_TRANSIT, label: "Código Validado", timestamp: new Date(), description: "Segurança confirmada. Despachado." };
+            if (!orderIds.includes(o.id)) return o;
+            const newEvent: OrderEvent = {
+                status: OrderStatus.IN_TRANSIT,
+                label: "Código Validado",
+                timestamp: new Date(),
+                description: "Segurança confirmada. Despachado."
+            };
             return {
                 ...o,
                 status: OrderStatus.IN_TRANSIT,
                 events: [...o.events, newEvent]
             };
         }));
-        playAlert();
-        setNotification({ title: "Segurança Confirmada", message: "Pedido despachado com sucesso." });
+
+        if (orderIds.length === 0) {
+            console.warn("⚠️ [handleValidatePickup] No order IDs to update.");
+            return;
+        }
+
+        console.log("🚀 [handleValidatePickup] Updating order IDs:", orderIds);
+
+        try {
+            const { error } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'in_transit',
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', orderIds);
+
+            if (error) throw error;
+            console.log("✅ Order(s) validated in DB:", orderIds);
+        } catch (err) {
+            console.error("❌ Error validating order(s) in DB:", err);
+            setNotification({ title: "Erro", message: "Falha ao validar no sistema." });
+        }
+
+        // playAlert(); // REMOVED: Only arrive at store should play
+        setNotification({ title: "Segurança Confirmada", message: "Pedido(s) despachado(s) com sucesso." });
     };
 
     // NEW: HANDLE CONFIRM RETURN (Finalize Logic)
-    const handleConfirmReturn = (orderId: string) => {
+    const handleConfirmReturn = async (orderId: string) => {
+        const orderToUpdate = orders.find(o => o.id === orderId);
+        if (!orderToUpdate) return;
+
+        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
+            ? orderToUpdate.batchOrders.map(o => o.id)
+            : [orderId];
+
         setOrders(prev => prev.map(o => {
-            if (o.id !== orderId) return o;
+            if (!orderIds.includes(o.id)) return o;
 
             const newEvent: OrderEvent = {
                 status: OrderStatus.DELIVERED,
@@ -844,8 +965,8 @@ function App() {
                 description: "Lojista confirmou recebimento da maquininha/dinheiro. Pedido finalizado."
             };
 
-            // Free up courier
-            if (o.courier) {
+            // Free up courier (only once for the whole batch)
+            if (o.id === orderId && o.courier) {
                 const courierAtStore = { ...o.courier, lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng };
                 setAvailableCouriers(old => [...old, courierAtStore]);
             }
@@ -857,9 +978,31 @@ function App() {
             };
         }));
 
-        playAlert();
-        setNotification({ title: "Logística Reversa Concluída", message: "Devolução confirmada. Pedido encerrado." });
+        if (orderIds.length === 0) {
+            console.warn("⚠️ [handleConfirmReturn] No order IDs to update.");
+            return;
+        }
 
+        console.log("🚀 [handleConfirmReturn] Updating order IDs:", orderIds);
+
+        try {
+            const { error } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'completed',
+                    updated_at: new Date().toISOString()
+                })
+                .in('id', orderIds);
+
+            if (error) throw error;
+            console.log("✅ Order(s) finalized in DB:", orderIds);
+        } catch (err) {
+            console.error("❌ Error finalizing order(s) in DB:", err);
+            setNotification({ title: "Erro", message: "Falha ao finalizar no sistema." });
+        }
+
+        // playAlert(); // REMOVED: Only arrive at store should play
+        setNotification({ title: "Logística Reversa Concluída", message: "Devolução confirmada. Pedido(s) encerrado(s)." });
     };
 
     // NEW: HANDLE CANCEL ORDER
@@ -928,6 +1071,54 @@ function App() {
 
 
 
+    const handleResetDatabase = async () => {
+        if (!session?.user) return;
+        // eslint-disable-next-line no-restricted-globals
+        if (!confirm("⚠️ ATENÇÃO: Deseja apagar TODOS os pedidos e histórico desta loja? Essa ação não pode ser desfeita.")) return;
+
+        setNotification({ title: "Limpando...", message: "Zerando banco de dados..." });
+
+        try {
+            // Delete Deliveries
+            const { error: delError } = await supabase
+                .from('deliveries')
+                .delete()
+                .eq('store_id', session.user.id);
+
+            if (delError) throw delError;
+
+            // Delete Customers
+            const { error: custError } = await supabase
+                .from('customers')
+                .delete()
+                .eq('store_id', session.user.id);
+
+            if (custError) throw custError;
+
+            // Clear Local State
+            setOrders([]);
+            setCustomers([]); // Reset customers too
+            setActiveOrder(null);
+            setSelectedOrderDetails(null);
+
+            setNotification({ title: "Banco Zerado", message: "Histórico e pedidos removidos com sucesso." });
+
+            // SOFT RESET: Save timestamp to ignore older data (Double safety against RLS failures)
+            const now = new Date().toISOString();
+            localStorage.setItem('guepardo_reset_date', now);
+            setLastResetDate(now);
+
+        } catch (err) {
+            console.error("❌ Error resetting DB:", err);
+            // Even on error, we force the soft reset to clear the UI for the user
+            const now = new Date().toISOString();
+            localStorage.setItem('guepardo_reset_date', now);
+            setLastResetDate(now);
+            setOrders([]); // Force clear
+            setNotification({ title: "Banco Zerado (Local)", message: "Limpeza visual realizada." });
+        }
+    };
+
     // --- HELPER: MOVE ALONG ROUTE (Linear Interpolation for Smoothness) ---
     // If we have a route, finding the exactly point based on progress
     const getPositionOnRoute = (route: { lat: number, lng: number }[], progress: number): { lat: number, lng: number } => {
@@ -972,251 +1163,15 @@ function App() {
             const currentOrders = ordersRef.current;
             const currentCouriers = couriersRef.current; // Get fresh available couriers
 
-            // --- PART A: ACTIVE ORDERS SIMULATION ---
-            // Find any active orders that need simulation updates
-            const activeOrdersIndices = currentOrders.reduce((acc, o, index) => {
-                if (o.status !== OrderStatus.DELIVERED &&
-                    o.status !== OrderStatus.CANCELED &&
-                    o.status !== OrderStatus.PENDING &&
-                    o.courier) {
-                    acc.push(index);
-                }
-                return acc;
-            }, [] as number[]);
+            // --- SIMULATION DISABLED FOR REAL PRODUCTION USE ---
+            // The simulation loop was overriding real courier coordinates.
+            // keeping only roaming for idle couriers if needed, or disabling that too for accuracy.
 
-            let ordersUpdated = false;
-            let nextOrders = [...currentOrders];
-
-            // ASYNC HANDLING INSIDE INTERVAL IS TRICKY.
-            // We use a "fire and forget" approach for fetching, but we need to know if we are WAITING for a route.
-            // To keep it simple in this Loop, we Check if route is missing and needed, trigger fetch, and Wait.
-
-            if (activeOrdersIndices.length > 0) {
-                activeOrdersIndices.forEach(idx => {
-                    const order = nextOrders[idx];
-                    if (!order || order.status === OrderStatus.DELIVERED || order.status === OrderStatus.CANCELED || !order.courier) return;
-
-                    let nextStatus: OrderStatus = order.status;
-                    let nextCourierPos = { lat: order.courier.lat, lng: order.courier.lng };
-                    let newEvents = [...order.events];
-                    let updatedRoute = order.simulationRoute;
-                    let updatedStep = order.simulationStep ?? 0;
-                    let updatedTotalSteps = order.simulationTotalSteps; // Will be set based on duration
-
-                    // 1. SETUP ROUTE IF NEEDED (First Tick of a new phase)
-                    const needsRouteToStore = (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE) && !order.simulationRoute;
-                    const needsRouteToClient = (order.status === OrderStatus.IN_TRANSIT) && !order.simulationRoute;
-                    const needsRouteReturn = (order.status === OrderStatus.RETURNING) && !order.simulationRoute;
-
-                    if (needsRouteToStore || needsRouteToClient || needsRouteReturn) {
-                        // Start Fetch (We can't await here efficiently without blocking, so we'll do the fetch detached and update state later)
-                        // But to prevent flooding, we mark a flag or just execute once.
-                        // Ideally: We trigger this only ONCE when status changes.
-                        // Fix: We'll do it "Just in Time" but linear fallback if getting ready.
-
-                        // For this Demo: We will assume we can fetch fast enough or we just use linear until route appears.
-                        // Actually, let's trigger the fetch immediately when status SET happens (outside loop), 
-                        // BUT since I am refactoring this "App.tsx", updating "onMarkAsReady" etc is better.
-                        // HOWEVER, to be less intrusive, I can check here:
-
-                        // Let's rely on the simulation logic below:
-                        // If no route, we use linear. I'll add a side-effect to fetch route if simulationStep is 0.
-                    }
-
-                    // --- PHASE 1: COURIER GOING TO STORE (30 Seconds) ---
-                    if (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.READY_FOR_PICKUP) {
-
-                        // Target Duration: 30s => 300 ticks (at 100ms)
-                        const TARGET_TICKS = 300;
-
-                        // Handle Route Fetching logic inside the loop (Self-Correcting)
-                        if (!order.simulationRoute && updatedStep === 0 && order.status !== OrderStatus.ARRIVED_AT_STORE && order.status !== OrderStatus.READY_FOR_PICKUP) {
-                            // Trigger fetch (async)
-                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: storeProfileRef.current.lat, lng: storeProfileRef.current.lng })
-                                .then(route => {
-                                    if (route.length > 0) {
-                                        setOrders(prev => {
-                                            const newO = [...prev];
-                                            const target = newO.find(o => o.id === order.id);
-                                            if (target && (target.status === OrderStatus.ACCEPTED || target.status === OrderStatus.TO_STORE)) {
-                                                target.simulationRoute = route;
-                                                target.simulationTotalSteps = TARGET_TICKS;
-                                                target.simulationStep = 0;
-                                            }
-                                            return newO;
-                                        });
-                                    }
-                                });
-                            // Mark that we tried, to avoid fetch flood, maybe set step to 1 (linear temporarily)
-                            updatedStep = 1;
-                        }
-
-
-                        // ANIMATION 
-                        if (order.status !== OrderStatus.ARRIVED_AT_STORE && order.status !== OrderStatus.READY_FOR_PICKUP) {
-                            updatedStep++;
-
-                            if (order.simulationRoute && order.simulationTotalSteps) {
-                                // FOLLOW ROUTE
-                                const progress = Math.min(updatedStep / order.simulationTotalSteps, 1);
-                                nextCourierPos = getPositionOnRoute(order.simulationRoute, progress);
-
-                                if (progress >= 1) {
-                                    // Reached
-
-                                    // Handle delay before triggering ARRIVED_AT_STORE
-                                    if (!order.storeArrivalTimestamp) {
-                                        nextOrders[idx] = { ...order, storeArrivalTimestamp: new Date(), courier: { ...order.courier!, lat: nextCourierPos.lat, lng: nextCourierPos.lng } };
-                                        ordersUpdated = true;
-                                        return; // Wait next tick
-                                    } else {
-                                        const diff = new Date().getTime() - new Date(order.storeArrivalTimestamp).getTime();
-                                        if (diff > 1000) { // Reduced to 1s
-                                            nextStatus = OrderStatus.ARRIVED_AT_STORE;
-                                            newEvents.push({ status: OrderStatus.ARRIVED_AT_STORE, label: "Chegou na Loja", timestamp: new Date(), description: "Entregador marcou que chegou." });
-                                            playAlert();
-                                            setNotification({ title: "Entregador na Loja", message: `${order.courier!.name} chegou para retirar.` });
-
-                                            // Clear route state for next phase
-                                            updatedRoute = undefined;
-                                            updatedStep = 0;
-                                        }
-                                    }
-                                }
-                            } else {
-                                // FALLBACK: LINEAR
-                                const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, storeProfileRef.current.lat, storeProfileRef.current.lng, 0.0004); // Fast linear 
-                                nextCourierPos = { lat: move.lat, lng: move.lng };
-                                if (move.reached) {
-                                    // Same reach logic...
-                                    nextStatus = OrderStatus.ARRIVED_AT_STORE;
-                                    newEvents.push({ status: OrderStatus.ARRIVED_AT_STORE, label: "Chegou na Loja", timestamp: new Date(), description: "Entregador chegou (GPS Linear)." });
-                                    playAlert();
-                                    updatedRoute = undefined;
-                                    updatedStep = 0;
-                                }
-                            }
-                        }
-                    }
-
-                    // --- PHASE 2: GOING TO CLIENT (60 Seconds) ---
-                    else if (order.status === OrderStatus.IN_TRANSIT) {
-                        const destLat = order.destinationLat || storeProfileRef.current.lat;
-                        const destLng = order.destinationLng || storeProfileRef.current.lng;
-                        const TARGET_TICKS = 600; // 60s -> 600 ticks
-
-                        // Route Fetching for Phase 2
-                        if (!order.simulationRoute && updatedStep === 0) {
-                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: destLat, lng: destLng })
-                                .then(route => {
-                                    if (route.length > 0) {
-                                        setOrders(prev => {
-                                            const newO = [...prev];
-                                            const target = newO.find(o => o.id === order.id);
-                                            if (target && target.status === OrderStatus.IN_TRANSIT) {
-                                                target.simulationRoute = route;
-                                                target.simulationTotalSteps = TARGET_TICKS;
-                                                target.simulationStep = 0;
-                                            }
-                                            return newO;
-                                        });
-                                    }
-                                });
-                            updatedStep = 1;
-                        }
-
-                        updatedStep++;
-
-                        if (order.simulationRoute && order.simulationTotalSteps) {
-                            // FOLLOW ROUTE
-                            const progress = Math.min(updatedStep / order.simulationTotalSteps, 1);
-                            nextCourierPos = getPositionOnRoute(order.simulationRoute, progress);
-
-                            if (progress >= 1) {
-                                // REACHED CUSTOMER
-                                if (order.isReturnRequired || order.paymentMethod === 'CARD') {
-                                    nextStatus = OrderStatus.RETURNING;
-                                    newEvents.push({ status: OrderStatus.RETURNING, label: "Em Retorno", timestamp: new Date(), description: "Entrega realizada. Retornando." });
-                                    setNotification({ title: "Maquininha Retornando", message: `Entregador de ${order.clientName} está voltando.` });
-                                    updatedRoute = undefined;
-                                    updatedStep = 0;
-                                } else {
-                                    nextStatus = OrderStatus.DELIVERED;
-                                    newEvents.push({ status: OrderStatus.DELIVERED, label: "Pedido Entregue", timestamp: new Date(), description: "Finalizado." });
-                                    playAlert();
-                                    setNotification({ title: "Entrega Finalizada", message: `Pedido de ${order.clientName} entregue!` });
-                                    setTimeout(() => setNotification(null), 3000);
-                                    setAvailableCouriers(prev => [...prev, { ...order.courier!, lat: destLat, lng: destLng }]);
-                                }
-                            }
-                        } else {
-                            // FALLBACK LINEAR
-                            const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, destLat, destLng, 0.0002);
-                            nextCourierPos = { lat: move.lat, lng: move.lng };
-                            if (move.reached) {
-                                // ... same end logic
-                                nextStatus = OrderStatus.DELIVERED; // Simplify fallback
-                                playAlert();
-                                setAvailableCouriers(prev => [...prev, { ...order.courier!, lat: destLat, lng: destLng }]);
-                            }
-                        }
-                    }
-
-                    // --- PHASE 3: RETURNING TO STORE ---
-                    else if (order.status === OrderStatus.RETURNING) {
-                        const TARGET_TICKS = 300; // 30s return
-
-                        if (!order.simulationRoute && updatedStep === 0) {
-                            fetchRoute({ lat: order.courier.lat, lng: order.courier.lng }, { lat: storeProfileRef.current.lat, lng: storeProfileRef.current.lng })
-                                .then(route => {
-                                    if (route.length > 0) {
-                                        setOrders(prev => {
-                                            const newO = [...prev];
-                                            const target = newO.find(o => o.id === order.id);
-                                            if (target && target.status === OrderStatus.RETURNING) {
-                                                target.simulationRoute = route;
-                                                target.simulationTotalSteps = TARGET_TICKS;
-                                                target.simulationStep = 0;
-                                            }
-                                            return newO;
-                                        });
-                                    }
-                                });
-                            updatedStep = 1;
-                        }
-
-                        updatedStep++;
-
-                        if (order.simulationRoute && order.simulationTotalSteps) {
-                            const progress = Math.min(updatedStep / order.simulationTotalSteps, 1);
-                            nextCourierPos = getPositionOnRoute(order.simulationRoute, progress);
-                            if (progress >= 1 && order.status !== OrderStatus.RETURNING) { // Only if logic needed
-                                // Wait at store
-                            }
-                        } else {
-                            const move = moveTowards(nextCourierPos.lat, nextCourierPos.lng, storeProfileRef.current.lat, storeProfileRef.current.lng, 0.0004);
-                            nextCourierPos = { lat: move.lat, lng: move.lng };
-                        }
-                    }
-
-                    if (nextStatus !== order.status || nextCourierPos.lat !== order.courier.lat || updatedStep !== order.simulationStep) {
-                        ordersUpdated = true;
-                        nextOrders[idx] = {
-                            ...order,
-                            status: nextStatus,
-                            courier: { ...order.courier, lat: nextCourierPos.lat, lng: nextCourierPos.lng },
-                            events: newEvents,
-                            simulationRoute: updatedRoute,
-                            simulationStep: updatedStep,
-                            simulationTotalSteps: updatedTotalSteps
-                        };
-                    }
-                });
-            }
-
-            if (ordersUpdated) {
-                setOrders(nextOrders);
-            }
+            /* 
+            // SIMULATION LOGIC REMOVED TO FIX MAP BUG
+            if (activeOrdersIndices.length > 0) { ... }
+            if (ordersUpdated) { setOrders(nextOrders); }
+            */
 
             // --- PART B: IDLE COURIERS ROAMING (The "Alive" Effect) ---
             // Randomly move available couriers slightly to simulate life
@@ -1246,11 +1201,22 @@ function App() {
     useEffect(() => {
         if (activeOrder) {
             const upToDate = orders.find(o => o.id === activeOrder.id);
-            if (upToDate && (upToDate.status !== activeOrder.status || upToDate.courier?.lat !== activeOrder.courier?.lat)) {
-                setActiveOrder(upToDate);
+            if (upToDate) {
+                // If the order reached a final state, clear it from active view
+                if (upToDate.status === OrderStatus.DELIVERED || upToDate.status === OrderStatus.CANCELED) {
+                    setActiveOrder(null);
+                    if (selectedOrderDetails?.id === upToDate.id) {
+                        setSelectedOrderDetails(null);
+                    }
+                } else if (upToDate.status !== activeOrder.status || upToDate.courier?.lat !== activeOrder.courier?.lat) {
+                    setActiveOrder(upToDate);
+                }
+            } else {
+                // Order no longer exists in orders array (e.g. after reset)
+                setActiveOrder(null);
             }
         }
-    }, [orders, activeOrder]);
+    }, [orders, activeOrder, selectedOrderDetails]);
 
     const activeOrdersList = orders.filter(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED);
     const totalSpent = orders.reduce((acc, curr) => acc + curr.estimatedPrice, 0);
@@ -1410,7 +1376,13 @@ function App() {
 
                     {/* VIEW ROUTING */}
                     {currentView === 'dashboard' && (
-                        <DashboardTab orders={orders} totalSpent={totalSpent} customers={customers} onViewChange={setCurrentView} />
+                        <DashboardTab
+                            orders={orders}
+                            totalSpent={totalSpent}
+                            customers={customers}
+                            onViewChange={setCurrentView}
+                            storeName={realStoreProfile?.name || STORE_PROFILE.name}
+                        />
                     )}
 
                     {currentView === 'operational' && (
@@ -1427,7 +1399,9 @@ function App() {
                             onValidatePickup={handleValidatePickup}
                             onCancelOrder={handleCancelOrder}
                             onConfirmReturn={handleConfirmReturn}
+                            onResetDatabase={handleResetDatabase}
                             theme={settings.theme}
+                            settings={settings}
                         />
                     )}
 
