@@ -65,7 +65,7 @@ export const ClientHistoryModal: React.FC<ClientHistoryModalProps> = ({ customer
                 <Clock size={12} /> Espera Média
               </span>
               <span className={`text-3xl font-bold ${customer.averageWaitTime > 5 ? 'text-red-500' : 'text-green-600'}`}>
-                {customer.averageWaitTime.toFixed(0)}<span className="text-sm text-gray-400">min</span>
+                {(customer.averageWaitTime || 0).toFixed(0)}<span className="text-sm text-gray-400">min</span>
               </span>
             </div>
 

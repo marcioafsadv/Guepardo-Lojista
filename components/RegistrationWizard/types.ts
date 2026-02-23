@@ -1,4 +1,5 @@
 export interface Step1Data {
+    tipoPessoa: 'PF' | 'PJ';
     cnpj: string;
     razaoSocial: string;
     nomeFantasia: string;

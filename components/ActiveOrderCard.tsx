@@ -122,7 +122,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
         </div>
         <div className="text-right">
           <div className="text-xl font-bold text-[#121212] dark:text-white tracking-tight">
-            R$ {order.deliveryValue.toFixed(2)}
+            R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           {order.changeFor && (
             <div className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded inline-block mt-1">
@@ -237,7 +237,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-800 font-medium">
                       <MapPin size={12} />
-                      {telemetry.distKm.toFixed(1)} km {telemetry.label}
+                      {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
                     </div>
                   </>
                 )}

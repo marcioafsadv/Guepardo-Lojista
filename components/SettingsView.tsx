@@ -132,7 +132,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Frete Base */}
                         <div>
-                            <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">Frete Base (R$)</label>
+                            <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">Estimativa de Frete (R$)</label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R$</span>
                                 <input
@@ -262,8 +262,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                                     onChange={(e) => handleChange('alertSound', e.target.value)}
                                     className="w-full bg-transparent dark:bg-guepardo-gray-900 p-3 text-gray-900 dark:text-white font-bold focus:outline-none cursor-pointer"
                                 >
+                                    <option value="cheetah" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Rugido do Guepardo</option>
+                                    <option value="symphony" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Symphony</option>
+                                    <option value="guitar" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Guitarra</option>
+                                    <option value="beep" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Beep (Curto)</option>
                                     <option value="default" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Padrão (Bip)</option>
-                                    <option value="roar" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Rugido do Guepardo</option>
+                                    <option value="roar" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Rugido (Antigo)</option>
                                     <option value="siren" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Sirene de Aviso</option>
                                 </select>
                             </div>

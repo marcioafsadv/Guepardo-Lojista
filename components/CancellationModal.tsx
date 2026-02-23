@@ -73,7 +73,7 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ isOpen, on
                                     Taxa de Deslocamento Aplicável
                                 </p>
                                 <p className="text-xs text-gray-600 leading-relaxed">
-                                    Como o motoboy já aceitou a corrida, será descontado <strong className="text-red-600">R$ {cancellationFee.toFixed(2)}</strong> do seu saldo referente ao deslocamento parcial.
+                                    Como o motoboy já aceitou a corrida, será descontado <strong className="text-red-600">R$ {(cancellationFee ?? 0).toFixed(2)}</strong> do seu saldo referente ao deslocamento parcial.
                                 </p>
                             </div>
                         ) : (

@@ -16,6 +16,7 @@ interface DashboardTabProps {
   totalSpent: number;
   customers: Customer[];
   onViewChange: (view: AppView) => void;
+  storeName: string;
 }
 
 type TimeFilter = 'today' | '7days' | 'month';
@@ -39,7 +40,7 @@ const COLORS = {
   purple: '#8B5CF6'
 };
 
-export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, onViewChange }) => {
+export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, onViewChange, storeName }) => {
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date; label: string }>({
     start: new Date(),
     end: new Date(),
@@ -241,7 +242,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Painel Operacional</h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-status-green animate-pulse"></span>
-            Loja Online • Padaria Rebeca
+            Loja Online • {storeName}
           </p>
         </div>
 
@@ -406,7 +407,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
             <div className="flex items-end gap-3">
               <span className="text-3xl font-bold text-gray-900 dark:text-white">{kpiData.canceledCount}</span>
               <span className="text-xs font-bold mb-1.5 text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
-                {kpiData.cancellationRate.toFixed(1)}% taxa
+                {(kpiData.cancellationRate || 0).toFixed(1)}% taxa
               </span>
             </div>
           </div>
@@ -426,7 +427,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
               {/* Render Dynamic Icon based on preference */}
               {React.createElement(paymentMetrics.preferred.icon, { size: 12 })}
-              Responsável por {((paymentMetrics.preferred.count / ((kpiData.orders - kpiData.canceledCount) || 1)) * 100).toFixed(0)}% das vendas
+              Responsável por {(((paymentMetrics.preferred.count / ((kpiData.orders - kpiData.canceledCount) || 1)) * 100) || 0).toFixed(0)}% das vendas
             </p>
           </div>
         </div>
@@ -531,7 +532,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
                       return (
                         <div className="bg-guepardo-gray-900 p-3 border border-gray-700 shadow-lg rounded-xl">
                           <p className="font-bold text-white">{data.fullName}</p>
-                          <p className="text-xs text-gray-400">{data.orders} pedidos • Total: R$ {data.spent.toFixed(2)}</p>
+                          <p className="text-xs text-gray-400">{data.orders} pedidos • Total: R$ {(data.spent || 0).toFixed(2)}</p>
                         </div>
                       );
                     }
@@ -568,9 +569,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {stat.sales.toFixed(0)}</p>
-                    <p className="text-[10px] text-guepardo-orange font-bold">
-                      + Taxas: R$ {stat.fees.toFixed(0)}
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {(stat.sales || 0).toFixed(0)}</p>
+                    <p className="text-[10px] text-gray-500 font-medium">
+                      + Taxas: R$ {(stat.fees || 0).toFixed(0)}
                     </p>
                   </div>
                 </div>
@@ -586,7 +587,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
                   <span className="text-gray-400">Exigiu Troco</span>
                   <span className="font-bold text-gray-900 dark:text-white">
                     {paymentMetrics.stats.CASH.count > 0
-                      ? `${((paymentMetrics.cashWithChangeCount / paymentMetrics.stats.CASH.count) * 100).toFixed(0)}%`
+                      ? `${(((paymentMetrics.cashWithChangeCount / (paymentMetrics.stats.CASH.count || 1)) * 100) || 0).toFixed(0)}%`
                       : '0%'}
                     <span className="font-normal text-gray-500 text-xs ml-1">
                       ({paymentMetrics.cashWithChangeCount} pedidos)

@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
 import { OrderStatus } from '../types';
 import { Navigation, Phone } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Mock Data for Demo
 const MOCK_COURIER_LOC = { lat: -23.55052, lng: -46.63330 };
@@ -46,8 +47,7 @@ export const TrackingPage: React.FC = () => {
 
     // 3. Initialize Map
     useEffect(() => {
-        const L = (window as any).L;
-        if (!L || !mapContainerRef.current) return;
+        if (!mapContainerRef.current) return;
 
         if (!mapInstanceRef.current) {
             const map = L.map(mapContainerRef.current, {
@@ -78,9 +78,8 @@ export const TrackingPage: React.FC = () => {
 
     // 4. Update Markers
     useEffect(() => {
-        const L = (window as any).L;
         const map = mapInstanceRef.current;
-        if (!L || !map || !mockOrder) return;
+        if (!map || !mockOrder) return;
 
         // Courier Icon
         const courierIcon = L.divIcon({

@@ -71,6 +71,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // Drawer State
     const [showDetailDrawer, setShowDetailDrawer] = useState(false);
 
+    // Targeted Selection State
+    const [isSelectingCourier, setIsSelectingCourier] = useState(false);
+    const [targetCourierId, setTargetCourierId] = useState<string>('');
+
     // Sync drawer with active order
     // Sync drawer with active order SELECTION (Expand on new selection)
     useEffect(() => {
@@ -132,10 +136,26 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     };
 
     const handleNewOrderSubmit = (data: any) => {
+        console.log("🚀 [GestaoDePedidos] handleNewOrderSubmit triggered with data:", data);
+
+        if (data.targetCourierId) {
+            console.log("🎯 [GestaoDePedidos] Targeted courier detected in payload:", data.targetCourierId);
+        } else {
+            console.log("📣 [GestaoDePedidos] No target courier (Standard Broadcast)");
+        }
+
         onNewOrder(data);
-        // Clear draft route upon successful submission
+        // Clear draft route and targeted courier upon successful submission
         setDraftAddress('');
         setRouteStats(null);
+        setTargetCourierId('');
+        setIsSelectingCourier(false);
+    };
+
+    const handleCourierSelect = (courierId: string) => {
+        console.log("📍 [GestaoDePedidos] Courier selected from map:", courierId);
+        setTargetCourierId(courierId);
+        setIsSelectingCourier(false);
     };
 
     const handleCardClick = (order: Order) => {
@@ -328,259 +348,262 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     theme={theme}
                     draftDestinationAddress={draftAddress}
                     onRouteCalculated={setRouteStats}
+                    isSelectingCourier={isSelectingCourier}
+                    onCourierSelect={(id) => {
+                        setTargetCourierId(id);
+                        setIsSelectingCourier(false);
+                    }}
                 />
             </div>
 
-            {/* CAMADA 1: ÁREA OPERACIONAL (ESQUERDA - FLEX ROW) */}
-            <div className="absolute left-4 top-4 bottom-4 z-20 flex gap-4 pointer-events-none">
+            {/* CAMADA 1: ÁREA OPERACIONAL (ESQUERDA - FLEX COL) */}
+            <div className="absolute left-4 top-4 bottom-4 z-20 flex flex-col gap-4 pointer-events-none w-[380px]">
 
-                {/* PAINEL 1: LISTA E FORMULÁRIO */}
-                <div className="w-[380px] bg-gray-100/95 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl flex flex-col border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto">
-
-                    {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-guepardo">
-
-                        {/* Seção 1: Formulário (Compacto) */}
-                        <div className="bg-white dark:bg-white/5 backdrop-blur-md rounded-2xl shadow-sm dark:shadow-lg border border-gray-200 dark:border-white/10 overflow-hidden transition-shadow hover:shadow-md dark:hover:shadow-glow-sm">
-                            <div className="p-5">
-                                <DeliveryForm
-                                    onSubmit={handleNewOrderSubmit}
-                                    isSubmitting={false}
-                                    existingCustomers={customers}
-                                    onAddressChange={setDraftAddress}
-                                    routeStats={routeStats}
-                                    settings={settings}
-                                    activeCouriersWithOrders={activeCouriersWithOrders}
-                                    allOrders={orders}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Seção 2: Lista de Monitoramento */}
-                        <div>
-                            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1 pl-1 flex items-center justify-between">
-                                <span>Monitoramento Ativo</span>
-                                <span className="bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white px-2 py-0.5 rounded-md border border-gray-300 dark:border-white/10">{activeOrders.length}</span>
-                            </h3>
-                            <h3 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3 pl-1 flex items-center justify-between">
-                                <span className="flex items-center gap-1"><Bike size={12} className="text-guepardo-accent" /> Guepardos On-line</span>
-                                <span className="bg-guepardo-accent/10 text-guepardo-accent px-2 py-0.5 rounded-md border border-guepardo-accent/20">{availableCouriers.length}</span>
-                            </h3>
-
-                            {/* ZERAR BANCO BUTTON */}
-
-
-                            <div className="space-y-3 pb-20">
-                                {groupedOrders.map((order) => {
-                                    const config = getCardConfig(order);
-                                    const isSelected = activeOrder?.id === order.id;
-                                    const changeNeeded = order.paymentMethod === 'CASH' && order.changeFor
-                                        ? order.changeFor - order.deliveryValue
-                                        : 0;
-
-                                    // For batches, we show IDs of all orders
-                                    const displayIds = order.isBatch && order.batchOrders
-                                        ? order.batchOrders.map(o => o.display_id || o.id.slice(-4)).join(', ')
-                                        : (order.display_id || order.id.slice(-4));
-
-                                    return (
-                                        <div
-                                            key={order.id}
-                                            onClick={() => handleCardClick(order)}
-                                            className={`
-                                                relative rounded-2xl shadow-lg cursor-pointer transition-all duration-300 mb-3
-                                                hover:shadow-glow-sm hover:-translate-y-1 
-                                                bg-white dark:bg-[#1E1E1E]
-                                                border-l-[4px] border-l-guepardo-accent
-                                                ${isSelected ? 'ring-2 ring-guepardo-accent ring-offset-2 ring-offset-guepardo-gray-900 z-10 shadow-glow scale-[1.02]' : 'border-y border-r border-gray-100 dark:border-white/5'}
-                                            `}
-                                        >
-                                            {/* PROXIMITY LED */}
-                                            {config.isNearby && (
-                                                <div className="absolute -top-1.5 -right-1.5 z-20">
-                                                    <span className="flex h-4 w-4">
-                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                        <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {/* CANCEL BUTTON (HOVER) */}
-                                            {!order.isBatch && (
-                                                <button
-                                                    onClick={(e) => handleOpenCancellation(e, order)}
-                                                    className="absolute top-2 right-2 p-1.5 rounded-full bg-transparent hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors z-30"
-                                                    title="Cancelar Pedido"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            )}
-
-                                            <div className="p-4">
-                                                {/* Header do Card */}
-                                                <div className="flex justify-between items-start mb-2 pr-6">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded border border-gray-200 dark:border-transparent">
-                                                            #{displayIds}
-                                                        </span>
-                                                        {!order.isBatch && (
-                                                            <div className="p-1 rounded bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10" title={order.paymentMethod}>
-                                                                {getPaymentIcon(order.paymentMethod)}
-                                                            </div>
-                                                        )}
-                                                        {order.isBatch && <Layers size={14} className="text-guepardo-accent" />}
-                                                    </div>
-                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${order.status === OrderStatus.READY_FOR_PICKUP ? 'bg-green-100 text-green-700 border-green-200' :
-                                                        order.status === OrderStatus.RETURNING ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                                            'bg-orange-100 text-orange-700 border-orange-200'
-                                                        }`}>
-                                                        {config.statusText}
-                                                    </span>
-                                                </div>
-
-                                                {/* Informações Principais */}
-                                                <div className="mb-4">
-                                                    <h4 className="text-[18px] font-bold text-[#121212] dark:text-white leading-tight mb-1 font-sans">
-                                                        {order.clientName}
-                                                    </h4>
-                                                    <p className="text-[12px] font-normal text-[#4A4A4A] dark:text-[#E0E0E0] truncate flex items-center gap-1">
-                                                        <MapPin size={10} /> {order.destination}
-                                                    </p>
-
-                                                    {order.isBatch && order.batchOrders && (
-                                                        <div className="mt-2 space-y-1">
-                                                            {order.batchOrders.map(bo => (
-                                                                <div key={bo.id} className="text-[10px] text-gray-500 dark:text-gray-400 flex justify-between items-center group/item hover:text-guepardo-accent transition-colors">
-                                                                    <span className="flex items-center gap-1">
-                                                                        <Hash size={8} /> {bo.display_id || bo.id.slice(-4)} - {bo.clientName}
-                                                                    </span>
-                                                                    {/* bo.pickupCode suppressed for batch view */}
-                                                                    {false && bo.pickupCode && (
-                                                                        <span className="bg-guepardo-accent/10 text-guepardo-accent px-1.5 py-0.5 rounded font-bold">
-                                                                            {bo.pickupCode}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {!order.isBatch && order.courier && order.status !== OrderStatus.PENDING && (
-                                                        <p className="text-[10px] font-bold text-guepardo-accent mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-left-2 transition-all">
-                                                            <Zap size={10} fill="currentColor" />
-                                                            Pedido aceito pelo Entregador "{order.courier.name}" via aplicativo Guepardo Entregador.
-                                                        </p>
-                                                    )}
-                                                </div>
-
-                                                {/* Financial Alert */}
-                                                {!order.isBatch && changeNeeded > 0 && (
-                                                    <div className="mb-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1">
-                                                        <Banknote size={12} />
-                                                        Troco: levar R$ {changeNeeded.toFixed(2)}
-                                                    </div>
-                                                )}
-
-                                                {/* Return Required Alert */}
-                                                {!order.isBatch && order.isReturnRequired && order.status !== OrderStatus.RETURNING && (
-                                                    <div className="mb-3 px-2 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded text-[10px] font-bold text-orange-700 dark:text-orange-400 flex items-center gap-1">
-                                                        <ArrowLeftRight size={12} />
-                                                        Retorno Obrigatório (+50%)
-                                                    </div>
-                                                )}
-
-                                                {/* Action Area */}
-                                                <div onClick={(e) => e.stopPropagation()}>
-                                                    {/* ACTION: PREPARE */}
-                                                    {config.action === 'PREPARE' && (
-                                                        <div className="flex gap-2">
-                                                            <div
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (order.courier?.phone) {
-                                                                        window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank');
-                                                                    } else {
-                                                                        alert('Entregador sem telefone cadastrado.');
-                                                                    }
-                                                                }}
-                                                                className="flex-1 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg p-2 border border-green-200 dark:border-green-800 shadow-sm cursor-pointer group transition-all"
-                                                            >
-                                                                <div className="relative">
-                                                                    <img src={order.courier?.photoUrl} className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-green-200 dark:border-green-700" alt="" />
-                                                                    <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border border-white">
-                                                                        <MessageCircle size={8} color="white" strokeWidth={3} />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="overflow-hidden">
-                                                                    <p className="text-[10px] font-bold text-green-900 dark:text-green-100 truncate group-hover:text-green-700 transition-colors uppercase">{order.courier?.name}</p>
-                                                                    <p className="text-[9px] text-green-700 dark:text-green-300 font-mono truncate">{order.courier?.vehiclePlate}</p>
-                                                                </div>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => onMarkAsReady(order.id)}
-                                                                className="flex-1 bg-guepardo-accent hover:bg-guepardo-orange text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all uppercase"
-                                                            >
-                                                                <PackageCheck size={16} />
-                                                                Pronto
-                                                            </button>
-                                                        </div>
-                                                    )}
-
-                                                    {/* ACTION: VALIDATE */}
-                                                    {config.action === 'VALIDATE' && (
-                                                        <button
-                                                            onClick={(e) => handleOpenValidation(e, order)}
-                                                            className="w-full h-11 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all animate-pulse-slow uppercase tracking-wide border-b-4 border-green-800 active:border-b-0 active:translate-y-1"
-                                                        >
-                                                            <Lock size={16} />
-                                                            Validar Código
-                                                        </button>
-                                                    )}
-
-                                                    {/* ACTION: CONFIRM RETURN */}
-                                                    {config.action === 'CONFIRM_RETURN' && (
-                                                        <button
-                                                            onClick={() => onConfirmReturn(order.id)}
-                                                            className="w-full h-11 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wide border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 animate-pulse"
-                                                        >
-                                                            <CheckCheck size={18} />
-                                                            Confirmar Devolução
-                                                        </button>
-                                                    )}
-
-                                                    {/* ACTION: TRACK */}
-                                                    {config.action === 'TRACK' && (
-                                                        <div className="w-full h-9 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/20 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
-                                                            <Send size={14} />
-                                                            Em deslocamento
-                                                        </div>
-                                                    )}
-
-                                                    {/* LOADING (Searching) */}
-                                                    {!config.action && (
-                                                        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mt-2">
-                                                            <div className="bg-guepardo-accent h-full w-1/3 animate-loading-bar rounded-full"></div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-
-                                {groupedOrders.length === 0 && (
-                                    <div className="text-center py-12 opacity-40">
-                                        <Radio size={32} className="mx-auto mb-2 text-gray-400" />
-                                        <p className="text-sm text-gray-500 font-medium">Nenhum pedido ativo</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                {/* BLOCO 1: FORMULÁRIO (SUPERIOR) */}
+                <div className="bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto shrink-0">
+                    <div className="p-4">
+                        <DeliveryForm
+                            onSubmit={handleNewOrderSubmit}
+                            isSubmitting={false}
+                            existingCustomers={customers}
+                            onAddressChange={setDraftAddress}
+                            routeStats={routeStats}
+                            settings={settings}
+                            activeCouriersWithOrders={activeCouriersWithOrders}
+                            availableCouriers={availableCouriers}
+                            allOrders={orders}
+                            isSelecting={isSelectingCourier}
+                            onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
+                            externalTargetId={targetCourierId}
+                            onClearSelection={() => setTargetCourierId('')}
+                        />
                     </div>
-
-                    {/* PAINEL 2: FLOATING CAPSULE (OS) moved to root */}
                 </div>
 
+                {/* BLOCO 2: MONITORAMENTO (INFERIOR - FLEX-1) */}
+                <div className="flex-1 bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto">
+                    <div className="flex-1 overflow-y-auto p-4 scrollbar-guepardo">
+                        <h3 className="text-xs font-bold text-stone-500 dark:text-gray-400 uppercase mb-1 pl-1 flex items-center justify-between">
+                            <span>Monitoramento Ativo</span>
+                            <span className="bg-warm-200 dark:bg-white/10 text-warm-800 dark:text-white px-2 py-0.5 rounded-md border border-warm-300 dark:border-white/10">{activeOrders.length}</span>
+                        </h3>
+                        <h3 className="text-xs font-bold text-stone-500 dark:text-gray-400 uppercase mb-3 pl-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1"><Bike size={12} className="text-guepardo-accent" /> Guepardos On-line</span>
+                            <span className="bg-guepardo-accent/10 text-guepardo-accent px-2 py-0.5 rounded-md border border-guepardo-accent/20">{availableCouriers.length}</span>
+                        </h3>
+
+
+                        {/* ZERAR BANCO BUTTON */}
+
+
+                        <div className="space-y-3 pb-20">
+                            {groupedOrders.map((order) => {
+                                const config = getCardConfig(order);
+                                const isSelected = activeOrder?.id === order.id;
+                                const changeNeeded = order.paymentMethod === 'CASH' && order.changeFor
+                                    ? order.changeFor - order.deliveryValue
+                                    : 0;
+
+                                // For batches, we show IDs of all orders
+                                const displayIds = order.isBatch && order.batchOrders
+                                    ? order.batchOrders.map(o => o.display_id || o.id.slice(-4)).join(', ')
+                                    : (order.display_id || order.id.slice(-4));
+
+                                return (
+                                    <div
+                                        key={order.id}
+                                        onClick={() => handleCardClick(order)}
+                                        className={`
+                                                relative rounded-2xl shadow-lg cursor-pointer transition-all duration-300 mb-3
+                                                hover:shadow-glow-sm hover:-translate-y-1 
+                                                bg-white dark:bg-warm-800
+                                                border-l-[4px] border-l-guepardo-accent
+                                                ${isSelected ? 'ring-2 ring-guepardo-accent ring-offset-2 ring-offset-warm-900 z-10 shadow-glow scale-[1.02]' : 'border-y border-r border-warm-200 dark:border-white/5'}
+                                            `}
+                                    >
+                                        {/* PROXIMITY LED */}
+                                        {config.isNearby && (
+                                            <div className="absolute -top-1.5 -right-1.5 z-20">
+                                                <span className="flex h-4 w-4">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        {/* CANCEL BUTTON (HOVER) */}
+                                        {!order.isBatch && (
+                                            <button
+                                                onClick={(e) => handleOpenCancellation(e, order)}
+                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-transparent hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors z-30"
+                                                title="Cancelar Pedido"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+
+                                        <div className="p-4">
+                                            {/* Header do Card */}
+                                            <div className="flex justify-between items-start mb-2 pr-6">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-mono text-[10px] font-bold text-warm-500 dark:text-gray-400 bg-warm-50 dark:bg-white/10 px-1.5 py-0.5 rounded border border-warm-200 dark:border-transparent">
+                                                        #{displayIds}
+                                                    </span>
+                                                    {!order.isBatch && (
+                                                        <div className="p-1 rounded bg-warm-50 dark:bg-white/5 border border-warm-200 dark:border-white/10" title={order.paymentMethod}>
+                                                            {getPaymentIcon(order.paymentMethod)}
+                                                        </div>
+                                                    )}
+                                                    {order.isBatch && <Layers size={14} className="text-guepardo-accent" />}
+                                                </div>
+                                                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${order.status === OrderStatus.READY_FOR_PICKUP ? 'bg-green-100 text-green-700 border-green-200' :
+                                                    order.status === OrderStatus.RETURNING ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                        'bg-orange-100 text-orange-700 border-orange-200'
+                                                    }`}>
+                                                    {config.statusText}
+                                                </span>
+                                            </div>
+
+                                            {/* Informações Principais */}
+                                            <div className="mb-4">
+                                                <h4 className="text-[18px] font-bold text-warm-800 dark:text-white leading-tight mb-1 font-sans">
+                                                    {order.clientName}
+                                                </h4>
+                                                <p className="text-[12px] font-normal text-warm-500 dark:text-[#E0E0E0] truncate flex items-center gap-1">
+                                                    <MapPin size={10} /> {order.destination}
+                                                </p>
+
+                                                {order.isBatch && order.batchOrders && (
+                                                    <div className="mt-2 space-y-1">
+                                                        {order.batchOrders.map(bo => (
+                                                            <div key={bo.id} className="text-[10px] text-warm-500 dark:text-gray-400 flex justify-between items-center group/item hover:text-guepardo-accent transition-colors">
+                                                                <span className="flex items-center gap-1">
+                                                                    <Hash size={8} /> {bo.display_id || bo.id.slice(-4)} - {bo.clientName}
+                                                                </span>
+                                                                {/* bo.pickupCode suppressed for batch view */}
+                                                                {false && bo.pickupCode && (
+                                                                    <span className="bg-guepardo-accent/10 text-guepardo-accent px-1.5 py-0.5 rounded font-bold">
+                                                                        {bo.pickupCode}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {!order.isBatch && order.courier && order.status !== OrderStatus.PENDING && (
+                                                    <p className="text-[10px] font-bold text-guepardo-accent mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-left-2 transition-all">
+                                                        <Zap size={10} fill="currentColor" />
+                                                        Pedido aceito pelo Entregador "{order.courier.name}" via aplicativo Guepardo Entregador.
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Financial Alert */}
+                                            {!order.isBatch && changeNeeded > 0 && (
+                                                <div className="mb-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1">
+                                                    <Banknote size={12} />
+                                                    Troco: levar R$ {(changeNeeded || 0).toFixed(2)}
+                                                </div>
+                                            )}
+
+                                            {/* Return Required Alert */}
+                                            {!order.isBatch && order.isReturnRequired && order.status !== OrderStatus.RETURNING && (
+                                                <div className="mb-3 px-2 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded text-[10px] font-bold text-orange-700 dark:text-orange-400 flex items-center gap-1">
+                                                    <ArrowLeftRight size={12} />
+                                                    Retorno Obrigatório (+50%)
+                                                </div>
+                                            )}
+
+                                            {/* Action Area */}
+                                            <div onClick={(e) => e.stopPropagation()}>
+                                                {/* ACTION: PREPARE */}
+                                                {config.action === 'PREPARE' && (
+                                                    <div className="flex gap-2">
+                                                        <div
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (order.courier?.phone) {
+                                                                    window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank');
+                                                                } else {
+                                                                    alert('Entregador sem telefone cadastrado.');
+                                                                }
+                                                            }}
+                                                            className="flex-1 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg p-2 border border-green-200 dark:border-green-800 shadow-sm cursor-pointer group transition-all"
+                                                        >
+                                                            <div className="relative">
+                                                                <img src={order.courier?.photoUrl} className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-green-200 dark:border-green-700" alt="" />
+                                                                <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border border-white">
+                                                                    <MessageCircle size={8} color="white" strokeWidth={3} />
+                                                                </div>
+                                                            </div>
+                                                            <div className="overflow-hidden">
+                                                                <p className="text-[10px] font-bold text-green-900 dark:text-green-100 truncate group-hover:text-green-700 transition-colors uppercase">{order.courier?.name}</p>
+                                                                <p className="text-[9px] text-green-700 dark:text-green-300 font-mono truncate">{order.courier?.vehiclePlate}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => onMarkAsReady(order.id)}
+                                                            className="flex-1 bg-guepardo-accent hover:bg-guepardo-orange text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all uppercase"
+                                                        >
+                                                            <PackageCheck size={16} />
+                                                            Pronto
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* ACTION: VALIDATE */}
+                                                {config.action === 'VALIDATE' && (
+                                                    <button
+                                                        onClick={(e) => handleOpenValidation(e, order)}
+                                                        className="w-full h-11 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all animate-pulse-slow uppercase tracking-wide border-b-4 border-green-800 active:border-b-0 active:translate-y-1"
+                                                    >
+                                                        <Lock size={16} />
+                                                        Validar Código
+                                                    </button>
+                                                )}
+
+                                                {/* ACTION: CONFIRM RETURN */}
+                                                {config.action === 'CONFIRM_RETURN' && (
+                                                    <button
+                                                        onClick={() => onConfirmReturn(order.id)}
+                                                        className="w-full h-11 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wide border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 animate-pulse"
+                                                    >
+                                                        <CheckCheck size={18} />
+                                                        Confirmar Devolução
+                                                    </button>
+                                                )}
+
+                                                {/* ACTION: TRACK */}
+                                                {config.action === 'TRACK' && (
+                                                    <div className="w-full h-9 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/20 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
+                                                        <Send size={14} />
+                                                        Em deslocamento
+                                                    </div>
+                                                )}
+
+                                                {/* LOADING (Searching) */}
+                                                {!config.action && (
+                                                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mt-2">
+                                                        <div className="bg-guepardo-accent h-full w-1/3 animate-loading-bar rounded-full"></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            {groupedOrders.length === 0 && (
+                                <div className="text-center py-12 opacity-40">
+                                    <Radio size={32} className="mx-auto mb-2 text-gray-400" />
+                                    <p className="text-sm text-gray-500 font-medium">Nenhum pedido ativo</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    {/* PAINEL 2: FLOATING CAPSULE (OS) moved to root */}
+                </div>
             </div>
 
             {/* MODAL DE VALIDAÇÃO (Root Level) */}
@@ -606,21 +629,23 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             />
 
             {/* PAINEL DE DETALHES (Root Level) */}
-            {activeOrder && (
-                <OrderServiceDetail
-                    order={activeOrder}
-                    storeProfile={storeProfile}
-                    onCancelClick={(order) => {
-                        setOrderToInteract(order);
-                        setCancellationModalOpen(true);
-                    }}
-                    onConfirmReturn={onConfirmReturn}
-                    isExpanded={showDetailDrawer}
-                    onToggleExpand={() => setShowDetailDrawer(prev => !prev)}
-                    onClose={handleCloseDrawer}
-                    theme={theme}
-                />
-            )}
+            {
+                activeOrder && (
+                    <OrderServiceDetail
+                        order={activeOrder}
+                        storeProfile={storeProfile}
+                        onCancelClick={(order) => {
+                            setOrderToInteract(order);
+                            setCancellationModalOpen(true);
+                        }}
+                        onConfirmReturn={onConfirmReturn}
+                        isExpanded={showDetailDrawer}
+                        onToggleExpand={() => setShowDetailDrawer(prev => !prev)}
+                        onClose={handleCloseDrawer}
+                        theme={theme}
+                    />
+                )
+            }
         </div>
     );
 };

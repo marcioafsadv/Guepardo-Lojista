@@ -10,9 +10,10 @@ interface HistorySidebarProps {
     customers: Customer[];
     onSelectOrder?: (order: Order) => void;
     onViewClientDetails?: (customer: Customer) => void;
+    storeName?: string;
 }
 
-export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpent, customers, onSelectOrder, onViewClientDetails }) => {
+export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpent, customers, onSelectOrder, onViewClientDetails, storeName = 'Minha Loja' }) => {
     const [activeTab, setActiveTab] = useState<'history' | 'clients' | 'dashboard'>('history');
     const [clientSearch, setClientSearch] = useState('');
 
@@ -54,7 +55,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpe
 
             {/* --- DASHBOARD TAB CONTENT --- */}
             {activeTab === 'dashboard' && (
-                <DashboardTab orders={orders} totalSpent={totalSpent} customers={customers} onViewChange={() => { }} />
+                <DashboardTab orders={orders} totalSpent={totalSpent} customers={customers} onViewChange={() => { }} storeName={storeName} />
             )}
 
             {/* --- HISTORY TAB CONTENT --- */}
@@ -70,7 +71,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpe
                                 <span className="text-xs text-gray-400 block mb-1">Total Frete</span>
                                 <span className="text-2xl font-bold text-gray-800 flex items-center gap-0.5">
                                     <span className="text-sm text-gray-400">R$</span>
-                                    {totalSpent.toFixed(0)}
+                                    {(totalSpent || 0).toFixed(0)}
                                 </span>
                             </div>
                         </div>
@@ -100,7 +101,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({ orders, totalSpe
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-medium text-gray-600">R$ {order.estimatedPrice.toFixed(2)}</span>
+                                        <span className="text-sm font-medium text-gray-600">R$ {(order.estimatedPrice || 0).toFixed(2)}</span>
                                         <FileText size={14} className="text-gray-300 group-hover:text-guepardo-orange" />
                                     </div>
                                 </div>

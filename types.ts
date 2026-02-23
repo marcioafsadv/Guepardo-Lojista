@@ -20,7 +20,7 @@ export interface StoreSettings {
 
   // 4. Interface
   theme: 'light' | 'dark' | 'auto';
-  alertSound: 'default' | 'roar' | 'siren';
+  alertSound: 'default' | 'roar' | 'siren' | 'cheetah' | 'symphony' | 'guitar' | 'beep';
 }
 
 export enum OrderStatus {
@@ -98,6 +98,14 @@ export interface Order {
   simulationRoute?: { lat: number; lng: number }[]; // Array of coordinates for the current path
   simulationStep?: number; // Current index in the route array
   simulationTotalSteps?: number; // Total steps calculated for the duration
+
+  // Batching Support
+  isBatch?: boolean;
+  batchOrders?: Order[];
+
+  // Source & CRM
+  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE';
+  clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
 }
 
 export interface SavedAddress {

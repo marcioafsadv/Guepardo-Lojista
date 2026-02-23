@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { DeliveryForm } from './components/DeliveryForm';
+import { DeliveryForm, OrderFormData } from './components/DeliveryForm';
 import { ActiveOrderCard } from './components/ActiveOrderCard';
 import { LeafletMap } from './components/LeafletMap';
 import { GlobalSidebar, AppView } from './components/GlobalSidebar';
@@ -15,6 +15,7 @@ import { GestaoDePedidos } from './components/GestaoDePedidos';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
+import { OrderHubAlert } from './components/OrderHubAlert';
 import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
 import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, Users, Clock } from 'lucide-react';
@@ -68,6 +69,7 @@ function App() {
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
     const [notification, setNotification] = useState<{ title: string, message: string } | null>(null);
     const [availableCouriers, setAvailableCouriers] = useState<Courier[]>(INITIAL_COURIERS);
+    const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
     // --- MANUAL ROUTING (TRACKING PAGE) ---
     // Since we don't have react-router-dom, we check URL manually
@@ -104,46 +106,85 @@ function App() {
 
             if (data) {
                 const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
-                // Refine geocoding with more fields for better accuracy
-                const geoQuery = `${data.address?.street}, ${data.address?.number}, ${data.address?.bairro || ''}, ${data.address?.city}, ${data.address?.cep || ''}, Brazil`;
 
-                let lat = -23.257217; // Default Fallback (Itu)
-                let lng = -47.300549; // Default Fallback (Itu)
+                // --- COORDINATE RESOLUTION STRATEGY ---
+                // Priority 1: Coordinates saved directly in the DB (fast, accurate)
+                // Priority 2: Nominatim geocoding (fallback only when DB has no coords)
+                let lat: number = STORE_PROFILE.lat; // Default Fallback (Itu)
+                let lng: number = STORE_PROFILE.lng; // Default Fallback (Itu)
 
-                // Attempt Geocoding (Nominatim - Free OSM)
-                try {
-                    const encodedAddress = encodeURIComponent(geoQuery);
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`);
-                    const result = await response.json();
+                if (data.lat && data.lng && !isNaN(data.lat) && !isNaN(data.lng)) {
+                    // Use coordinates from DB - fastest and most accurate
+                    lat = data.lat;
+                    lng = data.lng;
+                    console.log("✅ [STORE_PROFILE] Using DB coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
+                } else {
+                    // Fallback: Geocode via Nominatim using CEP+address for precision
+                    const cep = data.address?.zip_code || data.address?.cep || '';
+                    const geoQuery = cep
+                        ? `${cep}, Brazil`
+                        : `${data.address?.street}, ${data.address?.number}, ${data.address?.city}, ${data.address?.state}, Brazil`;
 
-                    if (result && result.length > 0) {
-                        lat = parseFloat(result[0].lat);
-                        lng = parseFloat(result[0].lon);
-                        console.log("📍 [GEOCODING-OSM] Found refined coordinates:", lat, lng, "for:", geoQuery);
-                    } else {
-                        console.warn("⚠️ [GEOCODING-OSM] Failed to find refined address, trying simpler version:", fullAddress);
-                        // Fallback to simpler address if refined fails
-                        const simplerResponse = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1`);
-                        const simplerResult = await simplerResponse.json();
-                        if (simplerResult && simplerResult.length > 0) {
-                            lat = parseFloat(simplerResult[0].lat);
-                            lng = parseFloat(simplerResult[0].lon);
+                    console.log("📍 [GEOCODING-OSM] No DB coords, geocoding:", geoQuery);
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geoQuery)}&limit=1`);
+                        const result = await response.json();
+
+                        if (result && result.length > 0) {
+                            lat = parseFloat(result[0].lat);
+                            lng = parseFloat(result[0].lon);
+                            console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
+
+                            // Save to DB for future use (avoid repeated geocoding)
+                            await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
+                            console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
+                        } else {
+                            console.warn("⚠️ [GEOCODING-OSM] Could not geocode address, using default Itu coordinates");
                         }
+                    } catch (geoError) {
+                        console.error("❌ [GEOCODING-OSM] Error:", geoError);
                     }
-                } catch (geoError) {
-                    console.error("❌ [GEOCODING-OSM] Error:", geoError);
                 }
 
+                console.log("📍 [STORE_PROFILE] Setting store coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
                 setRealStoreProfile({
                     name: data.fantasy_name || data.company_name,
                     address: fullAddress,
-                    lat: data.fantasy_name === 'Torres & Silva' ? -23.26476 : lat,
-                    lng: data.fantasy_name === 'Torres & Silva' ? -47.29918 : lng
+                    lat: lat || STORE_PROFILE.lat,
+                    lng: lng || STORE_PROFILE.lng
                 });
             }
         };
         fetchProfile();
     }, [session]);
+
+    // Fetch System Pricing Settings from Supabase
+    useEffect(() => {
+        const fetchPricingSettings = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('key, value')
+                    .in('key', ['min_delivery_fee', 'per_km_rate']);
+
+                if (error) {
+                    console.warn('⚠️ Could not fetch system_settings. Using defaults.', error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    const minFee = data.find(s => s.key === 'min_delivery_fee')?.value;
+                    if (minFee !== undefined) {
+                        setSettings(prev => ({ ...prev, baseFreight: parseFloat(minFee) }));
+                        console.log('✅ [PRICING] Loaded min_delivery_fee from DB:', minFee);
+                    }
+                }
+            } catch (err) {
+                console.error('❌ [PRICING] Error fetching system_settings:', err);
+            }
+        };
+        fetchPricingSettings();
+    }, []);
 
     // Fetch Couriers (Profiles + Vehicles)
     // We fetch "approved" profiles that have a vehicle.
@@ -361,8 +402,8 @@ function App() {
                             }],
                             pickupCode: d.collection_code,
                             isReturnRequired: items.isReturnRequired,
-                            destinationLat: items.destinationLat,
-                            destinationLng: items.destinationLng,
+                            destinationLat: typeof items.destinationLat === 'number' && !isNaN(items.destinationLat) ? items.destinationLat : undefined,
+                            destinationLng: typeof items.destinationLng === 'number' && !isNaN(items.destinationLng) ? items.destinationLng : undefined,
                             courier: courierData
                         };
                     }));
@@ -458,7 +499,7 @@ function App() {
                                 ...o,
                                 status: mappedStatus,
                                 courier: courierData || o.courier,
-                                events: [...o.events, newEvent],
+                                events: [...(o.events || []), newEvent],
                                 // Ensure consistent pickupCode and display_id
                                 pickupCode: o.pickupCode || delivery.collection_code,
                                 display_id: o.display_id || (delivery.items as any)?.displayId
@@ -543,7 +584,7 @@ function App() {
         closeTime: "22:00",
         isStoreOpen: true,
         deliveryRadiusKm: 5,
-        baseFreight: 8.50,
+        baseFreight: 7.50,
         returnFeeActive: true,
         prepTimeMinutes: 15,
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
@@ -626,87 +667,88 @@ function App() {
     const updateCustomerDatabase = async (orderData: Partial<Order>) => {
         if (!orderData.clientName || !session?.user) return;
 
-        // Optimistic Update
-        let currentCustomer: Customer | undefined;
-        let isNew = false;
+        console.log("👤 [CRM] Updating customer database for:", orderData.clientName);
 
-        setCustomers(prevCustomers => {
-            const existingIndex = prevCustomers.findIndex(c => c.name.toLowerCase() === orderData.clientName!.toLowerCase());
-            const newAddress: SavedAddress = {
-                street: orderData.addressStreet!,
-                number: orderData.addressNumber!,
-                complement: orderData.addressComplement,
-                neighborhood: orderData.addressNeighborhood!,
-                city: orderData.addressCity!,
-                cep: '00000-000',
-                lastUsed: new Date()
+        // 1. Fetch Existing
+        const { data: existing } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('store_id', session.user.id)
+            .ilike('name', orderData.clientName)
+            .maybeSingle();
+
+        const newAddress: SavedAddress = {
+            street: orderData.addressStreet || 'Rua Desconhecida',
+            number: orderData.addressNumber || 'S/N',
+            complement: orderData.addressComplement,
+            neighborhood: orderData.addressNeighborhood || '',
+            city: orderData.addressCity || 'Itu',
+            cep: '00000-000',
+            lastUsed: new Date()
+        };
+
+        let updatedCustomer: any;
+
+        if (existing) {
+            // Update existing
+            const addresses = Array.isArray(existing.addresses) ? existing.addresses : [];
+            const addressExists = addresses.some((a: any) =>
+                a.street === newAddress.street && a.number === newAddress.number
+            );
+
+            updatedCustomer = {
+                phone: orderData.clientPhone || existing.phone,
+                total_orders: (existing.total_orders || 0) + 1,
+                total_spent: (existing.total_spent || 0) + (orderData.deliveryValue || 0),
+                last_order_date: new Date().toISOString(),
+                addresses: addressExists ? addresses : [newAddress, ...addresses]
             };
 
-            if (existingIndex >= 0) {
-                const updatedCustomers = [...prevCustomers];
-                const cust = { ...updatedCustomers[existingIndex] };
-                cust.totalOrders += 1;
-                cust.totalSpent += (orderData.deliveryValue || 0);
-                cust.lastOrderDate = new Date();
-                cust.phone = orderData.clientPhone || cust.phone;
-
-                const addressExists = cust.addresses.some(a => a.street === newAddress.street && a.number === newAddress.number);
-                if (!addressExists) {
-                    cust.addresses = [newAddress, ...cust.addresses];
-                }
-
-                updatedCustomers[existingIndex] = cust;
-                currentCustomer = cust;
-                return updatedCustomers;
-            } else {
-                isNew = true;
-                const newCustomer: Customer = {
-                    id: crypto.randomUUID(), // Temp ID
-                    name: orderData.clientName!,
-                    phone: orderData.clientPhone || '',
-                    totalOrders: 1,
-                    totalSpent: orderData.deliveryValue || 0,
-                    lastOrderDate: new Date(),
-                    averageWaitTime: 5,
-                    addresses: [newAddress],
-                    notes: ''
-                };
-                currentCustomer = newCustomer;
-                return [...prevCustomers, newCustomer];
-            }
-        });
-
-        // Supabase Upsert
-        if (currentCustomer) {
-            // Check if exists by name/phone to get real ID if new locally
-            // Ideally we used the ID from currentCustomer but if it was just created locally it's random.
-            // We should use Upsert with ON CONFLICT? But we don't have a unique constraint on name/store_id yet.
-            // For now, let's try to match by name or insert.
-
-            // Simplest Strategy: 
-            // 1. Check if exists
-            const { data: existing } = await supabase
+            const { error } = await supabase
                 .from('customers')
-                .select('*')
-                .eq('store_id', session.user.id)
-                .ilike('name', currentCustomer.name)
-                .single();
+                .update(updatedCustomer)
+                .eq('id', existing.id);
 
-            const payload = {
+            if (error) console.error("❌ [CRM] Error updating customer:", error);
+            else console.log("✅ [CRM] Customer updated successfully");
+        } else {
+            // Insert new
+            updatedCustomer = {
                 store_id: session.user.id,
-                name: currentCustomer.name,
-                phone: currentCustomer.phone,
-                total_orders: currentCustomer.totalOrders,
-                total_spent: currentCustomer.totalSpent,
-                last_order_date: currentCustomer.lastOrderDate,
-                addresses: currentCustomer.addresses
+                name: orderData.clientName,
+                phone: orderData.clientPhone || '',
+                total_orders: 1,
+                total_spent: orderData.deliveryValue || 0,
+                last_order_date: new Date().toISOString(),
+                addresses: [newAddress]
             };
 
-            if (existing) {
-                await supabase.from('customers').update(payload).eq('id', existing.id);
-            } else {
-                await supabase.from('customers').insert(payload);
-            }
+            const { error } = await supabase
+                .from('customers')
+                .insert([updatedCustomer]);
+
+            if (error) console.error("❌ [CRM] Error inserting customer:", error);
+            else console.log("✅ [CRM] New customer created successfully");
+        }
+
+        // 2. Synchronize local state (Fetch updated list to be safe)
+        const { data: allCustomers } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('store_id', session.user.id);
+
+        if (allCustomers) {
+            setCustomers(allCustomers.map(c => ({
+                id: c.id,
+                name: c.name,
+                phone: c.phone || '',
+                totalOrders: c.total_orders || 0,
+                totalSpent: c.total_spent || 0,
+                lastOrderDate: c.last_order_date ? new Date(c.last_order_date) : new Date(),
+                averageWaitTime: c.average_wait_time || 0,
+                addresses: c.addresses || [],
+                notes: c.notes || ''
+            })));
         }
     };
 
@@ -742,105 +784,132 @@ function App() {
         // playAlert(); // REMOVED: Only arrive at store should play
     };
 
-    const handleNewOrder = async (data: Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & { isReturnRequired?: boolean }) => {
-        if (!session?.user) return;
-
-        let destCoords = { lat: STORE_PROFILE.lat + (Math.random() - 0.5) * 0.02, lng: STORE_PROFILE.lng + (Math.random() - 0.5) * 0.02 };
-        if (data.destination.includes('Carlos Scalet')) destCoords = { lat: -23.2680, lng: -47.3000 };
-
-        const targetCourierId = (data as any).targetCourierId;
-        let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
-
-        if (targetCourierId) {
-            // Check for existing orders for this courier to unify pickup code
-            const courierOrders = orders.filter(o =>
-                o.courier?.id === targetCourierId &&
-                o.status !== OrderStatus.DELIVERED &&
-                o.status !== OrderStatus.CANCELED &&
-                o.pickupCode // Ensure it has a code
-            );
-
-            if (courierOrders.length > 0) {
-                console.log(`🔗 Batching: Reusing pickup code from order ${courierOrders[0].id}`);
-                finalPickupCode = courierOrders[0].pickupCode;
-            }
-        }
-
-        const generatedPin = finalPickupCode;
-        const generatedId = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit layout ID
-        const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
-
-        // Use real calculated values from form if available
-        const distanceKm = (data as any).calculatedDistance || 1.2;
-        const finalPrice = (data as any).calculatedEarnings || 7.50;
-        const returnFee = mustReturn ? (finalPrice / 1.5) * 0.5 : 0; // Approximate backport if needed
-
-        const newEvent: OrderEvent = { status: OrderStatus.PENDING, label: "Solicitado", timestamp: new Date(), description: "Aguardando entregadores..." };
-        const newOrder: Order = {
-            ...data,
-            id: crypto.randomUUID(), // Temp ID for local state, will be replaced or synced? Ideally use returned ID.
-            status: OrderStatus.PENDING,
-            createdAt: new Date(),
-            estimatedPrice: finalPrice,
-            returnFee: returnFee,
-            isReturnRequired: mustReturn,
-            distanceKm: distanceKm,
-            destinationLat: destCoords.lat,
-            destinationLng: destCoords.lng,
-            events: [newEvent],
-            pickupCode: generatedPin,
-            display_id: generatedId, // Add to local state
-        };
-
-        // Update Local State Optimistically
-        setOrders(prev => [newOrder, ...prev]);
-        setActiveOrder(newOrder);
-        setNotification({ title: "Solicitando Entregador...", message: "Transmitindo pedido para a rede Guepardo." });
-
+    const handleNewOrder = async (data: OrderFormData) => {
+        console.log("📨 [App] handleNewOrder received payload:", data);
+        setIsSubmittingOrder(true);
         try {
-            // Extract last 4 digits of phone
-            const phoneSuffix = data.clientPhone?.replace(/\D/g, '').slice(-4) || '';
+            if (!session?.user) throw new Error("No active session");
 
-            // INSERT INTO SUPABASE
-            const { data: insertedData, error } = await supabase
+            // 1. Resolve Coords - use real store location as fallback center
+            const storeCenter = realStoreProfile || STORE_PROFILE;
+            let destCoords = { lat: storeCenter.lat + (Math.random() - 0.5) * 0.02, lng: storeCenter.lng + (Math.random() - 0.5) * 0.02 };
+
+            const phoneSuffix = data.clientPhone ? data.clientPhone.replace(/\D/g, '').slice(-4) : "0000";
+
+            // Pickup Code Logic (Batching)
+            const targetCourierId = data.targetCourierId;
+            let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+            if (targetCourierId) {
+                const courierOrders = orders.filter(o =>
+                    o.courier?.id === targetCourierId &&
+                    o.status !== OrderStatus.DELIVERED &&
+                    o.status !== OrderStatus.CANCELED &&
+                    o.pickupCode
+                );
+
+                if (courierOrders.length > 0) {
+                    console.log(`🔗 Batching: Reusing pickup code from order ${courierOrders[0].id}`);
+                    finalPickupCode = courierOrders[0].pickupCode;
+                }
+            }
+
+            const generatedPin = finalPickupCode;
+            const generatedId = Math.floor(1000 + Math.random() * 9000);
+            const distanceKm = data.calculatedDistance || 1.2;
+            const finalPrice = data.calculatedEarnings || 15.00;
+            const mustReturn = data.isReturnRequired || data.paymentMethod === 'CARD';
+
+            const newOrderPayload = {
+                id: crypto.randomUUID(),
+                store_id: session.user.id,
+                store_name: realStoreProfile?.name || STORE_PROFILE.name,
+                store_address: realStoreProfile?.address || STORE_PROFILE.address,
+                customer_name: data.clientName,
+                customer_address: data.destination,
+                customer_phone_suffix: phoneSuffix,
+                collection_code: generatedPin,
+                status: 'pending',
+                driver_id: data.targetCourierId || null,
+                items: {
+                    displayId: generatedId,
+                    paymentMethod: data.paymentMethod,
+                    deliveryValue: data.deliveryValue,
+                    changeFor: data.changeFor,
+                    isReturnRequired: mustReturn,
+                    destinationLat: destCoords.lat,
+                    destinationLng: destCoords.lng,
+                    targetCourierId: data.targetCourierId
+                },
+                earnings: finalPrice,
+                delivery_distance: distanceKm
+            };
+
+            console.log("💾 [App] Inserting order into Supabase...", newOrderPayload);
+
+            const { data: createdData, error: insertError } = await supabase
                 .from('deliveries')
-                .insert({
-                    id: newOrder.id, // Use same UUID
-                    store_id: session.user.id,
-                    store_name: realStoreProfile?.name || STORE_PROFILE.name,
-                    store_address: realStoreProfile?.address || STORE_PROFILE.address,
-                    customer_name: data.clientName,
-                    customer_address: data.destination,
-                    customer_phone_suffix: phoneSuffix, // Last 4 digits only
-                    collection_code: generatedPin, // Pickup code in dedicated column
-                    status: (data as any).targetCourierId ? 'accepted' : 'pending',
-                    driver_id: (data as any).targetCourierId || null,
-                    items: {
-                        displayId: generatedId, // Store in JSON to avoid schema change
-                        paymentMethod: data.paymentMethod,
-                        deliveryValue: data.deliveryValue,
-                        changeFor: data.changeFor,
-                        isReturnRequired: mustReturn,
-                        destinationLat: destCoords.lat,
-                        destinationLng: destCoords.lng,
-                        targetCourierId: (data as any).targetCourierId
-                    },
-                    earnings: finalPrice, // Store the final delivery price
-                    delivery_distance: distanceKm // Save the actual distance
-                })
+                .insert([newOrderPayload])
                 .select()
                 .single();
 
-            if (error) throw error;
+            if (insertError) {
+                console.error("❌ [App] Supabase insert error:", insertError);
+                throw insertError;
+            }
 
-            console.log("Order created in Supabase:", insertedData);
-            updateCustomerDatabase(newOrder);
+            console.log("✅ [App] Order created successfully in Supabase:", createdData);
 
-        } catch (err: any) {
-            console.error("Error creating order:", err);
-            setNotification({ title: "Erro", message: "Falha ao criar pedido no sistema." });
-            // Rollback local state if needed
-            setOrders(prev => prev.filter(o => o.id !== newOrder.id));
+            // Update local state - Proper mapping from Supabase result
+            const mappedOrder: Order = {
+                id: createdData.id,
+                display_id: createdData.items?.displayId?.toString() || createdData.id.slice(-4),
+                clientName: createdData.customer_name,
+                clientPhone: data.clientPhone,
+                destination: createdData.customer_address,
+                addressStreet: createdData.customer_address?.split(',')[0] || createdData.customer_address,
+                addressNumber: createdData.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
+                addressNeighborhood: '',
+                addressCity: 'Itu',
+                deliveryValue: createdData.items?.deliveryValue || 0,
+                paymentMethod: createdData.items?.paymentMethod || 'PIX',
+                changeFor: createdData.items?.changeFor || null,
+                status: OrderStatus.PENDING,
+                createdAt: new Date(createdData.created_at),
+                estimatedPrice: createdData.earnings || 15.0,
+                distanceKm: createdData.delivery_distance || 1.2,
+                events: [{
+                    status: OrderStatus.PENDING,
+                    label: "Pedido Criado",
+                    timestamp: new Date(createdData.created_at),
+                    description: "Aguardando entregadores na região"
+                }],
+                pickupCode: createdData.collection_code,
+                isReturnRequired: createdData.items?.isReturnRequired || false,
+                destinationLat: createdData.items?.destinationLat,
+                destinationLng: createdData.items?.destinationLng,
+            };
+
+            setOrders(prev => [mappedOrder, ...prev]);
+
+            // 2. Persist/Update Customer
+            const orderForPersistence: Partial<Order> = {
+                clientName: data.clientName,
+                clientPhone: data.clientPhone,
+                addressStreet: data.destination.split(',')[0] || data.destination,
+                addressNumber: data.destination.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
+                addressNeighborhood: '', // Could be parsed if needed
+                addressCity: 'Itu',
+                deliveryValue: data.deliveryValue || 0,
+            };
+
+            await updateCustomerDatabase(orderForPersistence);
+
+        } catch (error: any) {
+            console.error('❌ [App] Critical error in handleNewOrder:', error);
+            alert(`Erro ao criar pedido: ${error.message || 'Erro desconhecido'}`);
+        } finally {
+            setIsSubmittingOrder(false);
         }
     };
 
@@ -878,12 +947,12 @@ function App() {
         console.log("🚀 [handleMarkAsReady] Updating order IDs:", orderIds);
 
         try {
-            // Using 'arrived_pickup' as DB likely doesn't support 'ready_for_pickup'
-            // and arrived_pickup is the closest state that means "At Store"
+            // Updated to 'ready_for_pickup' as confirmed by the status mapping
+            // which signifies the merchant has prepared the order and it's ready for transfer.
             const { error } = await supabase
                 .from('deliveries')
                 .update({
-                    status: 'arrived_pickup',
+                    status: 'ready_for_pickup',
                     updated_at: new Date().toISOString()
                 })
                 .in('id', orderIds);
@@ -1441,6 +1510,9 @@ function App() {
                 }}
             />
 
+            {session?.user?.id && (
+                <OrderHubAlert storeId={session.user.id} />
+            )}
         </div>
     );
 }

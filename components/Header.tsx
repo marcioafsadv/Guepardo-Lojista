@@ -48,9 +48,13 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
 
             {/* CENTER BRAND LOGO */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto flex items-center justify-center group cursor-pointer">
-                <div className="relative h-full w-auto flex items-center">
+                <div className="relative h-full w-auto flex items-center gap-3">
                     <div className="absolute inset-0 bg-white/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 w-[120%] -left-[10%]"></div>
-                    <img src="/guepardo-logo-v2.jpg" alt="Guepardo Delivery" className="h-full w-auto object-contain transform group-hover:scale-105 transition-transform duration-300 drop-shadow-md" />
+                    <img src="/cheetah-scooter.png" alt="Guepardo" className="h-14 w-auto object-contain transform group-hover:scale-110 transition-transform duration-300 drop-shadow-md" />
+                    <div className="flex flex-col items-start">
+                        <span className="text-white font-black italic text-xl leading-none tracking-tighter shadow-sm">GUEPARDO</span>
+                        <span className="text-[#FF6B00] font-bold text-[9px] leading-none tracking-[0.3em] mt-0.5 shadow-sm">DELIVERY</span>
+                    </div>
                 </div>
             </div>
 

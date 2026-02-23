@@ -1,6 +1,6 @@
 import React from 'react';
 import { StepProps } from './types';
-import { formatCNPJ, formatPhone, validateCNPJ } from '../../utils/validation';
+import { formatCNPJ, formatCPF, formatPhone, validateCNPJ, validateCPF } from '../../utils/validation';
 
 const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep, errors, setErrors }) => {
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -8,7 +8,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
         let formattedValue = value;
 
         if (name === 'cnpj') {
-            formattedValue = formatCNPJ(value);
+            formattedValue = formData.tipoPessoa === 'PJ' ? formatCNPJ(value) : formatCPF(value);
         } else if (name === 'telefone') {
             formattedValue = formatPhone(value);
         }
@@ -21,13 +21,28 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
         }
     };
 
+    const setTipoPessoa = (tipo: 'PF' | 'PJ') => {
+        updateFormData({ tipoPessoa: tipo, cnpj: '' });
+        if (setErrors) {
+            setErrors({ ...errors, cnpj: undefined, razaoSocial: undefined });
+        }
+    };
+
     const handleNext = () => {
         const newErrors: Record<string, string> = {};
 
-        if (!formData.cnpj) newErrors.cnpj = 'CNPJ é obrigatório';
-        else if (!validateCNPJ(formData.cnpj)) newErrors.cnpj = 'CNPJ inválido';
+        if (!formData.cnpj) {
+            newErrors.cnpj = formData.tipoPessoa === 'PJ' ? 'CNPJ é obrigatório' : 'CPF é obrigatório';
+        } else {
+            const isValid = formData.tipoPessoa === 'PJ' ? validateCNPJ(formData.cnpj) : validateCPF(formData.cnpj);
+            if (!isValid) {
+                newErrors.cnpj = formData.tipoPessoa === 'PJ' ? 'CNPJ inválido' : 'CPF inválido';
+            }
+        }
 
-        if (!formData.razaoSocial) newErrors.razaoSocial = 'Razão Social é obrigatória';
+        if (!formData.razaoSocial) {
+            newErrors.razaoSocial = formData.tipoPessoa === 'PJ' ? 'Razão Social é obrigatória' : 'Nome Completo é obrigatório';
+        }
         if (!formData.nomeFantasia) newErrors.nomeFantasia = 'Nome Fantasia é obrigatório';
         if (!formData.telefone) newErrors.telefone = 'Telefone é obrigatório';
 
@@ -47,22 +62,47 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
             </div>
 
             <div className="space-y-4">
+                <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+                    <button
+                        onClick={() => setTipoPessoa('PJ')}
+                        className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${formData.tipoPessoa === 'PJ'
+                            ? 'bg-white text-[#FF6B00] shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Pessoa Jurídica
+                    </button>
+                    <button
+                        onClick={() => setTipoPessoa('PF')}
+                        className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${formData.tipoPessoa === 'PF'
+                            ? 'bg-white text-[#FF6B00] shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Pessoa Física
+                    </button>
+                </div>
+
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">CNPJ</label>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">
+                        {formData.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
+                    </label>
                     <input
                         type="text"
                         name="cnpj"
                         value={formData.cnpj}
                         onChange={handleChange}
-                        placeholder="00.000.000/0000-00"
+                        placeholder={formData.tipoPessoa === 'PJ' ? "00.000.000/0000-00" : "000.000.000-00"}
                         className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cnpj ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
-                        maxLength={18}
+                        maxLength={formData.tipoPessoa === 'PJ' ? 18 : 14}
                     />
                     {errors?.cnpj && <p className="text-red-500 text-sm mt-1">{errors.cnpj}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Razão Social</label>
+                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">
+                        {formData.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome Completo'}
+                    </label>
                     <input
                         type="text"
                         name="razaoSocial"

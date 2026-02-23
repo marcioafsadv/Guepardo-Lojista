@@ -51,11 +51,17 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                 <div className="flex flex-col items-center text-center mb-8">
                     <div className="relative group mb-6">
                         <div className="absolute -inset-4 bg-[#FF6B00]/30 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                        <img
-                            src="/cheetah-scooter.png"
-                            alt="Guepardo Delivery"
-                            className="w-40 object-contain relative z-10 drop-shadow-lg transform hover:scale-105 transition-transform duration-500"
-                        />
+                        <div className="flex items-center gap-4 relative z-10 drop-shadow-lg transform hover:scale-105 transition-transform duration-500">
+                            <img
+                                src="/cheetah-scooter.png"
+                                alt="Guepardo"
+                                className="w-28 object-contain"
+                            />
+                            <div className="flex flex-col items-start">
+                                <span className="text-white font-black italic text-3xl leading-none tracking-tighter">GUEPARDO</span>
+                                <span className="text-[#FF6B00] font-bold text-sm leading-none tracking-[0.3em] mt-1">DELIVERY</span>
+                            </div>
+                        </div>
                     </div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">
                         Bem-vindo

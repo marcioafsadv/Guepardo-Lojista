@@ -2,10 +2,9 @@
 import React from 'react';
 import { Order, OrderStatus, StoreProfile } from '../types';
 import {
-    ShieldCheck, Lock, Navigation, MapPin, Smartphone,
-    MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
+    Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -24,7 +23,7 @@ const OrderContent: React.FC<{
     const isDark = theme === 'dark'; // Helper for Explicit Theme
 
     return (
-        <div className={`flex flex-col h-full w-full ${isEmbedded ? 'bg-transparent' : 'absolute inset-0 z-20 transition-all duration-500'} ${!isEmbedded && (isExpanded ? 'opacity-100 delay-100 pointer-events-auto' : 'opacity-0 pointer-events-none delay-0')}`}>
+        <div className={`flex flex-col h-full w-full ${isEmbedded ? 'bg-transparent' : 'absolute inset-0 z-20 transition-all duration-300'} ${!isEmbedded && (isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}`}>
 
             {/* Header Actions */}
             <div className={`flex items-center justify-between p-4 border-b ${isEmbedded ? (isDark ? 'border-white/5 bg-black/20' : 'border-gray-200 bg-white') : 'bg-black/20 backdrop-blur-sm border-white/5'} shrink-0`}>
@@ -58,7 +57,9 @@ const OrderContent: React.FC<{
                     <h2 className={`text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
                     <div className="flex items-center justify-center gap-2 mt-1 text-orange-500 dark:text-orange-400">
                         <Clock size={14} />
-                        <span className="text-sm font-mono font-bold">Chegada em 04:30</span>
+                        <span className="text-sm font-mono font-bold">
+                            Chegada em {new Date(new Date(order.createdAt).getTime() + 40 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                     </div>
                 </div>
 
@@ -97,17 +98,80 @@ const OrderContent: React.FC<{
                     </span>
                 </div>
 
-                {/* Financials */}
+                {/* Financials & Source (Grid) */}
                 <div className="grid grid-cols-2 gap-3">
-                    <div className={`rounded-xl p-3 border ${isEmbedded ? (isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200') : (isDark ? 'bg-black/20 border-white/5' : 'bg-white border-gray-200')}`}>
-                        <span className="text-[9px] text-gray-500 uppercase block">Valor</span>
-                        <span className={`text-lg font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-900') : (isDark ? 'text-white' : 'text-gray-900')}`}>R$ {order.deliveryValue.toFixed(2)}</span>
+                    {/* VALOR */}
+                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <Banknote size={12} className="text-gray-400" />
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Valor do Pedido</span>
+                        </div>
+                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {(order.deliveryValue || 0).toFixed(2)}</span>
                     </div>
-                    <div className={`rounded-xl p-3 border ${isEmbedded ? (isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200') : (isDark ? 'bg-black/20 border-white/5' : 'bg-white border-gray-200')}`}>
-                        <span className="text-[9px] text-gray-500 uppercase block">Pagamento</span>
+
+                    {/* FRETE */}
+                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <Truck size={12} className="text-gray-400" />
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Valor do Frete</span>
+                        </div>
+                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {(order.estimatedPrice || 0).toFixed(2)}</span>
+                    </div>
+
+                    {/* PAGAMENTO */}
+                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <Wallet size={12} className="text-gray-400" />
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Pagamento</span>
+                        </div>
                         <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-bold text-sm">
                             {getPaymentIcon(order.paymentMethod)}
                             <span>{order.paymentMethod}</span>
+                        </div>
+                    </div>
+
+                    {/* SOLICITAÇÃO (ORIGEM) */}
+                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <Share2 size={12} className="text-gray-400" />
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Solicitado via</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 font-bold text-sm">
+                            {order.requestSource === 'WHATSAPP' ? <MessageCircle size={14} className="text-green-500" /> :
+                                order.requestSource === 'PHONE' ? <Phone size={14} className="text-blue-500" /> :
+                                    <Globe size={14} className="text-orange-500" />}
+                            <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
+                                order.requestSource === 'PHONE' ? 'Telefone' : 'Site'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Cliente & Categoria */}
+                <div className={`rounded-2xl p-4 border flex items-center justify-between ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-white shadow-sm border border-gray-200'}`}>
+                            <User size={20} className="text-gray-400" />
+                        </div>
+                        <div>
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Categoria do Cliente</span>
+                            <div className="flex items-center gap-2">
+                                {order.clientTier === 'GOLD' && <Trophy size={14} className="text-yellow-500" />}
+                                {order.clientTier === 'SILVER' && <Medal size={14} className="text-gray-400" />}
+                                {order.clientTier === 'BRONZE' && <Medal size={14} className="text-orange-600" />}
+                                {(!order.clientTier || order.clientTier === 'NEW') && <UserPlus size={14} className="text-blue-500" />}
+                                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {order.clientTier === 'GOLD' ? 'Ouro' :
+                                        order.clientTier === 'SILVER' ? 'Prata' :
+                                            order.clientTier === 'BRONZE' ? 'Bronze' : 'Cliente Novo'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Pedido feito em</span>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 justify-end">
+                            <Calendar size={12} />
+                            <span>{new Date(order.createdAt).toLocaleDateString()} às {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </div>
                 </div>
@@ -268,12 +332,12 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
     return (
         <div
             className={`
-                fixed bottom-8 left-1/2 -translate-x-1/2
+                fixed top-24 right-8 bottom-32
                 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]
                 ${theme === 'dark' ? 'bg-gray-900/90 border-white/10 text-white' : 'bg-white/90 border-gray-200 text-gray-900'}
                 backdrop-blur-2xl border shadow-[0_8px_32px_rgba(0,0,0,0.5)]
                 overflow-hidden z-50
-                ${isExpanded ? 'w-[400px] h-[80vh] rounded-3xl' : 'w-[380px] h-[80px] rounded-full hover:scale-105 cursor-pointer'}
+                ${isExpanded ? 'w-[400px] h-auto rounded-3xl' : 'w-[360px] h-[80px] rounded-full hover:scale-105 cursor-pointer translate-y-[calc(80vh-160px)]'}
             `}
             onClick={(e) => {
                 if (!isExpanded) {
@@ -316,7 +380,9 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                 <div className="flex items-center gap-3">
                     <div className="text-right">
                         <span className="block text-[10px] text-gray-400 uppercase">Chegada em</span>
-                        <span className={`text-sm font-mono font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>5 min</span>
+                        <span className={`text-sm font-mono font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                            {new Date(new Date(order.createdAt).getTime() + 40 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
                     </div>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-white/10' : 'bg-gray-100'}`}>
                         <ChevronUp size={16} className={theme === 'dark' ? 'text-white/70' : 'text-gray-600'} />

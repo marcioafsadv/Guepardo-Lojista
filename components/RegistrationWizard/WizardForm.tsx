@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabaseClient';
 const WizardForm: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0); // Start at Welcome Screen
     const [formData, setFormData] = useState<WizardFormData>({
+        tipoPessoa: 'PJ',
         cnpj: '',
         razaoSocial: '',
         nomeFantasia: '',
@@ -76,6 +77,7 @@ const WizardForm: React.FC = () => {
                         company_name: razaoSocial,
                         fantasy_name: nomeFantasia,
                         phone: telefone,
+                        tipo_pessoa: formData.tipoPessoa,
                         address: {
                             zip_code: cep,
                             street: rua,

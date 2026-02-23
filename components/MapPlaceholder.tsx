@@ -47,7 +47,7 @@ export const MapPlaceholder: React.FC<MapPlaceholderProps> = ({ status }) => {
       )}
 
       <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded text-[10px] text-gray-500 font-medium z-10">
-        Google Maps API Mock
+        Guepardo Maps (OSM)
       </div>
     </div>
   );

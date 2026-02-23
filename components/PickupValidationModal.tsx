@@ -7,10 +7,11 @@ interface PickupValidationModalProps {
   onClose: () => void;
   onValidate: (code: string) => void;
   courierName: string;
-  correctCode: string; // In a real app, validation happens backend, here we simulate checks
+  correctCode?: string; // KEEP FOR BACKWARD COMPATIBILITY but optional
+  validCodes?: string[]; // NEW: Array of valid codes for the batch
 }
 
-export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ isOpen, onClose, onValidate, courierName, correctCode }) => {
+export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ isOpen, onClose, onValidate, courierName, correctCode, validCodes }) => {
   const [code, setCode] = useState(['', '', '', '']);
   const [error, setError] = useState(false);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -45,7 +46,13 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ is
       // Construct the full code using the new value for the current index
       const fullCode = newCode.join('');
 
-      if (fullCode === correctCode) {
+      // CHECK: If validCodes is provided, check if fullCode is in it.
+      // ELSE: Check against correctCode.
+      const isValid = validCodes && validCodes.length > 0
+        ? validCodes.includes(fullCode)
+        : fullCode === correctCode;
+
+      if (isValid) {
         onValidate(fullCode);
       } else {
         setError(true);

@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { Courier, Order, StoreProfile, RouteStats, OrderStatus } from '../types';
 
 import {
-    Plus, Minus, Target, Layers, Info, Share2, MessageSquare, HelpCircle, Sun, Moon
+    Plus, Minus, Target, Layers, Info, Share2, MessageSquare, HelpCircle, Sun, Moon, HardHat
 } from 'lucide-react';
 
 interface LeafletMapProps {
@@ -19,6 +19,8 @@ interface LeafletMapProps {
     draftDestinationAddress?: string;
     onRouteCalculated?: (stats: RouteStats | null) => void;
     toggleTheme?: () => void;
+    isSelectingCourier?: boolean;
+    onCourierSelect?: (courierId: string) => void;
 }
 
 // --- ASSETS & STYLES ---
@@ -183,12 +185,16 @@ const MapController: React.FC<{
         const pointsStr = JSON.stringify(points);
         if (!points || points.length === 0 || pointsStr === prevPointsRef.current) return;
 
+        // Defensive check: Ensure all points are valid
+        const validPoints = points.filter(p => p && !isNaN(p[0]) && !isNaN(p[1]));
+        if (validPoints.length === 0) return;
+
         prevPointsRef.current = pointsStr;
 
-        if (points.length === 1) {
-            map.flyTo(points[0], 16, { duration: 1.5 });
+        if (validPoints.length === 1) {
+            map.flyTo(validPoints[0], 16, { duration: 1.5 });
         } else {
-            const bounds = L.latLngBounds(points);
+            const bounds = L.latLngBounds(validPoints);
             map.fitBounds(bounds, { padding: [70, 70], maxZoom: 16 });
         }
     }, [points, map]);
@@ -198,10 +204,11 @@ const MapController: React.FC<{
         if (recenterTrigger > prevRecenterRef.current) {
             prevRecenterRef.current = recenterTrigger;
             if (points && points.length > 0) {
-                if (points.length === 1) {
-                    map.flyTo(points[0], 16, { duration: 1.2 });
-                } else {
-                    const bounds = L.latLngBounds(points);
+                const validPoints = points.filter(p => p && !isNaN(p[0]) && !isNaN(p[1]));
+                if (validPoints.length === 1) {
+                    map.flyTo(validPoints[0], 16, { duration: 1.2 });
+                } else if (validPoints.length > 1) {
+                    const bounds = L.latLngBounds(validPoints);
                     map.fitBounds(bounds, { padding: [80, 80] });
                 }
             }
@@ -221,7 +228,9 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     theme = 'dark',
     draftDestinationAddress,
     onRouteCalculated,
-    toggleTheme
+    toggleTheme,
+    isSelectingCourier = false,
+    onCourierSelect
 }) => {
     // --- STATES ---
     const [destinationCoords, setDestinationCoords] = useState<[number, number] | null>(null);
@@ -292,7 +301,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     setFitPoints([[store.lat, store.lng], coords]);
                     if (onRouteCalculated) {
                         onRouteCalculated({
-                            distanceText: `${(routeData.distance / 1000).toFixed(1)} km`,
+                            distanceText: `${((routeData.distance || 0) / 1000).toFixed(1)} km`,
                             distanceValue: routeData.distance,
                             durationText: `${Math.ceil(routeData.duration / 60)} min`,
                             durationValue: routeData.duration
@@ -316,7 +325,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             const courierPoint: [number, number] = [activeOrder.courier!.lat, activeOrder.courier!.lng];
             const targetPoint: [number, number] = activeOrder.status === OrderStatus.RETURNING
                 ? [store.lat, store.lng]
-                : [activeOrder.destinationLat!, activeOrder.destinationLng!];
+                : [(activeOrder.destinationLat || store.lat), (activeOrder.destinationLng || store.lng)];
 
             const routeData = await calculateRoute(courierPoint, targetPoint);
             if (routeData) {
@@ -331,7 +340,13 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     // Handle markers for general visualization (excluding draft)
     const orderMarkers = useMemo(() => {
         return filteredOrders
-            .filter(o => o.destinationLat && o.destinationLng && o.id !== activeOrder?.id)
+            .filter(o =>
+                o.destinationLat !== undefined &&
+                o.destinationLng !== undefined &&
+                !isNaN(o.destinationLat) &&
+                !isNaN(o.destinationLng) &&
+                o.id !== activeOrder?.id
+            )
             .map(o => ({
                 id: o.id,
                 position: [o.destinationLat!, o.destinationLng!] as [number, number],
@@ -396,9 +411,34 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         position={[c.lat, c.lng]}
                         icon={activeOrder?.courier?.id === c.id ? activeCourierIcon : courierIcon}
                         zIndexOffset={activeOrder?.courier?.id === c.id ? 1000 : 0}
+                        eventHandlers={{
+                            click: (e) => {
+                                if (isSelectingCourier && onCourierSelect) {
+                                    // Prevent popup from opening and select immediately
+                                    (e as any).originalEvent.preventDefault();
+                                    (e as any).originalEvent.stopPropagation();
+                                    console.log("🎯 Marker clicked in selection mode:", c.id);
+                                    onCourierSelect(c.id);
+                                }
+                            }
+                        }}
                     >
                         <Popup>
-                            <div className="text-center font-bold text-xs">{c.name}</div>
+                            <div className="text-center p-1">
+                                <p className="font-bold text-xs mb-1">{c.name}</p>
+                                {isSelectingCourier && (
+                                    <button
+                                        type="button"
+                                        className="w-full px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-[10px] rounded-md shadow-sm uppercase transition-colors"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onCourierSelect?.(c.id);
+                                        }}
+                                    >
+                                        Escolher Guepardo
+                                    </button>
+                                )}
+                            </div>
                         </Popup>
                     </Marker>
                 ))}
@@ -440,13 +480,15 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                                 opacity: 0.9
                             }}
                         />
-                        <Marker
-                            position={[activeOrder!.destinationLat!, activeOrder!.destinationLng!]}
-                            icon={clientIcon}
-                            zIndexOffset={500}
-                        >
-                            <Popup><div className="font-bold">{activeOrder?.clientName}</div></Popup>
-                        </Marker>
+                        {activeOrder?.destinationLat !== undefined && activeOrder?.destinationLng !== undefined && (
+                            <Marker
+                                position={[activeOrder.destinationLat, activeOrder.destinationLng]}
+                                icon={clientIcon}
+                                zIndexOffset={500}
+                            >
+                                <Popup><div className="font-bold">{activeOrder?.clientName}</div></Popup>
+                            </Marker>
+                        )}
                     </>
                 )}
             </MapContainer>
