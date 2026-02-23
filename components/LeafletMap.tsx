@@ -68,7 +68,6 @@ const courierIcon = L.icon({
 const activeCourierIcon = L.icon({
     iconUrl: '/cheetah-icon.png',
     iconSize: [60, 48],
-    iconAnchor: [30, 24],
 });
 
 // Helper for dynamic order dots
@@ -78,6 +77,18 @@ const createOrderDot = (color: string) => L.divIcon({
     iconSize: [14, 14],
     iconAnchor: [7, 7],
 });
+
+// --- HELPERS ---
+const isValidCoord = (point: any): point is [number, number] => {
+    return (
+        Array.isArray(point) &&
+        point.length === 2 &&
+        typeof point[0] === 'number' &&
+        typeof point[1] === 'number' &&
+        !isNaN(point[0]) &&
+        !isNaN(point[1])
+    );
+};
 
 /**
  * Custom Map Controls UI
@@ -186,7 +197,7 @@ const MapController: React.FC<{
         if (!points || points.length === 0 || pointsStr === prevPointsRef.current) return;
 
         // Defensive check: Ensure all points are valid
-        const validPoints = points.filter(p => p && !isNaN(p[0]) && !isNaN(p[1]));
+        const validPoints = points.filter(isValidCoord);
         if (validPoints.length === 0) return;
 
         prevPointsRef.current = pointsStr;
@@ -204,7 +215,7 @@ const MapController: React.FC<{
         if (recenterTrigger > prevRecenterRef.current) {
             prevRecenterRef.current = recenterTrigger;
             if (points && points.length > 0) {
-                const validPoints = points.filter(p => p && !isNaN(p[0]) && !isNaN(p[1]));
+                const validPoints = points.filter(isValidCoord);
                 if (validPoints.length === 1) {
                     map.flyTo(validPoints[0], 16, { duration: 1.2 });
                 } else if (validPoints.length > 1) {

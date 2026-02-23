@@ -232,22 +232,32 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setComplement("Casa Verde");
   };
 
-  // --- FREIGHT CALCULATION LOGIC (Base iFood 2025/26) ---
-  const MIN_DELIVERY_FEE = settings.baseFreight; // loaded from DB (system_settings.min_delivery_fee)
-  const PER_KM_RATE = 1.50;
+  const calculateTieredFreight = (distanceKm: number) => {
+    if (distanceKm <= 2) return 7.50;
+    if (distanceKm <= 3) return 8.00;
+    if (distanceKm <= 3.5) return 8.50;
+    if (distanceKm <= 4) return 9.00;
+    if (distanceKm <= 4.5) return 10.00;
+    if (distanceKm <= 5) return 12.00;
+    if (distanceKm <= 6) return 14.00;
+    if (distanceKm <= 7) return 16.00;
+    if (distanceKm <= 8) return 18.00;
+    if (distanceKm <= 9) return 20.00;
+    if (distanceKm <= 10) return 22.00;
+    // Fallback para > 10km: R$ 22.00 + R$ 2.00 por km adicional
+    return 22.00 + Math.ceil(distanceKm - 10) * 2;
+  };
 
   const calculateBaseFreight = () => {
-    if (!routeStats?.distanceValue) return MIN_DELIVERY_FEE;
-
-    const distanceKm = routeStats.distanceValue / 1000;
-    const calculatedFee = Math.max(MIN_DELIVERY_FEE, distanceKm * PER_KM_RATE);
+    const distanceKm = routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 0;
+    const tieredFee = calculateTieredFreight(distanceKm);
 
     if (targetCourierId) {
-      // Regra de Batching: desconto de 25% sobre a taxa já respeitando o mínimo
-      return Math.max(MIN_DELIVERY_FEE, calculatedFee * 0.75);
+      // Regra de Batching: desconto de 25% sobre a taxa, mantendo o mínimo da primeira faixa
+      return Math.max(7.50, tieredFee * 0.75);
     }
 
-    return calculatedFee;
+    return tieredFee;
   };
 
   const baseFreight = calculateBaseFreight();

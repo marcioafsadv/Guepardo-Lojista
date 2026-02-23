@@ -150,8 +150,8 @@ function App() {
                 setRealStoreProfile({
                     name: data.fantasy_name || data.company_name,
                     address: fullAddress,
-                    lat: lat || STORE_PROFILE.lat,
-                    lng: lng || STORE_PROFILE.lng
+                    lat: (typeof lat === 'number' && !isNaN(lat)) ? lat : STORE_PROFILE.lat,
+                    lng: (typeof lng === 'number' && !isNaN(lng)) ? lng : STORE_PROFILE.lng
                 });
             }
         };
@@ -402,8 +402,8 @@ function App() {
                             }],
                             pickupCode: d.collection_code,
                             isReturnRequired: items.isReturnRequired,
-                            destinationLat: typeof items.destinationLat === 'number' && !isNaN(items.destinationLat) ? items.destinationLat : undefined,
-                            destinationLng: typeof items.destinationLng === 'number' && !isNaN(items.destinationLng) ? items.destinationLng : undefined,
+                            destinationLat: (typeof items.destinationLat === 'number' && !isNaN(items.destinationLat)) ? items.destinationLat : undefined,
+                            destinationLng: (typeof items.destinationLng === 'number' && !isNaN(items.destinationLng)) ? items.destinationLng : undefined,
                             courier: courierData
                         };
                     }));
