@@ -190,8 +190,10 @@ const OrderContent: React.FC<{
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const cleanPhone = order.clientPhone?.replace(/\D/g, '');
-                                    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+                                    const digits = order.clientPhone?.replace(/\D/g, '') || '';
+                                    // Add Brazil DDI +55 if not already present
+                                    const phone = digits.startsWith('55') ? digits : `55${digits}`;
+                                    window.open(`https://wa.me/${phone}`, '_blank');
                                 }}
                                 className="h-10 bg-green-600/10 hover:bg-green-600/20 text-green-600 border border-green-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
                             >
@@ -200,8 +202,8 @@ const OrderContent: React.FC<{
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const cleanPhone = order.clientPhone?.replace(/\D/g, '');
-                                    window.open(`tel:${cleanPhone}`, '_self');
+                                    const digits = order.clientPhone?.replace(/\D/g, '') || '';
+                                    window.open(`tel:+55${digits.startsWith('55') ? digits.slice(2) : digits}`, '_self');
                                 }}
                                 className="h-10 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 border border-blue-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
                             >
@@ -302,12 +304,17 @@ const OrderContent: React.FC<{
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            // Generate Fake Token if missing (for demo)
-                            const token = order.trackingToken || 'demo-token-123';
-                            const link = `${window.location.origin}/track/${token}`;
-                            const message = `🛵 *Guepardo Delivery*: Seu pedido saiu para entrega!\n\nAcompanhe o entregador em tempo real:\n${link}`;
-                            const phone = order.clientPhone?.replace(/\D/g, '') || '5511999999999';
-                            window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`, '_blank');
+                            const link = `${window.location.origin}/track/${order.id}`;
+                            const customerName = order.clientName;
+                            const message = `🛵 *Guepardo Delivery* — Olá ${customerName}! Seu pedido saiu para entrega!\n\n📍 Acompanhe o entregador em tempo real:\n${link}`;
+                            const digits = order.clientPhone?.replace(/\D/g, '') || '';
+                            const phone = digits.startsWith('55') ? digits : `55${digits}`;
+                            if (digits) {
+                                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                            } else {
+                                // No phone: copy link to clipboard instead
+                                navigator.clipboard.writeText(link).then(() => alert('Link de rastreamento copiado!'));
+                            }
                         }}
                         className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
                     >
@@ -339,12 +346,14 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
     const securityPin = order.pickupCode || order.id.slice(-4);
 
     const handleContact = (type: 'whatsapp' | 'phone') => {
-        const phone = order.courier?.phone || '5511999999999'; // Fallback for demo
-        const cleanPhone = phone.replace(/\D/g, '');
+        const rawPhone = order.courier?.phone || '';
+        const digits = rawPhone.replace(/\D/g, '');
+        const phone = digits.startsWith('55') ? digits : `55${digits}`;
+        if (!digits) return;
         if (type === 'whatsapp') {
-            window.open(`https://wa.me/${cleanPhone}`, '_blank');
+            window.open(`https://wa.me/${phone}`, '_blank');
         } else {
-            window.open(`tel:${cleanPhone}`, '_self');
+            window.open(`tel:+${phone}`, '_self');
         }
     };
 
