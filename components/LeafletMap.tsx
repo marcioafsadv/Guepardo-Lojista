@@ -46,6 +46,8 @@ const COLORS = {
     gold: '#F59E0B'
 };
 
+const DEFAULT_CENTER: [number, number] = [-23.257217, -47.300549]; // Itu-SP
+
 // Custom Icons
 const storeIcon = L.icon({
     iconUrl: 'https://cdn-icons-png.flaticon.com/512/3595/3595587.png',
@@ -80,13 +82,17 @@ const createOrderDot = (color: string) => L.divIcon({
 
 // --- HELPERS ---
 const isValidCoord = (point: any): point is [number, number] => {
+    if (!point) return false;
+    const lat = Array.isArray(point) ? point[0] : (typeof point === 'object' ? point.lat : undefined);
+    const lng = Array.isArray(point) ? point[1] : (typeof point === 'object' ? point.lng : undefined);
+
     return (
-        Array.isArray(point) &&
-        point.length === 2 &&
-        typeof point[0] === 'number' &&
-        typeof point[1] === 'number' &&
-        !isNaN(point[0]) &&
-        !isNaN(point[1])
+        typeof lat === 'number' &&
+        typeof lng === 'number' &&
+        !isNaN(lat) &&
+        !isNaN(lng) &&
+        Math.abs(lat) <= 90 &&
+        Math.abs(lng) <= 180
     );
 };
 
@@ -247,7 +253,14 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     const [destinationCoords, setDestinationCoords] = useState<[number, number] | null>(null);
     const [routePolyline, setRoutePolyline] = useState<[number, number][] | null>(null);
     const [activeOrderRoute, setActiveOrderRoute] = useState<[number, number][] | null>(null);
-    const [fitPoints, setFitPoints] = useState<[number, number][]>([[store.lat, store.lng]]);
+
+    // Ensure store center is valid or use fallback
+    const mapCenter: [number, number] = useMemo(() => {
+        if (isValidCoord([store.lat, store.lng])) return [store.lat, store.lng];
+        return DEFAULT_CENTER;
+    }, [store.lat, store.lng]);
+
+    const [fitPoints, setFitPoints] = useState<[number, number][]>([mapCenter]);
 
     // Map Control States
     const [zoomLevel, setZoomLevel] = useState(14);
@@ -369,7 +382,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     return (
         <div className="w-full h-full relative border-0 overflow-hidden rounded-xl bg-gray-900">
             <MapContainer
-                center={[store.lat, store.lng]}
+                center={mapCenter}
                 zoom={zoomLevel}
                 style={{ width: '100%', height: '100%' }}
                 zoomControl={false}
@@ -406,17 +419,19 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 />
 
                 {/* 1. STORE MARKER */}
-                <Marker position={[store.lat, store.lng]} icon={storeIcon}>
-                    <Popup>
-                        <div className="p-1">
-                            <p className="font-bold text-guepardo-accent uppercase tracking-tighter">Sua Unidade</p>
-                            <p className="text-xs text-gray-500">{store.address}</p>
-                        </div>
-                    </Popup>
-                </Marker>
+                {isValidCoord([store.lat, store.lng]) && (
+                    <Marker position={[store.lat, store.lng]} icon={storeIcon}>
+                        <Popup>
+                            <div className="p-1">
+                                <p className="font-bold text-guepardo-accent uppercase tracking-tighter">Sua Unidade</p>
+                                <p className="text-xs text-gray-500">{store.address}</p>
+                            </div>
+                        </Popup>
+                    </Marker>
+                )}
 
                 {/* 2. AVAILABLE COURIERS */}
-                {availableCouriers.map(c => (
+                {availableCouriers.filter(c => isValidCoord([c.lat, c.lng])).map(c => (
                     <Marker
                         key={c.id}
                         position={[c.lat, c.lng]}
@@ -466,13 +481,13 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 ))}
 
                 {/* 4. DRAFT ROUTE (Dashed Orange) */}
-                {routePolyline && (
+                {routePolyline && routePolyline.length > 0 && (
                     <>
                         <Polyline
                             positions={routePolyline}
                             pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8, dashArray: '10, 10' }}
                         />
-                        {destinationCoords && (
+                        {destinationCoords && isValidCoord(destinationCoords) && (
                             <Marker position={destinationCoords} icon={clientIcon}>
                                 <Popup><span className="font-bold text-orange-600">Novo Destino</span></Popup>
                             </Marker>
@@ -481,7 +496,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 )}
 
                 {/* 5. ACTIVE ORDER ROUTE (Solid Blue/Purple) */}
-                {activeOrderRoute && (
+                {activeOrderRoute && activeOrderRoute.length > 0 && (
                     <>
                         <Polyline
                             positions={activeOrderRoute}
@@ -491,15 +506,16 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                                 opacity: 0.9
                             }}
                         />
-                        {activeOrder?.destinationLat !== undefined && activeOrder?.destinationLng !== undefined && (
-                            <Marker
-                                position={[activeOrder.destinationLat, activeOrder.destinationLng]}
-                                icon={clientIcon}
-                                zIndexOffset={500}
-                            >
-                                <Popup><div className="font-bold">{activeOrder?.clientName}</div></Popup>
-                            </Marker>
-                        )}
+                        {activeOrder?.destinationLat !== undefined && activeOrder?.destinationLng !== undefined &&
+                            isValidCoord([activeOrder.destinationLat, activeOrder.destinationLng]) && (
+                                <Marker
+                                    position={[activeOrder.destinationLat, activeOrder.destinationLng]}
+                                    icon={clientIcon}
+                                    zIndexOffset={500}
+                                >
+                                    <Popup><div className="font-bold">{activeOrder?.clientName}</div></Popup>
+                                </Marker>
+                            )}
                     </>
                 )}
             </MapContainer>

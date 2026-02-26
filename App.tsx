@@ -131,13 +131,18 @@ function App() {
                         const result = await response.json();
 
                         if (result && result.length > 0) {
-                            lat = parseFloat(result[0].lat);
-                            lng = parseFloat(result[0].lon);
-                            console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
+                            const parsedLat = parseFloat(result[0].lat);
+                            const parsedLng = parseFloat(result[0].lon);
 
-                            // Save to DB for future use (avoid repeated geocoding)
-                            await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
-                            console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
+                            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+                                lat = parsedLat;
+                                lng = parsedLng;
+                                console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
+
+                                // Save to DB for future use (avoid repeated geocoding)
+                                await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
+                                console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
+                            }
                         } else {
                             console.warn("⚠️ [GEOCODING-OSM] Could not geocode address, using default Itu coordinates");
                         }
@@ -147,11 +152,16 @@ function App() {
                 }
 
                 console.log("📍 [STORE_PROFILE] Setting store coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
+
+                // Final safety check before setting state
+                const finalLat = (typeof lat === 'number' && !isNaN(lat) && lat !== 0) ? lat : -23.257217;
+                const finalLng = (typeof lng === 'number' && !isNaN(lng) && lng !== 0) ? lng : -47.300549;
+
                 setRealStoreProfile({
                     name: data.fantasy_name || data.company_name,
                     address: fullAddress,
-                    lat: (typeof lat === 'number' && !isNaN(lat)) ? lat : STORE_PROFILE.lat,
-                    lng: (typeof lng === 'number' && !isNaN(lng)) ? lng : STORE_PROFILE.lng
+                    lat: finalLat,
+                    lng: finalLng
                 });
             }
         };
