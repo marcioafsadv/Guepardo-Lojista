@@ -1515,7 +1515,7 @@ function App() {
                             onCancelOrder={handleCancelOrder}
                             onConfirmReturn={handleConfirmReturn}
                             onResetDatabase={handleResetDatabase}
-                            theme={settings.theme}
+                            theme={settings.mapTheme}
                             settings={settings}
                             onToggleMapTheme={toggleMapTheme}
                         />
