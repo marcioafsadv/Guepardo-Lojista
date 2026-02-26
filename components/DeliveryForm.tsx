@@ -56,11 +56,49 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   // Logistics State
   const [isReturnRequired, setIsReturnRequired] = useState(false);
 
+  // Listener for auto-fill from WhatsApp/Order Hub
+  useEffect(() => {
+    const handleAutoFill = (e: any) => {
+      const order = e.detail;
+      if (order) {
+        if (order.clientName) setClientName(order.clientName);
+        if (order.clientPhone) setClientPhone(order.clientPhone);
+        if (order.deliveryValue) setDeliveryValue(String(order.deliveryValue)); // Ensure it's a string
+        if (order.destination) {
+          // If address looks like a street, try to set street name
+          const parts = order.destination.split(',');
+          if (parts.length > 0) setStreet(parts[0].trim());
+          if (parts.length > 1) {
+            const numPart = parts[1].trim().match(/\d+/);
+            if (numPart) setNumber(numPart[0]);
+          }
+          // Attempt to parse other address components if available in order.destination
+          // This is a basic attempt and might need more robust parsing for real-world addresses
+          const fullAddress = order.destination;
+          const complementMatch = fullAddress.match(/complemento:\s*([^,]+)/i);
+          if (complementMatch) setComplement(complementMatch[1].trim());
+          const neighborhoodMatch = fullAddress.match(/bairro:\s*([^,]+)/i);
+          if (neighborhoodMatch) setNeighborhood(neighborhoodMatch[1].trim());
+          const cityStateMatch = fullAddress.match(/(\w+)\/([A-Z]{2})$/);
+          if (cityStateMatch) {
+            setCityState(`${cityStateMatch[1].trim()}/${cityStateMatch[2].trim()}`);
+          } else if (!cityState) {
+            setCityState('Itu/SP');
+          }
+        }
+        if (order.paymentMethod) setPaymentMethod(order.paymentMethod);
+      }
+    };
+
+    window.addEventListener('fill-delivery-from-order', handleAutoFill);
+    return () => window.removeEventListener('fill-delivery-from-order', handleAutoFill);
+  }, []);
+
   // Address Structure
   const [cep, setCep] = useState('');
   const [street, setStreet] = useState('');
   const [neighborhood, setNeighborhood] = useState('');
-  const [cityState, setCityState] = useState('');
+  const [cityState, setCityState] = useState('Itu/SP');
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
   const [targetCourierId, setTargetCourierId] = useState<string>('');
@@ -153,12 +191,16 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
   // --- ADDRESS CHANGE DEBOUNCER ---
   useEffect(() => {
-    // Only trigger if we have at least Street and Number
+    // Only trigger if we have at least Street
     const timer = setTimeout(() => {
-      if (street && number) {
-        const full = `${street}, ${number} - ${cityState}`;
+      if (street) {
+        // If number is missing, use a generic "S/N" (Sem Número) to allow geocoding the street/CEP area
+        const searchNumber = number || 'S/N';
+        const full = `${street}, ${searchNumber} - ${cityState}`;
+        console.log("📡 [DeliveryForm] Debouncer triggered, sending address to map:", full);
         onAddressChange(full);
       } else {
+        console.log("📡 [DeliveryForm] Debouncer: empty street, clearing map");
         onAddressChange('');
       }
     }, 1000); // 1 second debounce
@@ -195,26 +237,42 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     let value = e.target.value.replace(/\D/g, '');
     if (value.length > 5) value = value.replace(/^(\d{5})(\d)/, '$1-$2');
     setCep(value);
-    if (value.replace(/\D/g, '').length === 8) fetchAddress(value.replace(/\D/g, ''));
+
+    if (value.replace(/\D/g, '').length === 8) {
+      const clean = value.replace(/\D/g, '');
+      console.log("🔍 [DeliveryForm] Valid CEP detected, fetching:", clean);
+      fetchAddress(clean);
+    }
   };
 
   const fetchAddress = async (cleanCep: string) => {
     setIsLoadingCep(true);
+    console.log("🌐 [DeliveryForm] Fetching ViaCEP for:", cleanCep);
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await response.json();
+      console.log("✅ [DeliveryForm] ViaCEP response:", data);
 
       if (!data.erro) {
-        setStreet(data.logradouro);
-        setNeighborhood(data.bairro);
-        setCityState(`${data.localidade}/${data.uf}`);
+        setStreet(data.logradouro || '');
+        setNeighborhood(data.bairro || '');
+        setCityState(`${data.localidade || ''}/${data.uf || ''}`);
+
+        console.log("📍 [DeliveryForm] Address set:", {
+          street: data.logradouro,
+          neighborhood: data.bairro,
+          city: data.localidade
+        });
+
+        // Focus number input after finding address
         setTimeout(() => numberInputRef.current?.focus(), 100);
       } else {
+        console.warn("⚠️ [DeliveryForm] ViaCEP returned error for CEP:", cleanCep);
         setStreet('');
         alert("CEP não encontrado!");
       }
     } catch (error) {
-      console.error("Erro ao buscar CEP", error);
+      console.error("❌ [DeliveryForm] Error fetching CEP:", error);
     } finally {
       setIsLoadingCep(false);
     }
@@ -405,10 +463,10 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Rua"
-                className="w-full px-3 py-2 bg-warm-50 dark:bg-white/5 border border-warm-200 dark:border-white/10 rounded-lg text-sm focus:outline-none text-warm-500 dark:text-gray-400 cursor-not-allowed select-none"
+                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
                 value={street}
-                readOnly
-                tabIndex={-1}
+                onChange={(e) => setStreet(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -420,7 +478,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 ref={numberInputRef}
                 type="text"
                 placeholder="Nº"
-                className="w-full px-3 py-2 bg-white dark:bg-guepardo-gray-800 border border-stone-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-stone-800 dark:text-white placeholder-stone-500"
+                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
                 required
@@ -429,10 +487,34 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             <div className="relative group/input flex-1">
               <input
                 type="text"
-                placeholder="Complemento"
-                className="w-full px-3 py-2 bg-white dark:bg-guepardo-gray-800 border border-stone-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-stone-800 dark:text-white placeholder-stone-500"
+                placeholder="Comp (apto, bloco...)"
+                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
                 value={complement}
                 onChange={(e) => setComplement(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* ADDRESS ROW 3: Neighborhood & City (Visible fallback) */}
+          <div className="flex gap-2">
+            <div className="relative group/input flex-1">
+              <input
+                type="text"
+                placeholder="Bairro"
+                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                value={neighborhood}
+                onChange={(e) => setNeighborhood(e.target.value)}
+                required
+              />
+            </div>
+            <div className="relative group/input w-1/3">
+              <input
+                type="text"
+                placeholder="Cidade/UF"
+                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                value={cityState}
+                onChange={(e) => setCityState(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -471,6 +553,45 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               </div>
             </div>
           </div>
+
+          {/* CAMPO DE TROCO - APARECE APENAS EM DINHEIRO */}
+          {paymentMethod === 'CASH' && (
+            <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/30 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <label className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                      <Banknote size={12} /> Troco para quanto?
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-orange-500 text-xs font-bold">R$</span>
+                      </div>
+                      <input
+                        type="number"
+                        placeholder="Ex: 50.00"
+                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-guepardo-gray-800 border-2 border-orange-200 dark:border-orange-900/50 rounded-lg text-sm font-bold focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-stone-800 dark:text-white placeholder-orange-300"
+                        value={changeFor}
+                        onChange={(e) => setChangeFor(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right pt-4">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-tighter leading-none mb-1">Troco Total</p>
+                    <p className={`text-lg font-black leading-none ${changeNeeded > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-stone-300'}`}>
+                      R$ {changeNeeded.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                {changeNeeded > 0 && (
+                  <p className="text-[9px] text-orange-600/80 dark:text-orange-400/80 font-medium italic">
+                    * O entregador deverá levar R$ {changeNeeded.toFixed(2)} em espécie.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* DIRECIONAR PARA ENTREGADOR (SELETOR) */}
           <div className="space-y-2">
@@ -629,6 +750,6 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           </button>
         </div>
       </div> {/* end collapsible */}
-    </div >
+    </div>
   );
 };

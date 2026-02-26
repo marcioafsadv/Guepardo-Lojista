@@ -156,7 +156,35 @@ function App() {
             }
         };
         fetchProfile();
-    }, [session]);
+    }, [session?.user?.id]); // Depend on user ID for stability
+
+    // Fetch System Pricing Settings from Supabase
+    useEffect(() => {
+        const fetchPricingSettings = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('key, value')
+                    .in('key', ['min_delivery_fee', 'per_km_rate']);
+
+                if (error) {
+                    console.warn('⚠️ Could not fetch system_settings. Using defaults.', error);
+                    return;
+                }
+
+                if (data && data.length > 0) {
+                    const minFee = data.find(s => s.key === 'min_delivery_fee')?.value;
+                    if (minFee !== undefined) {
+                        setSettings(prev => ({ ...prev, baseFreight: parseFloat(minFee) }));
+                        console.log('✅ [PRICING] Loaded min_delivery_fee from DB:', minFee);
+                    }
+                }
+            } catch (err) {
+                console.error('❌ [PRICING] Error fetching system_settings:', err);
+            }
+        };
+        fetchPricingSettings();
+    }, []);
 
     // Fetch System Pricing Settings from Supabase
     useEffect(() => {
@@ -517,8 +545,7 @@ function App() {
         const pollInterval = setInterval(pollData, 3000);
 
         return () => clearInterval(pollInterval);
-        return () => clearInterval(pollInterval);
-    }, [session?.user, lastResetDate]);
+    }, [session?.user?.id, lastResetDate]);
 
     // Fetch Customers
     useEffect(() => {
@@ -589,6 +616,7 @@ function App() {
         prepTimeMinutes: 15,
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
         theme: 'dark',
+        mapTheme: 'light',
         alertSound: 'cheetah'
     });
 
@@ -602,6 +630,14 @@ function App() {
     // Modal State
     const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
+
+    // Toggle Map Theme independently
+    const toggleMapTheme = () => {
+        setSettings(prev => ({
+            ...prev,
+            mapTheme: prev.mapTheme === 'dark' ? 'light' : 'dark'
+        }));
+    };
 
 
 
@@ -1471,6 +1507,7 @@ function App() {
                             onResetDatabase={handleResetDatabase}
                             theme={settings.theme}
                             settings={settings}
+                            onToggleMapTheme={toggleMapTheme}
                         />
                     )}
 
@@ -1511,7 +1548,10 @@ function App() {
             />
 
             {session?.user?.id && (
-                <OrderHubAlert storeId={session.user.id} />
+                <OrderHubAlert
+                    storeId={session.user.id}
+                    onViewOrder={setSelectedOrderDetails}
+                />
             )}
         </div>
     );

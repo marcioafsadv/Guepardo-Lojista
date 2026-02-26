@@ -27,6 +27,7 @@ interface GestaoDePedidosProps {
     onResetDatabase: () => void;
     theme: string;
     settings: StoreSettings;
+    onToggleMapTheme: () => void;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -56,7 +57,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onConfirmReturn,
     onResetDatabase,
     theme,
-    settings
+    settings,
+    onToggleMapTheme
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');

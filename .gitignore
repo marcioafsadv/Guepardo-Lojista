@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary files and logs
+logs_evolution.txt
+test_payload.json
+v4_tunnel_logs_utf8.txt

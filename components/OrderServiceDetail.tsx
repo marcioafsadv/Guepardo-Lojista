@@ -17,9 +17,10 @@ const OrderContent: React.FC<{
     securityPin: string;
     getPaymentIcon: (method: string) => React.ReactNode;
     onCancelClick?: (order: Order) => void;
+    onCallCourier?: (order: Order) => void; // Added onCallCourier prop
     theme?: string;
-    isExpanded?: boolean; // Added isExpanded prop
-}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, theme, isExpanded = true }) => {
+    isExpanded?: boolean;
+}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, theme, isExpanded = true }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
 
     return (
@@ -55,6 +56,12 @@ const OrderContent: React.FC<{
                 {/* Status Large */}
                 <div className="text-center">
                     <h2 className={`text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
+                    {order.clientPhone && (
+                        <div className="flex items-center justify-center gap-2 mt-0.5 text-gray-500 dark:text-gray-400">
+                            <Phone size={12} />
+                            <span className="text-sm font-medium">{order.clientPhone}</span>
+                        </div>
+                    )}
                     <div className="flex items-center justify-center gap-2 mt-1 text-orange-500 dark:text-orange-400">
                         <Clock size={14} />
                         <span className="text-sm font-mono font-bold">
@@ -146,34 +153,62 @@ const OrderContent: React.FC<{
                     </div>
                 </div>
 
-                {/* Cliente & Categoria */}
-                <div className={`rounded-2xl p-4 border flex items-center justify-between ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-white shadow-sm border border-gray-200'}`}>
-                            <User size={20} className="text-gray-400" />
+                {/* Cliente & Categoria + Contato Direto */}
+                <div className="space-y-3">
+                    <div className={`rounded-2xl p-4 border flex items-center justify-between ${isDark ? 'bg-black/20 border-white/5' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDark ? 'bg-white/10' : 'bg-white shadow-sm border border-gray-200'}`}>
+                                <User size={20} className="text-gray-400" />
+                            </div>
+                            <div>
+                                <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Categoria do Cliente</span>
+                                <div className="flex items-center gap-2">
+                                    {order.clientTier === 'GOLD' && <Trophy size={14} className="text-yellow-500" />}
+                                    {order.clientTier === 'SILVER' && <Medal size={14} className="text-gray-400" />}
+                                    {order.clientTier === 'BRONZE' && <Medal size={14} className="text-orange-600" />}
+                                    {(!order.clientTier || order.clientTier === 'NEW') && <UserPlus size={14} className="text-blue-500" />}
+                                    <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                        {order.clientTier === 'GOLD' ? 'Ouro' :
+                                            order.clientTier === 'SILVER' ? 'Prata' :
+                                                order.clientTier === 'BRONZE' ? 'Bronze' : 'Cliente Novo'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Categoria do Cliente</span>
-                            <div className="flex items-center gap-2">
-                                {order.clientTier === 'GOLD' && <Trophy size={14} className="text-yellow-500" />}
-                                {order.clientTier === 'SILVER' && <Medal size={14} className="text-gray-400" />}
-                                {order.clientTier === 'BRONZE' && <Medal size={14} className="text-orange-600" />}
-                                {(!order.clientTier || order.clientTier === 'NEW') && <UserPlus size={14} className="text-blue-500" />}
-                                <span className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                    {order.clientTier === 'GOLD' ? 'Ouro' :
-                                        order.clientTier === 'SILVER' ? 'Prata' :
-                                            order.clientTier === 'BRONZE' ? 'Bronze' : 'Cliente Novo'}
-                                </span>
+                        <div className="text-right">
+                            <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Pedido feito em</span>
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 justify-end">
+                                <Calendar size={12} />
+                                <span>{new Date(order.createdAt).toLocaleDateString()} às {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="text-right">
-                        <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider block">Pedido feito em</span>
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-gray-500 justify-end">
-                            <Calendar size={12} />
-                            <span>{new Date(order.createdAt).toLocaleDateString()} às {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                    {/* Botões de Contato do Cliente */}
+                    {order.clientPhone && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const cleanPhone = order.clientPhone?.replace(/\D/g, '');
+                                    window.open(`https://wa.me/${cleanPhone}`, '_blank');
+                                }}
+                                className="h-10 bg-green-600/10 hover:bg-green-600/20 text-green-600 border border-green-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
+                            >
+                                <MessageCircle size={16} /> WhatsApp
+                            </button>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const cleanPhone = order.clientPhone?.replace(/\D/g, '');
+                                    window.open(`tel:${cleanPhone}`, '_self');
+                                }}
+                                className="h-10 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 border border-blue-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
+                            >
+                                <Smartphone size={16} /> Ligar Cliente
+                            </button>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* Timeline / Route History */}
@@ -232,6 +267,27 @@ const OrderContent: React.FC<{
                 >
                     <Printer size={16} /> Imprimir
                 </button>
+
+                {/* Chamar Motoboy (Primary Action for External Orders) */}
+                {order.requestSource === 'WHATSAPP' && !order.courier && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onCallCourier) {
+                                onCallCourier(order);
+                            } else {
+                                // Fallback: Dispatch custom event for DeliveryForm
+                                const event = new CustomEvent('fill-delivery-from-order', { detail: order });
+                                window.dispatchEvent(event);
+                                onClose?.();
+                            }
+                        }}
+                        className="flex-[2] h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 transform active:scale-95"
+                    >
+                        <Truck size={18} /> Chamar Motoboy Guepardo
+                    </button>
+                )}
+
                 <button
                     onClick={(e) => { e.stopPropagation(); onCancelClick && onCancelClick(order); }}
                     className="flex-1 h-12 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 border border-red-500/30"
@@ -241,28 +297,26 @@ const OrderContent: React.FC<{
             </div>
 
             {/* Tracking Share Action (Only when In Transit) */}
-            {
-                (order.status === OrderStatus.IN_TRANSIT || order.status === OrderStatus.TO_STORE) && (
-                    <div className={`px-4 pb-4 ${isEmbedded ? 'bg-gray-50 dark:bg-black/40' : (isDark ? 'bg-black/40' : 'bg-white')}`}>
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // Generate Fake Token if missing (for demo)
-                                const token = order.trackingToken || 'demo-token-123';
-                                const link = `${window.location.origin}/track/${token}`;
-                                const message = `🛵 *Guepardo Delivery*: Seu pedido saiu para entrega!\n\nAcompanhe o entregador em tempo real:\n${link}`;
-                                const phone = order.clientPhone?.replace(/\D/g, '') || '5511999999999';
-                                window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`, '_blank');
-                            }}
-                            className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-                        >
-                            <Share2 size={18} />
-                            Compartilhar Rastreio (WhatsApp)
-                        </button>
-                    </div>
-                )
-            }
-        </div >
+            {(order.status === OrderStatus.IN_TRANSIT || order.status === OrderStatus.TO_STORE) && (
+                <div className={`px-4 pb-4 ${isEmbedded ? 'bg-gray-50 dark:bg-black/40' : (isDark ? 'bg-black/40' : 'bg-white')}`}>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Generate Fake Token if missing (for demo)
+                            const token = order.trackingToken || 'demo-token-123';
+                            const link = `${window.location.origin}/track/${token}`;
+                            const message = `🛵 *Guepardo Delivery*: Seu pedido saiu para entrega!\n\nAcompanhe o entregador em tempo real:\n${link}`;
+                            const phone = order.clientPhone?.replace(/\D/g, '') || '5511999999999';
+                            window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`, '_blank');
+                        }}
+                        className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+                    >
+                        <Share2 size={18} />
+                        Compartilhar Rastreio (WhatsApp)
+                    </button>
+                </div>
+            )}
+        </div>
     );
 };
 
@@ -401,6 +455,12 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                 securityPin={securityPin}
                 getPaymentIcon={getPaymentIcon}
                 onCancelClick={onCancelClick}
+                onCallCourier={(o) => {
+                    // Logic to fill DeliveryForm: Dispatch event
+                    const event = new CustomEvent('fill-delivery-from-order', { detail: o });
+                    window.dispatchEvent(event);
+                    onClose?.();
+                }}
                 theme={theme}
                 isExpanded={isExpanded} // Pass isExpanded
             />

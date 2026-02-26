@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StoreSettings } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2 } from 'lucide-react';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -253,8 +253,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                             </div>
                         </div>
 
-                        {/* Sons */}
+                        {/* Tema do Mapa */}
                         <div>
+                            <label className="block text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                <Layers size={14} className="text-guepardo-accent" /> Tema do Mapa
+                            </label>
+                            <div className="flex bg-gray-50 dark:bg-guepardo-gray-900 p-1 rounded-xl border border-gray-200 dark:border-guepardo-gray-700 transition-colors duration-300">
+                                {['light', 'dark'].map(mTheme => (
+                                    <button
+                                        key={mTheme}
+                                        onClick={() => handleChange('mapTheme', mTheme)}
+                                        className={`flex-1 py-2 rounded-lg text-sm font-bold capitalize flex items-center justify-center gap-2 transition-colors ${localSettings.mapTheme === mTheme
+                                            ? 'bg-white dark:bg-guepardo-gray-700 text-gray-900 dark:text-white shadow-sm'
+                                            : 'text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
+                                            }`}
+                                    >
+                                        {mTheme === 'light' ? <Sun size={14} /> : <Moon size={14} />}
+                                        {mTheme === 'light' ? 'Mapa Claro' : 'Mapa Escuro'}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-2 italic px-1">Configure o mapa para o modo que melhor facilite sua visualização de rotas.</p>
+                        </div>
+
+                        {/* Sons */}
+                        <div className="md:col-span-2">
                             <label className="block text-sm font-bold text-gray-900 dark:text-white mb-3">Alerta Sonoro</label>
                             <div className="bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-xl overflow-hidden transition-colors duration-300">
                                 <select

@@ -20,6 +20,7 @@ export interface StoreSettings {
 
   // 4. Interface
   theme: 'light' | 'dark' | 'auto';
+  mapTheme: 'light' | 'dark';
   alertSound: 'default' | 'roar' | 'siren' | 'cheetah' | 'symphony' | 'guitar' | 'beep';
 }
 
