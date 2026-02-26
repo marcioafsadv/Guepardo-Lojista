@@ -348,6 +348,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     filteredOrders={activeOrders}
                     availableCouriers={availableCouriers}
                     theme={theme}
+                    toggleTheme={onToggleMapTheme}
                     draftDestinationAddress={draftAddress}
                     onRouteCalculated={setRouteStats}
                     isSelectingCourier={isSelectingCourier}
