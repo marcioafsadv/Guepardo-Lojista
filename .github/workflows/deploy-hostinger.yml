@@ -19,7 +19,7 @@ jobs:
           node-version: '20'
 
       - name: 🔨 Install Dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: 📝 Create .env file
         run: |
@@ -27,7 +27,8 @@ jobs:
           echo "VITE_SUPABASE_ANON_KEY=sb_publishable_5FFYs0bPMCjQZTawObPk2A_lK5jmGJY" >> .env
 
       - name: 🏗️ Build Project
-        run: npm run build
+        run: |
+          npm run build || (echo "Build failed, listing node_modules..." && ls -R node_modules/react-leaflet && exit 1)
         env:
           # É importante que essas variáveis estejam nos Secrets do GitHub também se forem sensíveis
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
