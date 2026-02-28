@@ -41,9 +41,21 @@ function getDistance(lat1, lon1, lat2, lon2) {
 async function geocodeAddress(address) {
     try {
         console.log(`🔍 Buscando coordenadas para: ${address}`);
-        // Limpa o endereço para melhorar a busca (Rua Sueli... CEP: ...) -> Rua Sueli...
-        const cleanAddress = address.split(' - ')[0].split(' CEP:')[0].trim();
-        const query = `${cleanAddress}, Itu, SP, Brazil`;
+        // Limpeza inteligente: Remove rótulos e isola a parte principal
+        let clean = address
+            .replace(/CEP:?\s*[\d-]+/i, '') // Remove o texto "CEP:" e o número 
+            .replace(/Endereço:?/i, '')
+            .split(' - ')[0]
+            .trim();
+
+        // Se o endereço original já contém "Salto", "Itu", etc., não forçamos Itu
+        let query = clean;
+        if (!clean.match(/Itu|Salto|Indaiatuba|Sorocaba|Porto Feliz|Cabreúva/i)) {
+            query += ', Itu';
+        }
+        query += ', SP, Brazil';
+
+        console.log(`📍 Query enviada ao GPS: ${query}`);
 
         const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
             headers: { 'User-Agent': 'Guepardo-Lojista-Bot' }
