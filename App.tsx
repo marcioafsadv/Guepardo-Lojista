@@ -7,6 +7,7 @@ import { GlobalSidebar, AppView } from './components/GlobalSidebar';
 import { DashboardTab } from './components/DashboardTab';
 import { Header } from './components/Header';
 import { TrackingPage } from './components/TrackingPage';
+import { SplashScreen } from './components/SplashScreen';
 
 import { OrderDetailsModal } from './components/OrderDetailsModal';
 import { ClientHistoryModal } from './components/ClientHistoryModal';
@@ -70,6 +71,14 @@ function App() {
     const [notification, setNotification] = useState<{ title: string, message: string } | null>(null);
     const [availableCouriers, setAvailableCouriers] = useState<Courier[]>(INITIAL_COURIERS);
     const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+    const [showSplash, setShowSplash] = useState(true);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowSplash(false);
+        }, 3000);
+        return () => clearTimeout(timer);
+    }, []);
 
     // --- MANUAL ROUTING (TRACKING PAGE) ---
     // Since we don't have react-router-dom, we check URL manually
@@ -1446,6 +1455,10 @@ function App() {
     }
 
     // 2. Loading State
+    if (showSplash) {
+        return <SplashScreen />;
+    }
+
     if (loading) {
         return <div className="h-screen w-full flex items-center justify-center bg-gray-900 text-white">Carregando...</div>;
     }
