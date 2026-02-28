@@ -1,0 +1,793 @@
+﻿<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conectar WhatsApp - Guepardo v4.9 - Turbo</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #1e293b;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #22c55e;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            color: #94a3b8;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: #fff;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #1e293b;
+            position: relative;
+        }
+
+        #qr-container img {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.25rem;
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .button {
+            background-color: #22c55e;
+            color: #fff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            margin: 5px;
+        }
+
+        .button:hover {
+            background-color: #16a34a;
+            transform: translateY(-2px);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button.secondary {
+            background-color: #334155;
+        }
+
+        input {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: #fff;
+            width: 80%;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .pairing-code {
+            font-size: 2.5rem;
+            font-weight: bold;
+            letter-spacing: 5px;
+            color: #1e293b;
+            border: 2px dashed #22c55e;
+            padding: 10px 20px;
+            margin-top: 10px;
+        }
+
+        #loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #22c55e;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            display: none;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #334155;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 0.5rem;
+            cursor: pointer;
+            color: #94a3b8;
+        }
+
+        .tab.active {
+            color: #22c55e;
+            border-bottom: 2px solid #22c55e;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #progress-container {
+            width: 100%;
+            background-color: #334155;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 10px;
+            background: linear-gradient(90deg, #22c55e, #3b82f6);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Conectar WhatsApp <span style="font-size: 0.8rem; color: #64748b;">(v4.8 - Turbo)</span></h1>
+        <p>Escolha o método de conexão abaixo para o Guepardo Lojista.</p>
+
+        <div id="tunnel-config"
+            style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; text-align: left;">
+            <label style="font-weight: bold; color: #1e293b; display: block; margin-bottom: 5px;">📌 URL do Servidor
+                (Túnel):</label>
+            <input type="text" id="api-url-input" placeholder="Ex: https://abc-123.trycloudflare.com"
+                style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: monospace;">
+            <p style="font-size: 0.75rem; color: #64748b; margin-top: 5px;">Se estiver usando o túnel grátis, cole o
+                endereço gerado no terminal aqui.</p>
+        </div>
+
+        <div class="tabs">
+            <div id="tab-qr" class="tab active" onclick="switchTab('qr')">QR Code</div>
+            <div id="tab-pairing" class="tab" onclick="switchTab('pairing')">Código de Aparelho</div>
+        </div>
+
+        <div id="section-qr" class="section">
+            <div class="card" id="qr-card">
+                <div id="qr-container">
+                    <p id="qr-placeholder">Carregando QR Code...</p>
+                </div>
+            </div>
+            <button class="button" onclick="fetchQRCode()">Atualizar QR Code</button>
+        </div>
+
+        <div id="section-pairing" class="section hidden">
+            <div class="card" id="pairing-card">
+                <div id="pairing-input-area">
+                    <label for="phone-number" style="display:block; margin-bottom:10px; color:#64748b;">Número do
+                        WhatsApp (com DDD):</label>
+                    <input type="text" id="phone-number" placeholder="Ex: 5511999999999">
+                    <button class="button" onclick="fetchPairingCode()">Gerar Código</button>
+
+                    <div class="recovery-options">
+                        <button onclick="logoutInstance()">Sair da Instância</button>
+                        <button onclick="restartInstance()">Reiniciar</button>
+                        <button onclick="recreateInstance()">Excluir/Recriar</button>
+                        <button class="btn-orange" onclick="superClean()">Zerar Tudo (Recomendado)</button>
+                        <button style="background: #8b5cf6; color: white; margin-top: 10px; width: 100%;"
+                            onclick="deepScan()">⚡ GALAXY SCAN (V2.1.1 Ultra) ⚡</button>
+                    </div>
+                </div>
+                <div id="pairing-display-area" class="hidden">
+                    <div style="font-size: 0.9rem; margin-bottom: 5px;">Seu código de pareamento:</div>
+                    <div id="pairing-code-value" class="pairing-code" style="cursor: pointer;" onclick="copyCode()">
+                        --------</div>
+                    <div style="font-size: 0.8rem; margin-top: 15px; color:#64748b;">
+                        No WhatsApp: <b>Aparelhos Conectados > Conectar com número de telefone</b>
+                    </div>
+                    <button class="button secondary" onclick="resetPairing()" style="margin-top:10px;">Voltar</button>
+                </div>
+            </div>
+            <div id="loader" style="display:none;">
+                <div id="progress-container" style="display:block;">
+                    <div id="progress-bar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status" id="status-text">Status: Iniciando...</div>
+
+    <div
+        style="margin-top: 30px; text-align: left; background: #1e293b; padding: 10px; border-radius: 5px; font-size: 0.7rem;">
+        <p style="color: #64748b; cursor: pointer;"
+            onclick="document.getElementById('debug-area').classList.toggle('hidden')">▼ Ver Detalhes Técnicos
+            (Debug)</p>
+        <div id="debug-area" class="hidden">
+            <p id="api-version" style="color: #60a5fa; margin-bottom: 5px;">Versão API: Verificando...</p>
+            <div style="margin-bottom: 10px;">
+                <label>Instância Atual para Testes:</label>
+                <input type="text" id="target-instance" style="width: 150px; background: #334155;">
+                <button class="button" style="padding: 5px 10px; font-size: 0.7rem;"
+                    onclick="saveTargetInstance()">Salvar</button>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <input type="text" id="manual-route" style="width: 70%;"
+                    placeholder="/instance/connect/lojista?number=X">
+                <button class="button" onclick="testManualRoute()" style="padding: 5px 10px; font-size: 0.7rem;">Testar
+                    Rota (GET)</button>
+                <button class="button" onclick="testManualRoute('POST')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #e11d48;">Testar Rota (POST)</button>
+                <br>
+                <button class="button" onclick="testWinnerRoute('usePairingCode=true')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #8b5cf6;">usePairingCode=true</button>
+                <button class="button" onclick="testWinnerRoute('pairingCode=true')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #6366f1;">pairingCode=true</button>
+                <button class="button" onclick="testWinnerRoute('pairing=true')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #1d4ed8;">pairing=true</button>
+                <button class="button" onclick="testWinnerRoute('method=pairing')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #c026d3;">method=pairing (V2
+                    Doc)</button>
+                <button class="button" onclick="testWinnerRoute('pairing-code-path')"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #0891b2;">/pairing-code/
+                    SUBPATH</button>
+                <button class="button" onclick="deepScan()"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #ea580c; font-weight: bold;">⚡ DEEP
+                    SCAN (RECOMENDADO) ⚡</button>
+                <button class="button" onclick="purgeLojistas()"
+                    style="padding: 5px 10px; font-size: 0.7rem; background: #475569;">🧹 Purga Geral (v2)</button>
+            </div>
+            <pre id="debug-json" style="color: #22c55e; overflow: auto; max-height: 200px;"></pre>
+        </div>
+    </div>
+
+    <script>
+        let baseUrl = 'http://localhost:8080';
+        const apikey = 'sb_secret_qHGa2O1Tfmcf_KesbX0HMg_LqX78sjL';
+
+        function updateBaseUrl() {
+            const input = document.getElementById('api-url-input').value.trim();
+            if (input) {
+                baseUrl = input.endsWith('/') ? input.slice(0, -1) : input;
+                console.log('[CONFIG] Usando URL Customizada:', baseUrl);
+            } else {
+                baseUrl = 'http://localhost:8080';
+                console.log('[CONFIG] Usando URL Padrão: localhost');
+            }
+        }
+        let instance = localStorage.getItem('evolution_instance_name') || 'lojista';
+        let instanceUuid = '';
+
+        document.getElementById('target-instance').value = instance;
+
+        function saveTargetInstance() {
+            const val = document.getElementById('target-instance').value.trim().replace(/\s+/g, '_');
+            if (!val) return;
+            instance = val;
+            localStorage.setItem('evolution_instance_name', instance);
+            alert('Instância alterada para: ' + instance);
+            window.location.reload();
+        }
+
+        async function nuclearReset() {
+            if (!confirm('☢️ RESET NUCLEAR: Isso vai deletar a conexão ATUAL e criar uma nova. Deseja continuar?')) return;
+            const oldInstance = instance;
+            instance = 'lojista_' + Math.floor(Math.random() * 10000);
+            localStorage.setItem('evolution_instance_name', instance);
+
+            const status = document.getElementById('status-text');
+            status.innerText = `Status: Removendo ${oldInstance}...`;
+            await fetch(`${baseUrl}/instance/delete/${oldInstance}`, { method: 'DELETE', headers: globalHeaders }).catch(() => { });
+
+            await superClean();
+        }
+
+        async function purgeLojistas() {
+            if (!confirm('⚠️ Isso vai deletar TODAS as instâncias do servidor para começar do zero. Tem certeza?')) return;
+            const status = document.getElementById('status-text');
+            status.innerText = 'Limpando servidor...';
+            try {
+                const res = await fetch(`${baseUrl}/instance/fetchInstances`, { headers: globalHeaders });
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.instances || []);
+                for (const inst of list) {
+                    await deleteInstance(inst.name || inst.instanceName);
+                }
+                localStorage.removeItem('evolution_instance_name');
+                alert('Purga concluída! O servidor está limpo. A página será reiniciada.');
+                window.location.reload();
+            } catch (e) {
+                console.error(e);
+                alert('Erro na purga: ' + e.message);
+            }
+        }
+
+        async function checkVersion() {
+            try {
+                const response = await fetch(`${baseUrl}/`, { headers: globalHeaders });
+                const data = await response.json();
+                document.getElementById('api-version').innerText = 'Versão API: ' + (data.version || JSON.stringify(data));
+            } catch (e) {
+                document.getElementById('api-version').innerText = 'Versão API: ' + e.message;
+            }
+        }
+
+        function copyCode() {
+            const code = document.getElementById('pairing-code-value').innerText;
+            navigator.clipboard.writeText(code);
+            alert('Código copiado: ' + code);
+        }
+
+        function switchTab(type) {
+            document.getElementById('tab-qr').classList.toggle('active', type === 'qr');
+            document.getElementById('tab-pairing').classList.toggle('active', type === 'pairing');
+            document.getElementById('section-qr').classList.toggle('hidden', type !== 'qr');
+            document.getElementById('section-pairing').classList.toggle('hidden', type !== 'pairing');
+
+            if (type === 'qr') {
+                fetchQRCode();
+            } else {
+                if (qrInterval) clearInterval(qrInterval);
+            }
+        }
+
+        const globalHeaders = {
+            'apikey': apikey,
+            'X-Api-Key': apikey,
+            'Content-Type': 'application/json'
+        };
+
+        async function deleteInstance(instanceName) {
+            try {
+                const safeName = encodeURIComponent(instanceName);
+                await fetch(`${baseUrl}/instance/logout/${safeName}`, { method: 'DELETE', headers: globalHeaders }).catch(() => { });
+                await fetch(`${baseUrl}/instance/delete/${safeName}`, { method: 'DELETE', headers: globalHeaders }).catch(() => { });
+            } catch (e) {
+                console.warn('[DELETE] Erro:', e);
+            }
+        }
+
+        async function ensureInstance(force = false, num = null) {
+            updateBaseUrl();
+            instance = (localStorage.getItem('evolution_instance_name') || 'lojista').trim().replace(/\s+/g, '_');
+            const safeInstance = encodeURIComponent(instance);
+
+            try {
+                const check = await fetch(`${baseUrl}/instance/fetchInstances`, { headers: globalHeaders });
+                const list = await check.json();
+                const instancesList = Array.isArray(list) ? list : (list.instances || []);
+                const existing = instancesList.find(i => i.name === instance || i.instanceName === instance);
+
+                if (existing && (force || num)) {
+                    await deleteInstance(instance);
+                    await new Promise(r => setTimeout(r, 2000));
+                } else if (existing && !force && !num) {
+                    instanceUuid = existing.id;
+                    return;
+                }
+
+                const createBody = {
+                    instanceName: instance,
+                    token: apikey,
+                    qrcode: !num,
+                    pairingCode: num ? true : false,
+                    integration: 'WHATSAPP-BAILEYS'
+                };
+
+                if (num) {
+                    createBody.number = num;
+                }
+
+                const createResponse = await fetch(`${baseUrl}/instance/create`, {
+                    method: 'POST',
+                    headers: globalHeaders,
+                    body: JSON.stringify(createBody)
+                });
+                const createData = await createResponse.json();
+
+                if (createResponse.status >= 400) {
+                    throw new Error(`Erro na criação (${createResponse.status}): ${JSON.stringify(createData)}`);
+                }
+
+                instanceUuid = createData.id || createData.instance?.id || createData.hash;
+                document.getElementById('status-text').innerText = 'Status: Aguardando inicialização (20s)...';
+                await new Promise(resolve => setTimeout(resolve, 20000));
+            } catch (err) {
+                console.error('[ENSURE] Erro:', err);
+                document.getElementById('status-text').innerText = 'Erro: ' + err.message;
+            }
+        }
+
+        async function logoutInstance() {
+            try {
+                document.getElementById('status-text').innerText = 'Status: Saindo (DELETE)...';
+                await fetch(`${baseUrl}/instance/logout/${instance}`, { method: 'DELETE', headers: globalHeaders });
+                document.getElementById('status-text').innerText = 'Status: Saindo (POST)...';
+                await fetch(`${baseUrl}/instance/logout/${instance}`, { method: 'POST', headers: globalHeaders });
+                alert('Logout tentado via DELETE e POST.');
+            } catch (e) { alert('Erro ao sair: ' + e); }
+        }
+
+        async function restartInstance() {
+            try {
+                document.getElementById('status-text').innerText = 'Status: Reiniciando...';
+                await fetch(`${baseUrl}/instance/restart/${instance}`, { method: 'POST', headers: globalHeaders });
+                alert('Reiniciada. Aguarde 5s.');
+            } catch (e) { alert('Erro ao reiniciar: ' + e); }
+        }
+
+        async function recreateInstance() {
+            if (!confirm('Deseja REALMENTE excluir e recriar do zero?')) return;
+            await superClean();
+        }
+
+        let qrInterval = null;
+
+        async function fetchQRCode() {
+            const container = document.getElementById('qr-container');
+            const status = document.getElementById('status-text');
+            status.innerText = 'Status: Buscando QR Code...';
+
+            if (qrInterval) clearInterval(qrInterval);
+
+            await ensureInstance();
+
+            let attempts = 0;
+            async function getQR() {
+                try {
+                    attempts++;
+                    const response = await fetch(`${baseUrl}/instance/connect/${instance}?method=qrcode`, {
+                        headers: globalHeaders
+                    });
+                    const data = await response.json();
+
+                    if (data.base64) {
+                        container.innerHTML = `<img src="${data.base64}" alt="WhatsApp QR Code" style="width:250px; height:250px;">`;
+                        status.innerText = 'Status: QR Code pronto. Escaneie agora!';
+                    } else if (data.instance?.state === 'open' || data.state === 'open') {
+                        container.innerHTML = '<p style="color: #22c55e; font-weight: bold; font-size: 1.2rem;">WhatsApp já está CONECTADO! ✅</p>';
+                        status.innerText = 'Status: Conectado.';
+                        if (qrInterval) clearInterval(qrInterval);
+                    } else {
+                        const stateMsg = data.state || (data.instance && data.instance.state) || 'desconhecido';
+                        container.innerHTML = `<p>Aguardando QR Code... (${attempts})</p>`;
+                        status.innerText = 'Status: Gerando (API em modo ' + stateMsg + ')...';
+
+                        if (attempts === 3) {
+                            await fetch(`${baseUrl}/instance/restart/${instance}`, { method: 'POST', headers: globalHeaders }).catch(() => { });
+                        }
+                    }
+                } catch (error) {
+                    console.error(error);
+                    status.innerText = 'Status: Erro de conexão.';
+                    container.innerHTML = `<p style="color: #ef4444;">Erro ao buscar QR Code: ${error.message}</p>`;
+                }
+            }
+
+            await getQR();
+            qrInterval = setInterval(getQR, 10000);
+        }
+
+        async function superClean() {
+            try {
+                const status = document.getElementById('status-text');
+                status.innerText = 'Status: Iniciando Limpeza Profunda...';
+
+                await fetch(`${baseUrl}/instance/logout/${instance}`, { method: 'DELETE', headers: globalHeaders }).catch(() => { });
+                await fetch(`${baseUrl}/instance/delete/${instance}`, { method: 'DELETE', headers: globalHeaders }).catch(() => { });
+
+                status.innerText = 'Status: Aguardando 6s...';
+                await new Promise(r => setTimeout(r, 6000));
+
+                await ensureInstance(true);
+
+                status.innerText = 'Status: Limpeza concluída!';
+                alert('Limpeza completa! Agora insira seu número e clique em "Gerar Código".');
+            } catch (e) {
+                alert('Erro na limpeza: ' + e);
+            }
+        }
+
+        async function fetchPairingCode() {
+            const rawNumber = document.getElementById('phone-number').value.replace(/\D/g, '');
+            const status = document.getElementById('status-text');
+            const loader = document.getElementById('loader');
+
+            if (!rawNumber || rawNumber.length < 10) {
+                alert('Insira o número completo com DDD.');
+                return;
+            }
+
+            document.getElementById('pairing-input-area').classList.add('hidden');
+            loader.style.display = 'block';
+
+            try {
+                status.innerText = 'Passo 1/4: Preparando instância...';
+                await ensureInstance(false, rawNumber);
+
+                const safeInstance = encodeURIComponent(instance);
+
+                try {
+                    const stateRes = await fetch(`${baseUrl}/instance/connectionState/${safeInstance}`, { headers: globalHeaders });
+                    const stateData = await stateRes.json();
+                    const currentState = stateData.instance?.state || stateData.state || 'unknown';
+
+                    if (currentState === 'open') {
+                        alert('✅ WhatsApp já está conectado!');
+                        loader.style.display = 'none';
+                        return;
+                    }
+
+                    if (currentState === 'connecting' || currentState === 'close') {
+                        await fetch(`${baseUrl}/instance/restart/${safeInstance}`, { method: 'POST', headers: globalHeaders }).catch(() => { });
+                        await new Promise(r => setTimeout(r, 3000));
+                    }
+                } catch (e) { }
+
+                status.innerText = 'Passo 2/4: Solicitando Código...';
+                await fetch(`${baseUrl}/instance/restart/${safeInstance}`, { method: 'POST', headers: globalHeaders }).catch(() => { });
+                await new Promise(r => setTimeout(r, 5000));
+
+                await fetch(`${baseUrl}/instance/connect/${safeInstance}?number=${rawNumber}&method=pairingCode`, { headers: globalHeaders });
+
+                status.innerText = 'Passo 3/4: Aguardando geração (20s)...';
+                await new Promise(r => setTimeout(r, 20000));
+
+                status.innerText = 'Passo 4/4: Buscando código...';
+
+                let variants = [rawNumber];
+                if (rawNumber.startsWith('55') && rawNumber.length === 13) {
+                    const noNine = rawNumber.slice(0, 4) + rawNumber.slice(5);
+                    variants.push(noNine);
+                }
+
+                const maxAttempts = 30;
+                for (let i = 1; i <= maxAttempts; i++) {
+                    const percent = Math.floor((i / maxAttempts) * 100);
+                    status.innerText = `Buscando código... (${percent}% - Tentativa ${i}/${maxAttempts})`;
+
+                    const pBar = document.getElementById('progress-bar');
+                    if (pBar) pBar.style.width = percent + '%';
+
+                    for (const num of variants) {
+                        try {
+                            const urls = [
+                                `${baseUrl}/instance/connect/${safeInstance}?number=${num}&method=pairingCode`,
+                                `${baseUrl}/instance/connect/${safeInstance}?number=${num}&pairingCode=true`,
+                                `${baseUrl}/instance/connect/${safeInstance}?number=${num}&usePairingCode=true`
+                            ];
+
+                            for (const url of urls) {
+                                const res = await fetch(url, { headers: globalHeaders });
+                                const data = await res.json();
+                                let code = data.pairingCode || data.code || (data.instance && data.instance.pairingCode);
+
+                                if (code && code.length > 15) {
+                                    code = data.pairingCode || null;
+                                }
+
+                                if (code) {
+                                    document.getElementById('pairing-code-value').innerText = code;
+                                    document.getElementById('pairing-code-value').style.color = '#22c55e';
+                                    document.getElementById('pairing-display-area').classList.remove('hidden');
+                                    status.innerText = 'CÓDIGO GERADO!';
+                                    loader.style.display = 'none';
+                                    alert('🎉 CÓDIGO GERADO: ' + code);
+                                    return;
+                                }
+                            }
+                        } catch (e) { }
+                    }
+                    await new Promise(r => setTimeout(r, 4000));
+
+                    if (i % 5 === 0) {
+                        await fetch(`${baseUrl}/instance/connect/${safeInstance}?number=${rawNumber}&method=pairingCode`, {
+                            headers: globalHeaders
+                        }).catch(() => { });
+                    }
+                }
+
+                status.innerText = 'Falha: Tempo esgotado.';
+                alert('O servidor não gerou o código. Tente novamente.');
+            } catch (err) {
+                console.error(err);
+                status.innerText = 'Erro de conexão.';
+            } finally {
+                loader.style.display = 'none';
+                if (document.getElementById('pairing-display-area').classList.contains('hidden')) {
+                    document.getElementById('pairing-input-area').classList.remove('hidden');
+                }
+            }
+        }
+
+        function resetPairing() {
+            document.getElementById('pairing-input-area').classList.remove('hidden');
+            document.getElementById('pairing-display-area').classList.add('hidden');
+        }
+
+        async function deepScan() {
+            const numField = document.getElementById('phone-number');
+            const num = numField.value.replace(/\D/g, '');
+            if (!num || num.length < 10) return alert('Insira um número no campo principal.');
+
+            const variants = [num];
+            if (num.startsWith('55') && num.length === 13) {
+                const noNine = num.slice(0, 4) + num.slice(5);
+                variants.push(noNine);
+            }
+
+            const log = document.getElementById('debug-json');
+            log.innerText = `⚡ INICIANDO GALAXY SCAN...\n`;
+            document.getElementById('debug-area').classList.remove('hidden');
+
+            try {
+                const check = await fetch(`${baseUrl}/instance/connectionState/${instance}`, { headers: globalHeaders });
+                const state = await check.json();
+                const status = (state.instance?.state || state.instance || state.state || 'unknown');
+                log.innerText += `Status atual: ${status}\n`;
+            } catch (e) { }
+
+            const prefixes = ['', '/v2'];
+            const pathVariants = [
+                { path: (id) => `/instance/connect/${id}`, method: 'POST', bodyType: 'nested' },
+                { path: (id) => `/instance/connect/pairing/${id}`, method: 'POST', bodyType: 'simple' },
+                { path: (id, n) => `/instance/connect/${id}?number=${n}&method=pairingCode`, method: 'GET' },
+                { path: (id, n) => `/instance/connect/${id}?number=${n}&pairingCode=true`, method: 'GET' },
+                { path: (id, n) => `/instance/connect/${id}?number=${n}&usePairingCode=true`, method: 'GET' },
+                { path: (id) => `/instance/requestCode/${id}`, method: 'POST', bodyType: 'simple' },
+                { path: (id) => `/instance/${id}/requestCode`, method: 'POST', bodyType: 'simple' }
+            ];
+
+            for (const pref of prefixes) {
+                for (const item of pathVariants) {
+                    for (const v of variants) {
+                        const rawPath = pref + item.path(instance, v);
+                        const url = `${baseUrl}${rawPath}`;
+                        const m = item.method;
+
+                        log.innerText += `\nTestando [${m}]: ${rawPath}...`;
+                        try {
+                            const fetchOptions = { method: m, headers: globalHeaders };
+                            if (m === 'POST') {
+                                if (item.bodyType === 'nested') {
+                                    fetchOptions.body = JSON.stringify({
+                                        number: v,
+                                        options: { pairingCode: true }
+                                    });
+                                } else {
+                                    fetchOptions.body = JSON.stringify({
+                                        number: v,
+                                        pairingCode: true,
+                                        method: 'pairingCode'
+                                    });
+                                }
+                            }
+
+                            const res = await fetch(url, fetchOptions);
+                            const data = await res.json().catch(() => ({}));
+
+                            if (data.code || data.pairingCode || data.pairing_code || data.codeValue) {
+                                const c = data.code || data.pairingCode || data.pairing_code || data.codeValue;
+                                log.innerText = `\n[${res.status}] 🚀 SUCESSO!\nCÓDIGO: ${c}`;
+                                document.getElementById('pairing-code-value').innerText = c;
+                                document.getElementById('pairing-code-value').style.color = '#22c55e';
+                                document.getElementById('pairing-display-area').classList.remove('hidden');
+                                document.getElementById('pairing-input-area').classList.add('hidden');
+                                alert('CÓDIGO ENCONTRADO: ' + c);
+                                return;
+                            }
+                            log.innerText += ` -> [${res.status}] ${JSON.stringify(data).substring(0, 50)}...`;
+                        } catch (e) {
+                            log.innerText += ` -> Erro: ${e.message}`;
+                        }
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                }
+            }
+
+            log.innerText += `\n\n--- DUMP DO SERVIDOR ---\n`;
+            try {
+                const res = await fetch(`${baseUrl}/instance/fetchInstances`, { headers: globalHeaders });
+                const instances = await res.json();
+                const list = Array.isArray(instances) ? instances : (instances.instances || []);
+                log.innerText += JSON.stringify(list, null, 2);
+            } catch (e) { }
+
+            alert('GALAXY SCAN concluído.');
+        }
+
+        async function testManualRoute(method = 'GET') {
+            let path = document.getElementById('manual-route').value.trim();
+            if (!path) return alert('Digite uma rota primeiro!');
+
+            if (!path.startsWith('http') && !path.startsWith('/')) {
+                path = '/' + path;
+            }
+
+            const url = path.startsWith('http') ? path : `${baseUrl}${path}`;
+            try {
+                const fetchOptions = {
+                    method: method,
+                    headers: globalHeaders
+                };
+
+                if (method === 'POST') {
+                    const num = document.getElementById('phone-number').value.replace(/\D/g, '');
+                    fetchOptions.body = JSON.stringify({ number: num });
+                }
+
+                const res = await fetch(url, fetchOptions);
+                const data = await res.json();
+                const code = data.code || data.pairingCode || data.pairing_code;
+                const highlight = code ? `\n\n🎉 CÓDIGO ENCONTRADO: ${code} 🎉` : '';
+                document.getElementById('debug-json').innerText = `[${res.status}] ${method} ${url}\n\n${JSON.stringify(data, null, 2)}${highlight}`;
+            } catch (e) {
+                alert('Erro na rota: ' + e);
+            }
+        }
+
+        async function testWinnerRoute(variant = 'usePairingCode=true') {
+            let num = document.getElementById('phone-number').value.replace(/\D/g, '');
+            if (!num) num = '5511955996164';
+
+            let path = '';
+            if (variant === 'pairing-path') {
+                path = `/instance/connect/pairing/${instance}?number=${num}`;
+            } else if (variant === 'pairing-code-path') {
+                path = `/instance/connect/pairing-code/${instance}?number=${num}`;
+            } else {
+                path = `/instance/connect/${instance}?number=${num}&${variant}`;
+            }
+
+            document.getElementById('manual-route').value = path;
+            testManualRoute('GET');
+        }
+
+        checkVersion();
+        fetchQRCode();
+    </script>
+</body>
+
+</html>

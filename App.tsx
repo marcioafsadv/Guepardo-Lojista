@@ -442,6 +442,8 @@ function App() {
                             isReturnRequired: items.isReturnRequired,
                             destinationLat: (typeof items.destinationLat === 'number' && !isNaN(items.destinationLat)) ? items.destinationLat : undefined,
                             destinationLng: (typeof items.destinationLng === 'number' && !isNaN(items.destinationLng)) ? items.destinationLng : undefined,
+                            clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
+                            requestSource: items.requestSource || 'SITE',
                             courier: courierData
                         };
                     }));
