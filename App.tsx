@@ -16,7 +16,6 @@ import { GestaoDePedidos } from './components/GestaoDePedidos';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
-import { OrderHubAlert } from './components/OrderHubAlert';
 import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
 import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, Users, Clock } from 'lucide-react';
@@ -1572,12 +1571,7 @@ function App() {
                 }}
             />
 
-            {session?.user?.id && (
-                <OrderHubAlert
-                    storeId={session.user.id}
-                    onViewOrder={setSelectedOrderDetails}
-                />
-            )}
+            {/* Client History Modal removed here or kept if needed */}
         </div>
     );
 }
