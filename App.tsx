@@ -1464,11 +1464,17 @@ function App() {
 
     // 3. Unauthenticated State (Wizard)
     if (!session) {
-        return <WizardForm />;
+        return (
+            <div className="w-full h-full flex justify-center items-center bg-transparent">
+                <div className="w-full max-w-[480px] h-full relative overflow-hidden shadow-[0_0_120px_rgba(0,0,0,0.95)] bg-transparent">
+                    <WizardForm />
+                </div>
+            </div>
+        );
     }
 
     return (
-        <div className="h-screen w-full flex bg-gray-100 font-sans overflow-hidden">
+        <div className="h-full w-full flex bg-transparent font-sans overflow-hidden">
 
             {/* GLOBAL SIDEBAR */}
             <GlobalSidebar

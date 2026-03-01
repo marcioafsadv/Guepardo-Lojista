@@ -24,7 +24,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
   ];
 
   return (
-    <nav className="w-20 bg-guepardo-accent border-r border-white/10 flex flex-col py-6 z-50 shrink-0 h-full transition-all duration-300 shadow-xl">
+    <nav className="w-20 bg-brand-gradient-premium border-r border-white/10 flex flex-col py-6 z-50 shrink-0 h-full transition-all duration-300 shadow-xl">
 
       {/* Navigation Items */}
       <div className="flex-1 w-full flex flex-col justify-center gap-4 px-3">
@@ -39,7 +39,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
               className={`
                 group relative w-full flex items-center justify-center p-3 rounded-xl transition-all duration-300
                 ${isActive
-                  ? 'bg-white text-guepardo-accent shadow-lg'
+                  ? 'bg-white text-guepardo-rust shadow-lg'
                   : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent'
                 }
               `}

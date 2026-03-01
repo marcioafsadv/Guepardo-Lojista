@@ -57,17 +57,17 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-[#1A1A1A]">Dados da Empresa</h2>
-                <p className="text-gray-500">Comece informando os dados principais do seu negócio.</p>
+                <h2 className="text-2xl font-bold text-white">Dados da Empresa</h2>
+                <p className="text-zinc-400">Comece informando os dados principais do seu negócio.</p>
             </div>
 
             <div className="space-y-4">
-                <div className="flex bg-gray-100 p-1 rounded-xl w-fit">
+                <div className="flex bg-zinc-800/40 p-1 rounded-xl w-fit border border-white/5">
                     <button
                         onClick={() => setTipoPessoa('PJ')}
                         className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${formData.tipoPessoa === 'PJ'
-                            ? 'bg-white text-[#FF6B00] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/20'
+                            : 'text-zinc-500 hover:text-zinc-300'
                             }`}
                     >
                         Pessoa Jurídica
@@ -75,8 +75,8 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                     <button
                         onClick={() => setTipoPessoa('PF')}
                         className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${formData.tipoPessoa === 'PF'
-                            ? 'bg-white text-[#FF6B00] shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                            ? 'bg-[#FF6B00] text-white shadow-lg shadow-[#FF6B00]/20'
+                            : 'text-zinc-500 hover:text-zinc-300'
                             }`}
                     >
                         Pessoa Física
@@ -84,7 +84,7 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
                         {formData.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
                     </label>
                     <input
@@ -93,14 +93,14 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         value={formData.cnpj}
                         onChange={handleChange}
                         placeholder={formData.tipoPessoa === 'PJ' ? "00.000.000/0000-00" : "000.000.000-00"}
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cnpj ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cnpj ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         maxLength={formData.tipoPessoa === 'PJ' ? 18 : 14}
                     />
-                    {errors?.cnpj && <p className="text-red-500 text-sm mt-1">{errors.cnpj}</p>}
+                    {errors?.cnpj && <p className="text-red-400 text-sm mt-1">{errors.cnpj}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">
                         {formData.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome Completo'}
                     </label>
                     <input
@@ -108,35 +108,35 @@ const Step1Company: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                         name="razaoSocial"
                         value={formData.razaoSocial}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.razaoSocial ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.razaoSocial ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                     />
-                    {errors?.razaoSocial && <p className="text-red-500 text-sm mt-1">{errors.razaoSocial}</p>}
+                    {errors?.razaoSocial && <p className="text-red-400 text-sm mt-1">{errors.razaoSocial}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Nome Fantasia</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Nome Fantasia</label>
                     <input
                         type="text"
                         name="nomeFantasia"
                         value={formData.nomeFantasia}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeFantasia ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeFantasia ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                     />
-                    {errors?.nomeFantasia && <p className="text-red-500 text-sm mt-1">{errors.nomeFantasia}</p>}
+                    {errors?.nomeFantasia && <p className="text-red-400 text-sm mt-1">{errors.nomeFantasia}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Telefone</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Telefone</label>
                     <input
                         type="text"
                         name="telefone"
                         value={formData.telefone}
                         onChange={handleChange}
                         placeholder="(00) 00000-0000"
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.telefone ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.telefone ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         maxLength={15}
                     />
-                    {errors?.telefone && <p className="text-red-500 text-sm mt-1">{errors.telefone}</p>}
+                    {errors?.telefone && <p className="text-red-400 text-sm mt-1">{errors.telefone}</p>}
                 </div>
             </div>
 

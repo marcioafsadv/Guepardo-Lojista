@@ -31,20 +31,20 @@ const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ password 
 
     return (
         <div className="mt-2 space-y-2">
-            <div className="flex h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div className="flex h-1.5 w-full bg-zinc-800/50 rounded-full overflow-hidden">
                 <div
                     className={`h-full transition-all duration-500 ease-out ${getColor()}`}
                     style={{ width: `${(strength / 4) * 100}%` }}
                 />
             </div>
-            {strength > 0 && <p className={`text-xs font-semibold ${strength <= 2 ? 'text-red-500' : strength === 3 ? 'text-yellow-600' : 'text-green-600'}`}>{getLabel()}</p>}
+            {strength > 0 && <p className={`text-xs font-semibold ${strength <= 2 ? 'text-red-400' : strength === 3 ? 'text-yellow-400' : 'text-green-400'}`}>{getLabel()}</p>}
 
             <ul className="text-xs space-y-1 mt-2">
                 {requirements.map((req, index) => {
                     const met = req.test(password);
                     return (
-                        <li key={index} className={`flex items-center gap-2 transition-colors duration-300 ${met ? 'text-green-600' : 'text-gray-400'}`}>
-                            {met ? <Check className="w-3 h-3" /> : <div className="w-3 h-3 rounded-full border border-gray-300" />}
+                        <li key={index} className={`flex items-center gap-2 transition-colors duration-300 ${met ? 'text-green-400' : 'text-zinc-500'}`}>
+                            {met ? <Check className="w-3 h-3 text-green-400" /> : <div className="w-3 h-3 rounded-full border border-zinc-700" />}
                             {req.label}
                         </li>
                     )

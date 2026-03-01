@@ -154,19 +154,19 @@ const WizardForm: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 md:p-10 relative overflow-hidden">
+        <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl p-8 md:p-10 relative overflow-hidden">
                 {/* Progress Bar (Hidden on Welcome) */}
                 {currentStep > 0 && (
                     <div className="mb-10">
                         <div className="flex items-center justify-between mb-4">
-                            <span className={`text-sm font-semibold ${currentStep >= 1 ? 'text-[#FF6B00]' : 'text-gray-400'}`}>Empresa</span>
-                            <ChevronRight className="w-4 h-4 text-gray-300" />
-                            <span className={`text-sm font-semibold ${currentStep >= 2 ? 'text-[#FF6B00]' : 'text-gray-400'}`}>Endereço</span>
-                            <ChevronRight className="w-4 h-4 text-gray-300" />
-                            <span className={`text-sm font-semibold ${currentStep >= 3 ? 'text-[#FF6B00]' : 'text-gray-400'}`}>Acesso</span>
+                            <span className={`text-sm font-semibold ${currentStep >= 1 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Empresa</span>
+                            <ChevronRight className="w-4 h-4 text-zinc-600" />
+                            <span className={`text-sm font-semibold ${currentStep >= 2 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Endereço</span>
+                            <ChevronRight className="w-4 h-4 text-zinc-600" />
+                            <span className={`text-sm font-semibold ${currentStep >= 3 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Acesso</span>
                         </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-2 bg-zinc-800/50 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-[#FF6B00] transition-all duration-300 ease-in-out"
                                 style={{ width: `${((currentStep) / 3) * 100}%` }}

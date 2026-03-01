@@ -74,14 +74,14 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-[#1A1A1A]">Endereço</h2>
-                <p className="text-gray-500">Onde sua loja está localizada?</p>
+                <h2 className="text-2xl font-bold text-white">Endereço</h2>
+                <p className="text-zinc-400">Onde sua loja está localizada?</p>
             </div>
 
             <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-[#1A1A1A] mb-1">CEP</label>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">CEP</label>
                         <div className="relative">
                             <input
                                 type="text"
@@ -89,7 +89,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                                 value={formData.cep}
                                 onChange={handleChange}
                                 placeholder="00000-000"
-                                className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cep ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                                className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cep ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                                 maxLength={9}
                             />
                             {loadingCep && (
@@ -98,83 +98,83 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
                                 </div>
                             )}
                         </div>
-                        {errors?.cep && <p className="text-red-500 text-sm mt-1">{errors.cep}</p>}
+                        {errors?.cep && <p className="text-red-400 text-sm mt-1">{errors.cep}</p>}
                     </div>
                     {/* Espaço vazio para alinhar ou pode colocar outro campo se quiser */}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Rua</label>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">Rua</label>
                         <input
                             type="text"
                             name="rua"
                             value={formData.rua}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.rua ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.rua ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
-                        {errors?.rua && <p className="text-red-500 text-sm mt-1">{errors.rua}</p>}
+                        {errors?.rua && <p className="text-red-400 text-sm mt-1">{errors.rua}</p>}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Número</label>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">Número</label>
                         <input
                             type="text"
                             name="numero"
                             value={formData.numero}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.numero ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.numero ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
-                        {errors?.numero && <p className="text-red-500 text-sm mt-1">{errors.numero}</p>}
+                        {errors?.numero && <p className="text-red-400 text-sm mt-1">{errors.numero}</p>}
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Complemento</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Complemento</label>
                     <input
                         type="text"
                         name="complemento"
                         value={formData.complemento}
                         onChange={handleChange}
                         placeholder="Apto, Sala, Bloco..."
-                        className="w-full p-3 border border-gray-200 rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all"
+                        className="w-full p-3 bg-zinc-900/40 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Bairro</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Bairro</label>
                     <input
                         type="text"
                         name="bairro"
                         value={formData.bairro}
                         onChange={handleChange}
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.bairro ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.bairro ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                     />
-                    {errors?.bairro && <p className="text-red-500 text-sm mt-1">{errors.bairro}</p>}
+                    {errors?.bairro && <p className="text-red-400 text-sm mt-1">{errors.bairro}</p>}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-2">
-                        <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Cidade</label>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">Cidade</label>
                         <input
                             type="text"
                             name="cidade"
                             value={formData.cidade}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cidade ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.cidade ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
-                        {errors?.cidade && <p className="text-red-500 text-sm mt-1">{errors.cidade}</p>}
+                        {errors?.cidade && <p className="text-red-400 text-sm mt-1">{errors.cidade}</p>}
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-[#1A1A1A] mb-1">UF</label>
+                        <label className="block text-sm font-medium text-zinc-300 mb-1">UF</label>
                         <input
                             type="text"
                             name="estado"
                             value={formData.estado}
                             onChange={handleChange}
                             maxLength={2}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all uppercase ${errors?.estado ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all uppercase ${errors?.estado ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
-                        {errors?.estado && <p className="text-red-500 text-sm mt-1">{errors.estado}</p>}
+                        {errors?.estado && <p className="text-red-400 text-sm mt-1">{errors.estado}</p>}
                     </div>
                 </div>
             </div>
@@ -182,7 +182,7 @@ const Step2Address: React.FC<StepProps> = ({ formData, updateFormData, nextStep,
             <div className="flex justify-between pt-4">
                 <button
                     onClick={prevStep}
-                    className="text-gray-500 font-semibold px-6 py-3 hover:text-[#1A1A1A] transition-colors"
+                    className="text-zinc-500 font-semibold px-6 py-3 hover:text-zinc-300 transition-colors"
                 >
                     Voltar
                 </button>

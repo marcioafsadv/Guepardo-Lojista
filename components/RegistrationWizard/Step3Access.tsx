@@ -41,85 +41,85 @@ const Step3Access: React.FC<StepProps> = ({ formData, updateFormData, nextStep, 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-[#1A1A1A]">Acesso e Segurança</h2>
-                <p className="text-gray-500">Defina quem será o administrador da conta.</p>
+                <h2 className="text-2xl font-bold text-white">Acesso e Segurança</h2>
+                <p className="text-zinc-400">Defina quem será o administrador da conta.</p>
             </div>
 
             <div className="space-y-4">
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Nome do Responsável</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Nome do Responsável</label>
                     <input
                         type="text"
                         name="nomeResponsavel"
                         value={formData.nomeResponsavel}
                         onChange={handleChange}
                         placeholder="Nome completo"
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeResponsavel ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.nomeResponsavel ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                     />
-                    {errors?.nomeResponsavel && <p className="text-red-500 text-sm mt-1">{errors.nomeResponsavel}</p>}
+                    {errors?.nomeResponsavel && <p className="text-red-400 text-sm mt-1">{errors.nomeResponsavel}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Email</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Email</label>
                     <input
                         type="email"
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
                         placeholder="seu@email.com"
-                        className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                        className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all ${errors?.email ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                     />
-                    {errors?.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                    {errors?.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Senha</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Senha</label>
                     <div className="relative">
                         <input
                             type={showPassword ? "text" : "password"}
                             name="senha"
                             value={formData.senha}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.senha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.senha ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-3.5 text-zinc-500 hover:text-zinc-300"
                         >
                             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </button>
                     </div>
-                    {errors?.senha && <p className="text-red-500 text-sm mt-1">{errors.senha}</p>}
+                    {errors?.senha && <p className="text-red-400 text-sm mt-1">{errors.senha}</p>}
                     <PasswordStrengthMeter password={formData.senha} />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-[#1A1A1A] mb-1">Confirmar Senha</label>
+                    <label className="block text-sm font-medium text-zinc-300 mb-1">Confirmar Senha</label>
                     <div className="relative">
                         <input
                             type={showConfirmPassword ? "text" : "password"}
                             name="confirmarSenha"
                             value={formData.confirmarSenha}
                             onChange={handleChange}
-                            className={`w-full p-3 border rounded-lg text-[#1A1A1A] focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.confirmarSenha ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            className={`w-full p-3 bg-zinc-900/40 border rounded-lg text-white placeholder-zinc-600 focus:ring-2 focus:ring-[#FF6B00] focus:border-[#FF6B00] outline-none transition-all pr-10 ${errors?.confirmarSenha ? 'border-red-500/50 bg-red-500/10' : 'border-zinc-700'}`}
                         />
                         <button
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600"
+                            className="absolute right-3 top-3.5 text-zinc-500 hover:text-zinc-300"
                         >
                             {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </button>
                     </div>
-                    {errors?.confirmarSenha && <p className="text-red-500 text-sm mt-1">{errors.confirmarSenha}</p>}
+                    {errors?.confirmarSenha && <p className="text-red-400 text-sm mt-1">{errors.confirmarSenha}</p>}
                 </div>
             </div>
 
             <div className="flex justify-between pt-4">
                 <button
                     onClick={prevStep}
-                    className="text-gray-500 font-semibold px-6 py-3 hover:text-[#1A1A1A] transition-colors"
+                    className="text-zinc-500 font-semibold px-6 py-3 hover:text-zinc-300 transition-colors"
                 >
                     Voltar
                 </button>

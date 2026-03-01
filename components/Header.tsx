@@ -11,7 +11,7 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
     const [isOpen, setIsOpen] = useState(true);
 
     return (
-        <header className="h-20 bg-guepardo-accent border-b border-white/10 flex items-center justify-between px-6 shrink-0 relative z-40 transition-colors duration-300 shadow-sm">
+        <header className="h-20 bg-brand-gradient-premium border-b border-white/10 flex items-center justify-between px-6 shrink-0 relative z-40 transition-colors duration-300 shadow-sm">
 
             <div className="flex items-center gap-8">
 
@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
                     onClick={() => setIsOpen(!isOpen)}
                     className={`flex items-center gap-3 border rounded-full py-1.5 pl-1.5 pr-4 transition-all cursor-pointer group select-none
                     ${isOpen
-                            ? 'bg-white/10 hover:bg-white/20 border-white/10 hover:border-white/20'
+                            ? 'bg-black/40 hover:bg-black/50 backdrop-blur-md border-white/10 hover:border-white/20'
                             : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/30 hover:border-red-500/40' // Closed State Style
                         }`}
                 >
