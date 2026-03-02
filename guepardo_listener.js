@@ -17,15 +17,27 @@ const STORE_LNG = -47.2991;
 const PORT = 3001;
 
 function calculateFreight(distanceKm) {
-    let base = 7.50;
-    if (distanceKm <= 2) base = 7.50;
-    else if (distanceKm <= 3) base = 8.00;
-    else if (distanceKm <= 3.5) base = 8.50;
-    else if (distanceKm <= 4) base = 9.00;
-    else if (distanceKm <= 4.5) base = 10.00;
-    else if (distanceKm <= 5) base = 12.00;
-    else base = 12.00 + (distanceKm > 5 ? (distanceKm - 5) * 2 : 0);
-    return base;
+    let storeFee = 7.50;
+
+    if (distanceKm <= 1) storeFee = 7.50;
+    else if (distanceKm <= 2) storeFee = 9.50;
+    else if (distanceKm <= 3) storeFee = 12.00;
+    else if (distanceKm <= 4) storeFee = 14.50;
+    else if (distanceKm <= 5) storeFee = 15.75; // Interpolação
+    else if (distanceKm <= 6) storeFee = 17.00;
+    else if (distanceKm <= 7) storeFee = 20.00;
+    else if (distanceKm <= 8) storeFee = 21.50; // Interpolação
+    else if (distanceKm <= 9) storeFee = 23.00;
+    else if (distanceKm <= 10) storeFee = 27.00;
+    else if (distanceKm <= 11) storeFee = 30.00;
+    else if (distanceKm <= 12) storeFee = 33.00;
+    else {
+        // Acima de 12km: + R$ 3,00 fixos ao valor do Lojista por KM adicional
+        const extraKm = Math.ceil(distanceKm - 12);
+        storeFee = 33.00 + (extraKm * 3.00);
+    }
+
+    return storeFee;
 }
 
 function getDistance(lat1, lon1, lat2, lon2) {
@@ -134,7 +146,7 @@ const server = createServer(async (req, res) => {
                             collection_code: Math.floor(1000 + Math.random() * 9000).toString(),
                             status: 'pending',
                             total_distance: parseFloat(distance.toFixed(2)),
-                            earnings: totalFreight,
+                            earnings: Number((totalFreight * 0.75).toFixed(2)),
                             items: {
                                 displayId: displayId,
                                 paymentMethod: paymentMethod,

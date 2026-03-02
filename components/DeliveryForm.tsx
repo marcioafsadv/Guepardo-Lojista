@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
+import { calculateFreightDistanced } from '../utils/freightCalculator';
 
 export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & {
   isReturnRequired?: boolean;
@@ -162,7 +163,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       isReturnRequired,
       // Pass calculated values to parent
       calculatedDistance: routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 1.2,
-      calculatedEarnings: totalFreight,
+      calculatedEarnings: Number((baseFreight * 0.75 + returnFee * 0.75).toFixed(2)),
       targetCourierId: targetCourierId || undefined
     });
 
@@ -290,28 +291,13 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setComplement("Casa Verde");
   };
 
-  const calculateTieredFreight = (distanceKm: number) => {
-    if (distanceKm <= 2) return 7.50;
-    if (distanceKm <= 3) return 8.00;
-    if (distanceKm <= 3.5) return 8.50;
-    if (distanceKm <= 4) return 9.00;
-    if (distanceKm <= 4.5) return 10.00;
-    if (distanceKm <= 5) return 12.00;
-    if (distanceKm <= 6) return 14.00;
-    if (distanceKm <= 7) return 16.00;
-    if (distanceKm <= 8) return 18.00;
-    if (distanceKm <= 9) return 20.00;
-    if (distanceKm <= 10) return 22.00;
-    // Fallback para > 10km: R$ 22.00 + R$ 2.00 por km adicional
-    return 22.00 + Math.ceil(distanceKm - 10) * 2;
-  };
-
   const calculateBaseFreight = () => {
     const distanceKm = routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 0;
-    const tieredFee = calculateTieredFreight(distanceKm);
+    const freight = calculateFreightDistanced(distanceKm);
+    const tieredFee = freight.storeFee;
 
     if (targetCourierId) {
-      // Regra de Batching: desconto de 25% sobre a taxa, mantendo o mínimo da primeira faixa
+      // Regra de Batching: desconto de 25% sobre a taxa, mantendo o mínimo da primeira faixa (7.50)
       return Math.max(7.50, tieredFee * 0.75);
     }
 
