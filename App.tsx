@@ -748,6 +748,7 @@ function App() {
                     addressCep: data.addressCep,
                     deliveryValue: data.deliveryValue,
                     paymentMethod: data.paymentMethod,
+                    changeFor: data.changeFor,
                     isReturnRequired: data.isReturnRequired,
                     customerNote: data.customerNote
                 },
@@ -763,7 +764,8 @@ function App() {
                     addressCep: s.addressCep || '00000-000',
                     deliveryValue: s.deliveryValue || '0',
                     paymentMethod: s.paymentMethod || 'PIX',
-                    isReturnRequired: false, // Additional stops usually don't require individual return if batch
+                    changeFor: s.paymentMethod === 'CASH' && s.changeFor ? parseFloat(s.changeFor) : null,
+                    isReturnRequired: false,
                     customerNote: ''
                 }))
             ];
@@ -817,6 +819,7 @@ function App() {
                         addressComplement: stop.addressComplement,
                         addressCity: stop.addressCity,
                         addressCep: stop.addressCep,
+                        changeFor: stop.changeFor,
                         stopNumber: index + 1
                     },
                     earnings: stopEarnings,

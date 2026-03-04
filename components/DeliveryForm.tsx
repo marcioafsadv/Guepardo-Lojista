@@ -201,9 +201,10 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       addressNeighborhood: '',
       addressComplement: '',
       addressCep: '',
-      deliveryValue: '',
       addressCity: 'Itu/SP',
-      paymentMethod: 'PIX'
+      deliveryValue: '',
+      paymentMethod: 'PIX',
+      changeFor: ''
     }]);
   };
 
@@ -625,16 +626,70 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Parada #{index + 1}</p>
 
-                  <input
-                    type="text"
-                    placeholder="Nome do Cliente"
-                    className="w-full px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
-                    value={stop.clientName}
-                    onChange={(e) => updateStop(stop.id, 'clientName', e.target.value)}
-                    required
-                  />
+                  {/* NOME DO CLIENTE */}
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User className="text-gray-400 group-focus-within/input:text-guepardo-accent transition-colors" size={12} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Nome do Cliente"
+                      className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.clientName}
+                      onChange={(e) => updateStop(stop.id, 'clientName', e.target.value)}
+                      required
+                    />
+                  </div>
 
+                  {/* TELEFONE */}
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Phone className="text-gray-400 group-focus-within/input:text-guepardo-accent transition-colors" size={12} />
+                    </div>
+                    <input
+                      type="tel"
+                      placeholder="Telefone / WhatsApp"
+                      className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.clientPhone}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        let formatted = val;
+                        if (val.length > 10) formatted = val.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                        else if (val.length > 5) formatted = val.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                        else if (val.length > 2) formatted = val.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+                        updateStop(stop.id, 'clientPhone', formatted);
+                      }}
+                    />
+                  </div>
+
+                  {/* CEP E RUA */}
                   <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="CEP"
+                      className="w-24 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.addressCep}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/\D/g, '');
+                        if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                        updateStop(stop.id, 'addressCep', val);
+                        if (val.replace(/\D/g, '').length === 8) {
+                          // Inline mini-fetch for additional stops
+                          fetch(`https://viacep.com.br/ws/${val.replace(/\D/g, '')}/json/`)
+                            .then(res => res.json())
+                            .then(data => {
+                              if (!data.erro) {
+                                setAdditionalStops(prev => prev.map(s => s.id === stop.id ? {
+                                  ...s,
+                                  addressStreet: data.logradouro || '',
+                                  addressNeighborhood: data.bairro || '',
+                                  addressCity: `${data.localidade || ''}/${data.uf || ''}`
+                                } : s));
+                              }
+                            }).catch(() => { });
+                        }
+                      }}
+                    />
                     <input
                       type="text"
                       placeholder="Rua"
@@ -643,6 +698,10 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       onChange={(e) => updateStop(stop.id, 'addressStreet', e.target.value)}
                       required
                     />
+                  </div>
+
+                  {/* NÚMERO E COMPLEMENTO */}
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       placeholder="Nº"
@@ -651,8 +710,16 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       onChange={(e) => updateStop(stop.id, 'addressNumber', e.target.value)}
                       required
                     />
+                    <input
+                      type="text"
+                      placeholder="Complemento"
+                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.addressComplement}
+                      onChange={(e) => updateStop(stop.id, 'addressComplement', e.target.value)}
+                    />
                   </div>
 
+                  {/* BAIRRO E CIDADE */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -662,7 +729,19 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       onChange={(e) => updateStop(stop.id, 'addressNeighborhood', e.target.value)}
                       required
                     />
-                    <div className="w-20 relative">
+                    <input
+                      type="text"
+                      placeholder="Cidade/UF"
+                      className="w-24 px-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.addressCity}
+                      onChange={(e) => updateStop(stop.id, 'addressCity', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  {/* VALOR E FORMA DE PAGAMENTO */}
+                  <div className="flex gap-2">
+                    <div className="flex-1 relative">
                       <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
                         <span className="text-gray-500 text-[10px] font-bold">R$</span>
                       </div>
@@ -674,7 +753,34 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                         onChange={(e) => updateStop(stop.id, 'deliveryValue', e.target.value)}
                       />
                     </div>
+                    <select
+                      value={stop.paymentMethod}
+                      onChange={(e) => updateStop(stop.id, 'paymentMethod', e.target.value)}
+                      className="w-24 px-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-[10px] font-bold focus:outline-none focus:border-orange-500 text-warm-800 dark:text-gray-200 appearance-none"
+                    >
+                      <option value="PIX">PIX</option>
+                      <option value="CARD">Cartão</option>
+                      <option value="CASH">Dinheiro</option>
+                    </select>
                   </div>
+
+                  {/* TROCO PARA STOP */}
+                  {stop.paymentMethod === 'CASH' && (
+                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                      <input
+                        type="number"
+                        placeholder="Troco para..."
+                        className="flex-1 px-3 py-1.5 bg-white dark:bg-warm-900 border-2 border-orange-200 dark:border-orange-900/50 rounded-md text-xs font-bold focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                        value={stop.changeFor}
+                        onChange={(e) => updateStop(stop.id, 'changeFor', e.target.value)}
+                      />
+                      {parseFloat(stop.changeFor) > parseFloat(stop.deliveryValue) && (
+                        <span className="text-[10px] font-bold text-orange-600">
+                          Troco: R$ {(parseFloat(stop.changeFor) - (parseFloat(stop.deliveryValue) || 0)).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
