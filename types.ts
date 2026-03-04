@@ -101,9 +101,11 @@ export interface Order {
   simulationStep?: number; // Current index in the route array
   simulationTotalSteps?: number; // Total steps calculated for the duration
 
-  // Batching Support
+  // Batching & Multi-stop
+  batch_id?: string;
   isBatch?: boolean;
   batchOrders?: Order[];
+  stopNumber?: number;
 
   // Source & CRM
   requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE';

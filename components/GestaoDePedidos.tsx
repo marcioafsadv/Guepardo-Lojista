@@ -25,6 +25,7 @@ interface GestaoDePedidosProps {
     onCancelOrder: (orderId: string, reason: string) => void;
     onConfirmReturn: (orderId: string) => void;
     onResetDatabase: () => void;
+    onBulkAssign: (orderIds: string[], courierId: string) => void;
     theme: string;
     settings: StoreSettings;
     onToggleMapTheme: () => void;
@@ -56,6 +57,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onCancelOrder,
     onConfirmReturn,
     onResetDatabase,
+    onBulkAssign,
     theme,
     settings,
     onToggleMapTheme
@@ -76,6 +78,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // Targeted Selection State
     const [isSelectingCourier, setIsSelectingCourier] = useState(false);
     const [targetCourierId, setTargetCourierId] = useState<string>('');
+
+    // Bulk Actions State
+    const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
     // Sync drawer with active order
     // Sync drawer with active order SELECTION (Expand on new selection)
@@ -434,6 +439,24 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                             </div>
                                         )}
 
+                                        {/* BULK SELECTION CHECKBOX (Only for Pending) */}
+                                        {order.status === OrderStatus.PENDING && (
+                                            <div className="absolute top-2 left-2 z-30" onClick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedOrderIds.includes(order.id)}
+                                                    onChange={() => {
+                                                        setSelectedOrderIds(prev =>
+                                                            prev.includes(order.id)
+                                                                ? prev.filter(id => id !== order.id)
+                                                                : [...prev, order.id]
+                                                        );
+                                                    }}
+                                                    className="w-4 h-4 rounded border-gray-300 text-guepardo-accent focus:ring-guepardo-accent cursor-pointer"
+                                                />
+                                            </div>
+                                        )}
+
                                         {/* CANCEL BUTTON (HOVER) */}
                                         {!order.isBatch && (
                                             <button
@@ -607,6 +630,44 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     </div>
                     {/* PAINEL 2: FLOATING CAPSULE (OS) moved to root */}
                 </div>
+
+                {/* BATCH ACTION BAR (Floating overlay at bottom center of left column area) */}
+                {selectedOrderIds.length > 0 && (
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[340px] bg-guepardo-gray-900 border border-guepardo-accent shadow-2xl rounded-2xl p-4 z-50 animate-in slide-in-from-bottom-5 duration-300 ring-4 ring-orange-500/20 pointer-events-auto">
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="bg-guepardo-accent p-1.5 rounded-lg text-white">
+                                        <Layers size={16} />
+                                    </div>
+                                    <span className="text-white text-xs font-black uppercase tracking-widest">{selectedOrderIds.length} selecionados</span>
+                                </div>
+                                <button onClick={() => setSelectedOrderIds([])} className="text-gray-400 hover:text-white">
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">Atribuir lote para:</p>
+                                <select
+                                    className="w-full bg-guepardo-gray-800 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-bold focus:outline-none focus:border-guepardo-accent"
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            onBulkAssign(selectedOrderIds, e.target.value);
+                                            setSelectedOrderIds([]);
+                                        }
+                                    }}
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>Selecionar Entregador...</option>
+                                    {availableCouriers.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name} ({c.vehiclePlate})</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* MODAL DE VALIDAÇÃO (Root Level) */}

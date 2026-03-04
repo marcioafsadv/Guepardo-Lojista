@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
 import { calculateFreightDistanced } from '../utils/freightCalculator';
@@ -10,6 +10,8 @@ export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimat
   calculatedDistance?: number;
   calculatedEarnings?: number;
   targetCourierId?: string;
+  additionalStops?: any[]; // Simplified for internal use, mapping happens in App.tsx
+  customerNote?: string | null;
 };
 
 interface DeliveryFormProps {
@@ -103,6 +105,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
   const [targetCourierId, setTargetCourierId] = useState<string>('');
+  const [additionalStops, setAdditionalStops] = useState<any[]>([]);
 
   // Sync external target changes (from Map selection)
   useEffect(() => {
@@ -138,7 +141,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("📝 [DeliveryForm] handleSubmit triggered", { clientName, street, number, targetCourierId });
+    console.log("📝 [DeliveryForm] handleSubmit triggered", { clientName, street, number, targetCourierId, additionalStopsCount: additionalStops.length });
 
     if (!clientName || !street || !number) {
       console.warn("⚠️ [DeliveryForm] Missing required fields, aborting submit");
@@ -165,7 +168,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       // Pass calculated values to parent
       calculatedDistance: routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 1.2,
       calculatedEarnings: Number((baseFreight * 0.75 + returnFee * 0.75).toFixed(2)),
-      targetCourierId: targetCourierId || undefined
+      targetCourierId: targetCourierId || undefined,
+      additionalStops: additionalStops.length > 0 ? additionalStops : undefined
     });
 
     // Reset form
@@ -183,6 +187,32 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setPaymentMethod('PIX');
     setCustomerNote(null);
     setIsReturnRequired(false);
+    setAdditionalStops([]);
+  };
+
+  const addStop = () => {
+    if (additionalStops.length >= 4) return; // Limit to 5 total stops (1 main + 4 extra)
+    setAdditionalStops([...additionalStops, {
+      id: crypto.randomUUID(),
+      clientName: '',
+      clientPhone: '',
+      addressStreet: '',
+      addressNumber: '',
+      addressNeighborhood: '',
+      addressComplement: '',
+      addressCep: '',
+      deliveryValue: '',
+      addressCity: 'Itu/SP',
+      paymentMethod: 'PIX'
+    }]);
+  };
+
+  const removeStop = (id: string) => {
+    setAdditionalStops(additionalStops.filter(s => s.id !== id));
+  };
+
+  const updateStop = (id: string, field: string, value: any) => {
+    setAdditionalStops(additionalStops.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
 
@@ -303,7 +333,9 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   const baseFreight = calculateBaseFreight();
   const returnFeeActive = settings.returnFeeActive ?? true;
   const returnFee = (isReturnRequired && returnFeeActive) ? baseFreight * 0.5 : 0;
-  const totalFreight = baseFreight + returnFee;
+
+  // Total Freight including additional stops (estimate)
+  const totalFreight = baseFreight + returnFee + (additionalStops.length * (baseFreight * 0.5));
 
   // Calculate change needed
   const calculateChangeNeeded = () => {
@@ -575,7 +607,89 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             </div>
           )}
 
-          {/* DIRECIONAR PARA ENTREGADOR (SELETOR) */}
+          {/* ADDITIONAL STOPS */}
+          {additionalStops.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-bold text-guepardo-accent uppercase tracking-widest">Paradas Adicionais ({additionalStops.length})</span>
+              </div>
+              {additionalStops.map((stop, index) => (
+                <div key={stop.id} className="bg-white dark:bg-white/5 border border-warm-200 dark:border-white/10 rounded-xl p-3 space-y-3 relative animate-in slide-in-from-right-2 duration-300">
+                  <button
+                    type="button"
+                    onClick={() => removeStop(stop.id)}
+                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Parada #{index + 1}</p>
+
+                  <input
+                    type="text"
+                    placeholder="Nome do Cliente"
+                    className="w-full px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                    value={stop.clientName}
+                    onChange={(e) => updateStop(stop.id, 'clientName', e.target.value)}
+                    required
+                  />
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Rua"
+                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.addressStreet}
+                      onChange={(e) => updateStop(stop.id, 'addressStreet', e.target.value)}
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Nº"
+                      className="w-16 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white text-center"
+                      value={stop.addressNumber}
+                      onChange={(e) => updateStop(stop.id, 'addressNumber', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Bairro"
+                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      value={stop.addressNeighborhood}
+                      onChange={(e) => updateStop(stop.id, 'addressNeighborhood', e.target.value)}
+                      required
+                    />
+                    <div className="w-20 relative">
+                      <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                        <span className="text-gray-500 text-[10px] font-bold">R$</span>
+                      </div>
+                      <input
+                        type="number"
+                        placeholder="Valor"
+                        className="w-full pl-6 pr-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 font-bold text-warm-800 dark:text-white placeholder-stone-500"
+                        value={stop.deliveryValue}
+                        onChange={(e) => updateStop(stop.id, 'deliveryValue', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* BOTÃO ADICIONAR PARADA */}
+          <button
+            type="button"
+            onClick={addStop}
+            disabled={additionalStops.length >= 4}
+            className="w-full py-2 border-2 border-dashed border-warm-300 dark:border-white/10 rounded-xl text-xs font-bold text-warm-500 dark:text-gray-400 hover:border-guepardo-accent hover:text-guepardo-accent transition-all flex items-center justify-center gap-2 group mb-2"
+          >
+            <MapPin size={14} className="group-hover:animate-bounce" />
+            Adicionar Outra Parada (+)
+          </button>
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-stone-500 dark:text-white/30 uppercase tracking-wider flex items-center gap-2">
               <User className="w-3 h-3" />
