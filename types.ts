@@ -66,6 +66,7 @@ export interface Order {
   addressComplement?: string;
   addressNeighborhood: string;
   addressCity: string;
+  addressCep: string;
 
   deliveryValue: number;
   paymentMethod: 'PIX' | 'CARD' | 'CASH'; // New Field

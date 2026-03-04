@@ -157,6 +157,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       addressComplement: complement,
       addressNeighborhood: neighborhood,
       addressCity: cityState,
+      addressCep: cep,
       deliveryValue: parseFloat(deliveryValue) || 0,
       paymentMethod,
       changeFor: paymentMethod === 'CASH' && changeFor ? parseFloat(changeFor) : null,
@@ -178,12 +179,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setChangeFor('');
     setDeliveryValue('');
     setTargetCourierId('');
-    setNeighborhood('');
-    setCityState('');
-    setNumber('');
-    setComplement('');
-    setChangeFor('');
-    setDeliveryValue('');
+    setCityState('Itu/SP');
     setPaymentMethod('PIX');
     setCustomerNote(null);
     setIsReturnRequired(false);
