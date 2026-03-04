@@ -26,6 +26,7 @@ export const OrderHubAlert: React.FC<OrderHubAlertProps> = ({ storeId, onViewOrd
             addressNumber: latestOrder.address_number || latestOrder.addressNumber || '',
             addressNeighborhood: latestOrder.address_neighborhood || latestOrder.addressNeighborhood || '',
             addressCity: latestOrder.address_city || latestOrder.addressCity || '',
+            addressCep: latestOrder.address_cep || latestOrder.addressCep || '',
             deliveryValue: latestOrder.total_value || latestOrder.deliveryValue || 0,
             status: latestOrder.status as OrderStatus,
             createdAt: new Date(latestOrder.created_at || latestOrder.createdAt),

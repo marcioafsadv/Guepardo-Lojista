@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Order, OrderStatus, Courier, StoreProfile, Customer, RouteStats, StoreSettings } from '../types';
+import { Order, OrderStatus, Courier, StoreProfile, Customer, RouteStats, StoreSettings, AddressComponents } from '../types';
 import { DeliveryForm } from './DeliveryForm';
 import { LeafletMap } from './LeafletMap';
 import { PickupValidationModal } from './PickupValidationModal';
@@ -69,8 +69,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [orderToInteract, setOrderToInteract] = useState<Order | null>(null); // Shared for Validation & Cancellation
 
     // --- VISUAL ROUTE FEEDBACK STATE ---
-    const [draftAddress, setDraftAddress] = useState<string>('');
+    const [draftAddress, setDraftAddress] = useState<string | AddressComponents>('');
     const [routeStats, setRouteStats] = useState<RouteStats | null>(null);
+    const [draftAdditionalStops, setDraftAdditionalStops] = useState<any[]>([]);
 
     // Drawer State
     const [showDetailDrawer, setShowDetailDrawer] = useState(false);
@@ -155,6 +156,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         // Clear draft route and targeted courier upon successful submission
         setDraftAddress('');
         setRouteStats(null);
+        setDraftAdditionalStops([]);
         setTargetCourierId('');
         setIsSelectingCourier(false);
     };
@@ -206,11 +208,19 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
     const groupedOrders = useMemo(() => {
         const groups = new Map<string, Order[]>();
-        const pending: Order[] = [];
+        const pendingBatches = new Map<string, Order[]>();
+        const pendingSingle: Order[] = [];
 
         activeOrders.forEach(order => {
             if (order.status === OrderStatus.PENDING || !order.courier) {
-                pending.push(order);
+                if (order.batch_id) {
+                    if (!pendingBatches.has(order.batch_id)) {
+                        pendingBatches.set(order.batch_id, []);
+                    }
+                    pendingBatches.get(order.batch_id)!.push(order);
+                } else {
+                    pendingSingle.push(order);
+                }
             } else {
                 const driverId = order.courier.id;
                 if (!groups.has(driverId)) {
@@ -220,7 +230,19 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             }
         });
 
-        const grouped: Order[] = Array.from(groups.values()).map(batch => {
+        const pendingGrouped: Order[] = Array.from(pendingBatches.values()).map(batch => {
+            if (batch.length === 1) return batch[0];
+            const mainOrder = batch.find(o => o.stopNumber === 1) || batch[0];
+            return {
+                ...mainOrder,
+                isBatch: true,
+                batchOrders: batch,
+                clientName: `${batch.length} Pedidos (Lote)`,
+                destination: `${batch.length} destinos no roteiro`
+            };
+        });
+
+        const courierGrouped: Order[] = Array.from(groups.values()).map(batch => {
             if (batch.length === 1) return batch[0];
             const mainOrder = batch[0];
             return {
@@ -232,7 +254,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             };
         });
 
-        return [...pending, ...grouped].sort((a, b) => {
+        return [...pendingSingle, ...pendingGrouped, ...courierGrouped].sort((a, b) => {
             if ((a.status === OrderStatus.READY_FOR_PICKUP || a.status === OrderStatus.RETURNING) && (b.status !== OrderStatus.READY_FOR_PICKUP && b.status !== OrderStatus.RETURNING)) return -1;
             if ((b.status === OrderStatus.READY_FOR_PICKUP || b.status === OrderStatus.RETURNING) && (a.status !== OrderStatus.READY_FOR_PICKUP && a.status !== OrderStatus.RETURNING)) return 1;
             return b.createdAt.getTime() - a.createdAt.getTime();
@@ -355,6 +377,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     theme={theme}
                     toggleTheme={onToggleMapTheme}
                     draftDestinationAddress={draftAddress}
+                    draftAdditionalStops={draftAdditionalStops}
                     onRouteCalculated={setRouteStats}
                     isSelectingCourier={isSelectingCourier}
                     onCourierSelect={(id) => {
@@ -384,6 +407,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                             onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
                             externalTargetId={targetCourierId}
                             onClearSelection={() => setTargetCourierId('')}
+                            onAdditionalStopsChange={setDraftAdditionalStops}
                         />
                     </div>
                 </div>

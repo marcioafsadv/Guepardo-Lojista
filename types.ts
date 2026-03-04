@@ -152,3 +152,12 @@ export interface RouteStats {
   durationText: string;
   durationValue: number; // seconds
 }
+
+export interface AddressComponents {
+  street: string;
+  number?: string;
+  neighborhood?: string;
+  city: string;
+  cep?: string;
+}
+

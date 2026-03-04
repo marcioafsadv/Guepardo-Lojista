@@ -126,7 +126,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         XLSX.writeFile(wb, `relatorio_entregas_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    const totalValue = filteredOrders.reduce((acc, curr) => acc + (Number(curr.deliveryValue) || 0), 0);
+    const totalValue = filteredOrders
+        .filter(o => o.status !== OrderStatus.CANCELED)
+        .reduce((acc, curr) => acc + (Number(curr.deliveryValue) || 0), 0);
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-guepardo-gray-900 text-gray-900 dark:text-white transition-colors duration-300">

@@ -4,7 +4,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 // --- TYPES ---
-import { Courier, Order, StoreProfile, RouteStats, OrderStatus } from '../types';
+import { Courier, Order, StoreProfile, RouteStats, OrderStatus, AddressComponents } from '../types';
+import { geocodeAddress } from '../utils/geocoding';
 
 import {
     Plus, Minus, Target, Layers, Info, Share2, MessageSquare, HelpCircle, Sun, Moon, X,
@@ -18,12 +19,15 @@ interface LeafletMapProps {
     filteredOrders?: Order[];
     availableCouriers?: Courier[];
     theme?: string;
-    draftDestinationAddress?: string;
+    draftDestinationAddress?: string | AddressComponents;
     onRouteCalculated?: (stats: RouteStats | null) => void;
     toggleTheme?: () => void;
     isSelectingCourier?: boolean;
     onCourierSelect?: (courierId: string) => void;
+    draftAdditionalStops?: any[];
 }
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 // --- ASSETS & STYLES ---
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -617,11 +621,13 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     onRouteCalculated,
     toggleTheme,
     isSelectingCourier = false,
-    onCourierSelect
+    onCourierSelect,
+    draftAdditionalStops = []
 }) => {
     // --- STATES ---
     const [destinationCoords, setDestinationCoords] = useState<[number, number] | null>(null);
     const [routePolyline, setRoutePolyline] = useState<[number, number][] | null>(null);
+    const [draftStopCoords, setDraftStopCoords] = useState<Record<string, [number, number]>>({});
     const [activeOrderRoute, setActiveOrderRoute] = useState<[number, number][] | null>(null);
     const [activePanel, setActivePanel] = useState<ActivePanel>(null);
 
@@ -644,24 +650,29 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     };
 
     // --- LOGIC: GEOCODING (Nominatim) ---
-    const geocodeAddress = useCallback(async (address: string) => {
-        if (!address || address.length < 5) return null;
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`);
-            const data = await response.json();
-            if (data && data.length > 0) {
-                return [parseFloat(data[0].lat), parseFloat(data[0].lon)] as [number, number];
-            }
-        } catch (error) {
-            console.error("Geocoding Error:", error);
-        }
-        return null;
-    }, []);
 
-    // --- LOGIC: ROUTING (OSRM) ---
+    // --- LOGIC: ROUTING (Mapbox Directions API) ---
     const calculateRoute = useCallback(async (start: [number, number], end: [number, number]) => {
+        if (!MAPBOX_TOKEN) {
+            // Fallback to OSRM if token missing
+            try {
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`);
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    return {
+                        coordinates: route.geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]),
+                        distance: route.distance,
+                        duration: route.duration
+                    };
+                }
+            } catch (e) { console.error("OSRM Fallback failed", e); }
+            return null;
+        }
+
         try {
-            const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`);
+            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
+            const response = await fetch(url);
             const data = await response.json();
 
             if (data.routes && data.routes.length > 0) {
@@ -669,20 +680,21 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 const coordinates = route.geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
                 return {
                     coordinates,
-                    distance: route.distance,
-                    duration: route.duration
+                    distance: route.distance, // in meters
+                    duration: route.duration  // in seconds
                 };
             }
         } catch (error) {
-            console.error("Routing Error:", error);
+            console.error("Mapbox Routing Error:", error);
         }
         return null;
     }, []);
 
     // --- EFFECT: DRAFT ADDRESS PROCESSING ---
     useEffect(() => {
-        if (!draftDestinationAddress) {
+        if (!draftDestinationAddress && draftAdditionalStops.length === 0) {
             setDestinationCoords(null);
+            setDraftStopCoords({});
             setRoutePolyline(null);
             setFitPoints([[store.lat, store.lng]]);
             if (onRouteCalculated) onRouteCalculated(null);
@@ -690,27 +702,107 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         }
 
         const timer = setTimeout(async () => {
-            const coords = await geocodeAddress(draftDestinationAddress);
-            if (coords) {
-                setDestinationCoords(coords);
-                const routeData = await calculateRoute([store.lat, store.lng], coords);
-                if (routeData) {
-                    setRoutePolyline(routeData.coordinates);
-                    setFitPoints([[store.lat, store.lng], coords]);
-                    if (onRouteCalculated) {
-                        onRouteCalculated({
-                            distanceText: `${((routeData.distance || 0) / 1000).toFixed(1)} km`,
-                            distanceValue: routeData.distance,
-                            durationText: `${Math.ceil(routeData.duration / 60)} min`,
-                            durationValue: routeData.duration
-                        });
+            const newFitPoints: [number, number][] = [[store.lat, store.lng]];
+            let mainLatLng: [number, number] | null = null;
+
+            // 1. Geocode Main Address
+            if (draftDestinationAddress) {
+                const coords = await geocodeAddress(draftDestinationAddress, { lat: store.lat, lng: store.lng });
+                if (coords) {
+                    mainLatLng = [coords.lat, coords.lng];
+                    setDestinationCoords(mainLatLng);
+                    newFitPoints.push(mainLatLng);
+                }
+            } else {
+                setDestinationCoords(null);
+            }
+
+            // 2. Geocode Additional Stops
+            const newDraftStopCoords: Record<string, [number, number]> = {};
+            for (const stop of draftAdditionalStops) {
+                if (stop.addressStreet) {
+                    const coords = await geocodeAddress({
+                        street: stop.addressStreet,
+                        number: stop.addressNumber || undefined,
+                        neighborhood: stop.addressNeighborhood || undefined,
+                        city: stop.addressCity || 'Itu/SP',
+                        cep: stop.addressCep || undefined
+                    }, { lat: store.lat, lng: store.lng });
+
+                    if (coords) {
+                        const latLng: [number, number] = [coords.lat, coords.lng];
+                        newDraftStopCoords[stop.id] = latLng;
+                        newFitPoints.push(latLng);
                     }
                 }
             }
-        }, 1000);
+            setDraftStopCoords(newDraftStopCoords);
+
+            // 3. Calculate Consolidated Draft Route (Multi-point Professional Routing)
+            if (mainLatLng || Object.keys(newDraftStopCoords).length > 0) {
+                const stopsInOrder: [number, number][] = [];
+                if (mainLatLng) stopsInOrder.push(mainLatLng);
+
+                // Add additional stops in fixed order
+                draftAdditionalStops.forEach(s => {
+                    if (newDraftStopCoords[s.id]) {
+                        stopsInOrder.push(newDraftStopCoords[s.id]);
+                    }
+                });
+
+                if (stopsInOrder.length > 0) {
+                    const allWaypoints = [[store.lat, store.lng], ...stopsInOrder];
+
+                    if (MAPBOX_TOKEN) {
+                        try {
+                            const waypointSubset = allWaypoints.slice(0, 25); // Mapbox limit is 25
+                            const coordsString = waypointSubset.map(p => `${p[1]},${p[0]}`).join(';');
+                            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordsString}?overview=full&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
+
+                            const response = await fetch(url);
+                            const routeData = await response.json();
+
+                            if (routeData.routes && routeData.routes.length > 0) {
+                                const route = routeData.routes[0];
+                                const poly = route.geometry.coordinates.map((c: any) => [c[1], c[0]] as [number, number]);
+
+                                setRoutePolyline(poly);
+                                setFitPoints(newFitPoints);
+
+                                if (onRouteCalculated) {
+                                    onRouteCalculated({
+                                        distanceText: `${(route.distance / 1000).toFixed(1)} km`,
+                                        distanceValue: route.distance,
+                                        durationText: `${Math.ceil(route.duration / 60)} min`,
+                                        durationValue: route.duration
+                                    });
+                                }
+                            }
+                        } catch (e) {
+                            console.error("Multi-stop Mapbox error:", e);
+                        }
+                    } else {
+                        // Original fallback for draft (dashed lines)
+                        const path: [number, number][] = [[store.lat, store.lng], ...stopsInOrder];
+                        setRoutePolyline(path);
+                        setFitPoints(newFitPoints);
+                        if (onRouteCalculated) {
+                            onRouteCalculated({
+                                distanceText: `~${(stopsInOrder.length * 2.5).toFixed(1)} km`,
+                                distanceValue: stopsInOrder.length * 2500,
+                                durationText: `~${stopsInOrder.length * 8} min`,
+                                durationValue: stopsInOrder.length * 480
+                            });
+                        }
+                    }
+                }
+            } else {
+                setRoutePolyline(null);
+            }
+        }, 1500); // Slightly longer debounce for batch geocoding
 
         return () => clearTimeout(timer);
-    }, [draftDestinationAddress, store.lat, store.lng, geocodeAddress, calculateRoute, onRouteCalculated]);
+    }, [draftDestinationAddress, draftAdditionalStops, store.lat, store.lng, geocodeAddress, onRouteCalculated]);
 
     // --- EFFECT: ACTIVE ORDER PROCESSING ---
     useEffect(() => {
@@ -793,19 +885,32 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 style={{ width: '100%', height: '100%' }}
                 zoomControl={false}
             >
-                {/* Dynamic Tile Layer */}
-                {mapMode === 'streets' ? (
+                {/* Professional Mapbox Tile Layer */}
+                {MAPBOX_TOKEN ? (
                     <TileLayer
-                        url={isDarkMode
-                            ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-                            : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
-                        attribution='&copy; OpenStreetMap &amp; CARTO'
+                        url={mapMode === 'streets'
+                            ? (isDarkMode
+                                ? `https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`
+                                : `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`)
+                            : `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
+                        attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
+                        tileSize={512}
+                        zoomOffset={-1}
                     />
                 ) : (
-                    <TileLayer
-                        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                        attribution='Tiles &copy; Esri'
-                    />
+                    mapMode === 'streets' ? (
+                        <TileLayer
+                            url={isDarkMode
+                                ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+                                : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
+                            attribution='&copy; OpenStreetMap &amp; CARTO'
+                        />
+                    ) : (
+                        <TileLayer
+                            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                            attribution='Tiles &copy; Esri'
+                        />
+                    )
                 )}
 
                 <MapController
@@ -916,9 +1021,33 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         />
                         {destinationCoords && isValidCoord(destinationCoords) && (
                             <Marker position={destinationCoords} icon={clientIcon}>
-                                <Popup><span className="font-bold text-orange-600">Novo Destino</span></Popup>
+                                <Popup>
+                                    <div className="text-xs">
+                                        <p className="font-bold text-orange-600">Destino Principal</p>
+                                        <p className="text-gray-500">Parada #1</p>
+                                    </div>
+                                </Popup>
                             </Marker>
                         )}
+                        {/* Additional Draft Stops */}
+                        {draftAdditionalStops.map((stop, idx) => {
+                            const coords = draftStopCoords[stop.id];
+                            if (!coords || !isValidCoord(coords)) return null;
+                            return (
+                                <Marker
+                                    key={`draft-${stop.id}`}
+                                    position={coords}
+                                    icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
+                                >
+                                    <Popup>
+                                        <div className="text-xs">
+                                            <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
+                                            <p className="text-gray-500">Parada #{idx + 2}</p>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            );
+                        })}
                     </>
                 )}
 

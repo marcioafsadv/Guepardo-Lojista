@@ -21,6 +21,7 @@ import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedA
 import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, Users, Clock } from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { geocodeAddress } from './utils/geocoding';
 
 // --- CONFIGURAÇÃO PADRÃO (FALLBACK) ---
 const STORE_PROFILE: StoreProfile = {
@@ -61,6 +62,8 @@ const moveTowards = (currentLat: number, currentLng: number, targetLat: number, 
         reached: false
     };
 };
+
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 function App() {
     const { session, loading } = useAuth();
@@ -787,13 +790,35 @@ function App() {
             }
 
             const storeCenter = realStoreProfile || STORE_PROFILE;
-            const payloads = stopsToProcess.map((stop, index) => {
+
+            // 2. Geocode all stops (Main + Additional)
+            console.log("📍 [App] Geocoding stops...");
+            const geocodedStops = await Promise.all(stopsToProcess.map(async (stop) => {
+                const coords = await geocodeAddress({
+                    street: stop.addressStreet,
+                    number: stop.addressNumber,
+                    neighborhood: stop.addressNeighborhood,
+                    city: stop.addressCity,
+                    cep: stop.addressCep
+                }, { lat: storeCenter.lat, lng: storeCenter.lng });
+                return { ...stop, coords };
+            }));
+
+            const payloads = geocodedStops.map((stop, index) => {
                 const phoneDigits = stop.clientPhone.replace(/\D/g, '');
                 const phoneSuffix = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "6060";
 
                 // Earnings Calculation: 100% for first, 50% for others (estimate)
                 const baseEarnings = data.calculatedEarnings || 15.00;
                 const stopEarnings = index === 0 ? baseEarnings : baseEarnings * 0.5;
+
+                // Fallback to random nearby if geocoding fails, but log it
+                const finalLat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
+                const finalLng = stop.coords?.lng || (storeCenter.lng + (Math.random() - 0.5) * 0.015);
+
+                if (!stop.coords) {
+                    console.warn(`⚠️ [App] Geocoding failed for stop #${index + 1}, using random fallback.`);
+                }
 
                 return {
                     id: crypto.randomUUID(),
@@ -812,8 +837,8 @@ function App() {
                         paymentMethod: stop.paymentMethod,
                         deliveryValue: stop.deliveryValue,
                         isReturnRequired: stop.isReturnRequired,
-                        destinationLat: storeCenter.lat + (Math.random() - 0.5) * 0.02,
-                        destinationLng: storeCenter.lng + (Math.random() - 0.5) * 0.02,
+                        destinationLat: finalLat,
+                        destinationLng: finalLng,
                         targetCourierId: targetCourierId,
                         addressNeighborhood: stop.addressNeighborhood,
                         addressComplement: stop.addressComplement,
@@ -823,7 +848,7 @@ function App() {
                         stopNumber: index + 1
                     },
                     earnings: stopEarnings,
-                    delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length // Crude estimate per stop
+                    delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length
                 };
             });
 
@@ -1242,18 +1267,30 @@ function App() {
         };
     };
 
-    // --- HELPER: FETCH OSRM ROUTE ---
+    // --- HELPER: FETCH PROFESSIONAL ROUTE ---
     const fetchRoute = async (start: { lat: number, lng: number }, end: { lat: number, lng: number }): Promise<{ lat: number, lng: number }[]> => {
+        if (!MAPBOX_TOKEN) {
+            try {
+                const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+                const data = await response.json();
+                if (data.routes && data.routes.length > 0) {
+                    return data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
+                }
+            } catch (e) { console.error("OSRM Fallback failed", e); }
+            return [];
+        }
+
         try {
-            const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson`);
+            const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&access_token=${MAPBOX_TOKEN}`;
+            const response = await fetch(url);
             const data = await response.json();
             if (data.routes && data.routes.length > 0) {
                 return data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }));
             }
             return [];
         } catch (error) {
-            console.error("OSRM Fetch Error:", error);
-            return []; // Fallback to straight line handling in logic
+            console.error("Mapbox Fetch Error:", error);
+            return [];
         }
     };
 

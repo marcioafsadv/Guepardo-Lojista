@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
-import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus } from '../types';
+import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
 import { calculateFreightDistanced } from '../utils/freightCalculator';
 
@@ -18,7 +18,7 @@ interface DeliveryFormProps {
   onSubmit: (data: OrderFormData) => void;
   isSubmitting: boolean;
   existingCustomers: Customer[];
-  onAddressChange: (address: string) => void;
+  onAddressChange: (address: string | AddressComponents) => void;
   routeStats: RouteStats | null;
   settings: StoreSettings;
   activeCouriersWithOrders?: Courier[];
@@ -28,6 +28,7 @@ interface DeliveryFormProps {
   onToggleSelection?: () => void;
   externalTargetId?: string;
   onClearSelection?: () => void;
+  onAdditionalStopsChange?: (stops: any[]) => void;
 }
 
 export const DeliveryForm: React.FC<DeliveryFormProps> = ({
@@ -43,7 +44,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   isSelecting = false,
   onToggleSelection,
   externalTargetId = '',
-  onClearSelection
+  onClearSelection,
+  onAdditionalStopsChange
 }) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
 
@@ -217,17 +219,27 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setAdditionalStops(additionalStops.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
+  // BROADCAST ADDITIONAL STOPS FOR MAP VISIBILITY
+  useEffect(() => {
+    if (onAdditionalStopsChange) {
+      onAdditionalStopsChange(additionalStops);
+    }
+  }, [additionalStops, onAdditionalStopsChange]);
+
 
   // --- ADDRESS CHANGE DEBOUNCER ---
   useEffect(() => {
     // Only trigger if we have at least Street
     const timer = setTimeout(() => {
       if (street) {
-        // If number is missing, use a generic "S/N" (Sem Número) to allow geocoding the street/CEP area
-        const searchNumber = number || 'S/N';
-        const full = `${street}, ${searchNumber} - ${cityState}`;
-        console.log("📡 [DeliveryForm] Debouncer triggered, sending address to map:", full);
-        onAddressChange(full);
+        // We now send structured data for better geocoding precision
+        onAddressChange({
+          street,
+          number: number || undefined,
+          neighborhood,
+          city: cityState,
+          cep
+        });
       } else {
         console.log("📡 [DeliveryForm] Debouncer: empty street, clearing map");
         onAddressChange('');
@@ -235,7 +247,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     }, 1000); // 1 second debounce
 
     return () => clearTimeout(timer);
-  }, [street, number, cityState, onAddressChange]);
+  }, [street, number, neighborhood, cityState, cep, onAddressChange]);
 
   // --- AUTOCOMPLETE LOGIC ---
   const filteredCustomers = clientName.length > 1
