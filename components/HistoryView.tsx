@@ -88,8 +88,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                 order.clientName,
                 order.destination,
                 order.status,
-                (order.estimatedPrice || 0).toFixed(2),
-                (order.deliveryValue || 0).toFixed(2)
+                (Number(order.estimatedPrice) || 0).toFixed(2),
+                (Number(order.deliveryValue) || 0).toFixed(2)
             ];
             tableRows.push(orderData);
         });
@@ -126,7 +126,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         XLSX.writeFile(wb, `relatorio_entregas_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
-    const totalValue = filteredOrders.reduce((acc, curr) => acc + (curr.deliveryValue || 0), 0);
+    const totalValue = filteredOrders.reduce((acc, curr) => acc + (Number(curr.deliveryValue) || 0), 0);
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-guepardo-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
@@ -279,8 +279,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                         </span>
                                     </td>
                                     <td className="p-4 text-right">
-                                        <span className="block text-sm font-bold text-gray-900 dark:text-white">R$ {(order.estimatedPrice || 0).toFixed(2)}</span>
-                                        <span className="text-[10px] text-orange-600 font-bold">TAXA: R$ {(order.deliveryValue || 0).toFixed(2)}</span>
+                                        <span className="block text-sm font-bold text-gray-900 dark:text-white">R$ {(Number(order.estimatedPrice) || 0).toFixed(2)}</span>
+                                        <span className="text-[10px] text-orange-600 font-bold">TAXA: R$ {(Number(order.deliveryValue) || 0).toFixed(2)}</span>
                                         {/* Using mockup deliveryValue as fee for display purpose if valid */}
                                     </td>
                                 </tr>
@@ -290,7 +290,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                     <tfoot className="bg-gray-50 dark:bg-guepardo-gray-800 border-t-2 border-gray-200 dark:border-guepardo-gray-700 print:table-footer-group">
                         <tr>
                             <td colSpan={3} className="p-4 text-right text-xs font-bold text-gray-500 uppercase">Total do Período:</td>
-                            <td colSpan={2} className="p-4 text-right text-lg font-bold text-gray-900 dark:text-white">R$ {(totalValue || 0).toFixed(2)}</td>
+                            <td colSpan={2} className="p-4 text-right text-lg font-bold text-gray-900 dark:text-white">R$ {totalValue.toFixed(2)}</td>
                         </tr>
                     </tfoot>
                 </table>

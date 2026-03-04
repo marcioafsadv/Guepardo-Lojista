@@ -114,6 +114,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeStopSuggestionsId, setActiveStopSuggestionsId] = useState<string | null>(null);
   const [customerNote, setCustomerNote] = useState<string | null>(null);
 
   // Ref for auto-focus
@@ -258,6 +259,24 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     }
 
     setShowSuggestions(false);
+  };
+
+  const handleSelectCustomerForStop = (stopId: string, customer: Customer) => {
+    const lastAddress = customer.addresses && customer.addresses.length > 0 ? customer.addresses[0] : null;
+
+    setAdditionalStops(prev => prev.map(s => s.id === stopId ? {
+      ...s,
+      clientName: customer.name,
+      clientPhone: customer.phone,
+      addressCep: lastAddress?.cep || '',
+      addressStreet: lastAddress?.street || '',
+      addressNumber: lastAddress?.number || '',
+      addressComplement: lastAddress?.complement || '',
+      addressNeighborhood: lastAddress?.neighborhood || '',
+      addressCity: lastAddress?.city || 'Itu/SP'
+    } : s));
+
+    setActiveStopSuggestionsId(null);
   };
 
   // Format CEP and fetch address
@@ -636,9 +655,44 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       placeholder="Nome do Cliente"
                       className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
                       value={stop.clientName}
-                      onChange={(e) => updateStop(stop.id, 'clientName', e.target.value)}
+                      onChange={(e) => {
+                        updateStop(stop.id, 'clientName', e.target.value);
+                        setActiveStopSuggestionsId(stop.id);
+                      }}
+                      onFocus={() => setActiveStopSuggestionsId(stop.id)}
+                      autoComplete="off"
                       required
                     />
+                    {/* Additional Stop Autocomplete Dropdown */}
+                    {activeStopSuggestionsId === stop.id && stop.clientName.length > 1 && (
+                      <div className="absolute top-full left-0 w-full mt-1 bg-white dark:bg-guepardo-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-white/10 overflow-hidden z-[60] animate-in fade-in zoom-in-95 duration-200">
+                        {existingCustomers
+                          .filter(c => c.name.toLowerCase().includes(stop.clientName.toLowerCase()))
+                          .slice(0, 5)
+                          .map(customer => {
+                            const tier = classifyClient(customer.totalOrders);
+                            return (
+                              <div
+                                key={customer.id}
+                                onClick={() => handleSelectCustomerForStop(stop.id, customer)}
+                                className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer flex items-center justify-between group/item border-b border-gray-100 dark:border-white/5 last:border-0"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <p className="font-bold text-[10px] text-gray-900 dark:text-gray-200 group-hover/item:text-guepardo-accent">{customer.name}</p>
+                                    {tier.id !== 'NEW' && (
+                                      <div className={`flex items-center gap-1 px-1 py-0.5 rounded ${tier.bgColor} ${tier.style} border ${tier.borderColor}`}>
+                                        <span className="text-[8px] uppercase font-black">{tier.label}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <p className="text-[9px] text-gray-500">{customer.addresses[0]?.street}, {customer.addresses[0]?.number}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
                   </div>
 
                   {/* TELEFONE */}

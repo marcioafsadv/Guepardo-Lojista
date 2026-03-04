@@ -81,6 +81,22 @@ const createOrderDot = (color: string) => L.divIcon({
     iconAnchor: [7, 7],
 });
 
+const createStopMarker = (number: number, name: string, color: string) => L.divIcon({
+    className: 'custom-stop-marker',
+    html: `
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+            <div style="background-color: white; color: ${color}; border: 2px solid ${color}; width: 20px; height: 20px; border-radius: 50%; display: flex; items-center; justify-content: center; font-weight: 900; font-size: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 2;">
+                ${number}
+            </div>
+            <div style="background-color: ${color}; padding: 1px 4px; border-radius: 4px; color: white; font-size: 8px; font-weight: bold; white-space: nowrap; margin-top: -2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 1;">
+                ${name.split(' ')[0]}
+            </div>
+        </div>
+    `,
+    iconSize: [40, 30],
+    iconAnchor: [20, 10],
+});
+
 // --- HELPERS ---
 const isValidCoord = (point: any): point is [number, number] => {
     if (!point) return false;
@@ -732,9 +748,42 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 id: o.id,
                 position: [o.destinationLat!, o.destinationLng!] as [number, number],
                 name: o.clientName,
-                status: o.status
+                status: o.status,
+                stopNumber: o.stopNumber || (o as any).items?.stopNumber || 1,
+                batch_id: o.batch_id,
+                courier_id: o.courier?.id
             }));
     }, [filteredOrders, activeOrder]);
+
+    const batchRoutes = useMemo(() => {
+        const groups: Record<string, typeof orderMarkers> = {};
+
+        orderMarkers.forEach(m => {
+            const key = m.courier_id || m.batch_id || 'unassigned';
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(m);
+        });
+
+        return Object.entries(groups).map(([key, stops]) => {
+            const sortedStops = [...stops].sort((a, b) => a.stopNumber - b.stopNumber);
+            const path: [number, number][] = sortedStops.map(s => s.position);
+
+            // If there's a courier assigned to this group, try to find their position
+            const assignedCourier = availableCouriers.find(c => c.id === sortedStops[0].courier_id);
+            const startPoint: [number, number] = assignedCourier && isValidCoord([assignedCourier.lat, assignedCourier.lng])
+                ? [assignedCourier.lat, assignedCourier.lng]
+                : [store.lat, store.lng];
+
+            const fullPath: [number, number][] = [startPoint, ...path];
+
+            return {
+                id: key,
+                path: fullPath,
+                color: key === 'unassigned' ? COLORS.blue : (COLORS as any)[Object.keys(COLORS)[Math.abs(key.length % Object.keys(COLORS).length)]] || COLORS.orange,
+                hasCourier: !!assignedCourier
+            };
+        });
+    }, [orderMarkers, store.lat, store.lng, availableCouriers]);
 
     return (
         <div className="w-full h-full relative border-0 overflow-hidden rounded-xl bg-gray-900">
@@ -815,16 +864,48 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     </Marker>
                 ))}
 
-                {/* 3. STATIC ORDER DOTS */}
-                {orderMarkers.map(m => (
-                    <Marker
-                        key={m.id}
-                        position={m.position}
-                        icon={createOrderDot(m.status === OrderStatus.READY_FOR_PICKUP ? COLORS.gold : COLORS.blue)}
-                    >
-                        <Popup><div className="text-xs font-bold text-blue-600">{m.name}</div></Popup>
-                    </Marker>
+                {/* 3. BATCH & MULTI-STOP ROUTES */}
+                {batchRoutes.map(route => (
+                    <React.Fragment key={route.id}>
+                        {/* Line from Start (Store or Courier) to first stop (Dashed) */}
+                        <Polyline
+                            positions={[route.path[0], route.path[1]]}
+                            pathOptions={{
+                                color: route.color,
+                                weight: 2,
+                                opacity: route.hasCourier ? 0.9 : 0.6,
+                                dashArray: route.hasCourier ? '1, 5' : '5, 5'
+                            }}
+                        />
+                        {/* Lines between stops (Solid) */}
+                        {route.path.length > 2 && (
+                            <Polyline
+                                positions={route.path.slice(1)}
+                                pathOptions={{ color: route.color, weight: 3, opacity: 0.8 }}
+                            />
+                        )}
+                    </React.Fragment>
                 ))}
+
+                {/* 3.1 STOP MARKERS */}
+                {orderMarkers.map(m => {
+                    const route = batchRoutes.find(r => r.id === (m.courier_id || m.batch_id || 'unassigned'));
+                    return (
+                        <Marker
+                            key={m.id}
+                            position={m.position}
+                            icon={createStopMarker(m.stopNumber, m.name, route?.color || COLORS.blue)}
+                        >
+                            <Popup>
+                                <div className="text-xs">
+                                    <p className="font-bold">{m.name}</p>
+                                    <p className="text-gray-500">Parada #{m.stopNumber}</p>
+                                    {m.courier_id && <p className="text-orange-500 font-bold text-[9px]">EM ROTA</p>}
+                                </div>
+                            </Popup>
+                        </Marker>
+                    );
+                })}
 
                 {/* 4. DRAFT ROUTE (Dashed Orange) */}
                 {routePolyline && routePolyline.length > 0 && (
