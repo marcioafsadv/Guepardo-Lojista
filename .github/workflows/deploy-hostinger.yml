@@ -9,6 +9,10 @@ jobs:
   web-deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
@@ -23,20 +27,9 @@ jobs:
           npm install --force --legacy-peer-deps
           npm list react-leaflet leaflet
 
-      - name: 📝 Create .env file
-        run: |
-          echo "VITE_SUPABASE_URL=https://eviukbluwrwcblwhkzwz.supabase.co" > .env
-          echo "VITE_SUPABASE_ANON_KEY=sb_publishable_5FFYs0bPMCjQZTawObPk2A_lK5jmGJY" >> .env
-          echo "VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}" >> .env
-
       - name: 🏗️ Build Project
         run: |
           npm run build || (echo "Build failed, listing node_modules..." && ls -R node_modules/react-leaflet && exit 1)
-        env:
-          # É importante que essas variáveis estejam nos Secrets do GitHub também se forem sensíveis
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_MAPBOX_TOKEN: ${{ secrets.VITE_MAPBOX_TOKEN }}
 
       - name: 📂 Sync files (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
