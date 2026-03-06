@@ -1,56 +1,141 @@
 /**
- * Utilitário para cálculo de frete baseado em faixas de distância (KM).
- * Segue a tabela progressiva definida pela Central Guepardo.
+ * Guepardo Delivery — Calculadora de Frete
+ *
+ * Modelo de precificação linear metro a metro, sem arredondamento de KM.
+ *
+ * ── Parâmetros Brutos (Cliente) ─────────────────────────────────
+ *   Pedido Simples:   Taxa base R$ 8,00 + R$ 1,32 por km (R$ 0,00132/metro)
+ *   Parada Adicional: Sem taxa fixa. Somente R$ 1,32/km sobre distância adicional.
+ *   Retorno à Loja:   Sem taxa fixa. Somente R$ 1,32/km sobre distância de retorno.
+ *
+ * ── Split de Receita ────────────────────────────────────────────
+ *   Taxa Base (R$ 8,00): R$ 1,00 fixo para o App | R$ 7,00 fixo para o Entregador
+ *   Variáveis (km):      12,5% para o App         | 87,5% para o Entregador
+ *
+ * ── Fórmula Principal ───────────────────────────────────────────
+ *   Vtotal = 8,00 + (MetrosPercorridos × 0,00132)
+ *   Somar todos os metros da rota: Loja → C1 → C2 → (Retorno)
  */
 
+// ── Constantes ─────────────────────────────────────────────────
+
+/** Taxa de partida bruta para pedido simples (R$) */
+export const FREIGHT_BASE_SIMPLE = 8.00;
+
+/** Parcela fixa da taxa base que vai ao App (R$) */
+export const APP_BASE_FIXED = 1.00;
+
+/** Parcela fixa da taxa base que vai ao Entregador (R$) */
+export const COURIER_BASE_FIXED = 7.00;
+
+/** Tarifa por metro rodado — bruta (R$/metro) = 1,32 / 1000 */
+export const FREIGHT_RATE_PER_METER = 0.00132;
+
+/** Fração da PARTE VARIÁVEL (km) que vai ao entregador (87,5%) */
+export const COURIER_VARIABLE_SHARE = 0.875;
+
+/** Fração da PARTE VARIÁVEL (km) que é comissão do aplicativo (12,5%) */
+export const APP_VARIABLE_COMMISSION = 0.125;
+
+// ── Interface de Resultado ─────────────────────────────────────
+
 export interface FreightResult {
-    storeFee: number;      // Valor cobrado do lojista
-    courierFee: number;    // Valor repassado ao entregador (75% do lojista)
-    centralProfit: number; // Lucro da central (25%)
+    /** Valor bruto cobrado do cliente (R$) — arredondado em 2 casas para exibição */
+    storeFee: number;
+    /** Repasse líquido ao entregador (R$) */
+    courierFee: number;
+    /** Comissão do aplicativo (R$) */
+    centralProfit: number;
+}
+
+// ── Funções auxiliares ─────────────────────────────────────────
+
+/**
+ * Arredonda um valor para 2 casas decimais (padrão monetário BRL).
+ */
+function round2(value: number): number {
+    return Number(value.toFixed(2));
 }
 
 /**
- * Calcula o frete com base na distância em KM.
- * 
- * Tabela:
- * - Até 1km: 7.50
- * - 1-2km: 9.50
- * - 2-3km: 12.00
- * - 3-4km: 14.50
- * - 5-6km: 17.00 (Lacuna 4-5km preenchida com 15.75)
- * - 6-7km: 20.00 (Lacuna 7-8km preenchida com 21.50)
- * - 8-9km: 23.00
- * - 9-10km: 27.00
- * - 10-11km: 30.00 (Lacuna 11-12km preenchida com 33.00)
- * - >12km: 33.00 + 3.00 por KM adicional
+ * Calcula o split da parte variável (km percorridos).
+ * Sem base fixa: 87,5% entregador / 12,5% app.
  */
-export const calculateFreightDistanced = (distanceKm: number): FreightResult => {
-    let storeFee = 7.50;
+function splitVariable(variableFee: number): { courierPart: number; appPart: number } {
+    return {
+        courierPart: round2(variableFee * COURIER_VARIABLE_SHARE),
+        appPart: round2(variableFee * APP_VARIABLE_COMMISSION),
+    };
+}
 
-    if (distanceKm <= 1) storeFee = 7.50;
-    else if (distanceKm <= 2) storeFee = 9.50;
-    else if (distanceKm <= 3) storeFee = 12.00;
-    else if (distanceKm <= 4) storeFee = 14.50;
-    else if (distanceKm <= 5) storeFee = 15.75; // Interpolação/Sugestão
-    else if (distanceKm <= 6) storeFee = 17.00;
-    else if (distanceKm <= 7) storeFee = 20.00;
-    else if (distanceKm <= 8) storeFee = 21.50; // Interpolação/Sugestão
-    else if (distanceKm <= 9) storeFee = 23.00;
-    else if (distanceKm <= 10) storeFee = 27.00;
-    else if (distanceKm <= 11) storeFee = 30.00;
-    else if (distanceKm <= 12) storeFee = 33.00; // Sugestão baseada na regra de +3/km
-    else {
-        // Acima de 12km: R$ 33.00 + R$ 3.00 fixos ao valor do Lojista por KM adicional
-        const extraKm = Math.ceil(distanceKm - 12);
-        storeFee = 33.00 + (extraKm * 3.00);
-    }
+// ── Funções Principais ─────────────────────────────────────────
 
-    const courierFee = storeFee * 0.75;
-    const centralProfit = storeFee * 0.25;
+/**
+ * Calcula o frete para um **Pedido Simples** (entrega padrão).
+ *
+ * Split da base:     R$ 1,00 App  |  R$ 7,00 Entregador
+ * Split variável:  12,5% App  |  87,5% Entregador
+ *
+ * @param distanceMeters - Distância exata em metros retornada pela API de rotas
+ *
+ * @example
+ * // 1.000 metros (1 km) → R$ 9,32 bruto
+ * calculateFreight(1000)
+ * // storeFee = 8,00 + 1,32 = 9,32
+ * // courierFee = 7,00 + (1,32 × 0,875) = 7,00 + 1,155 = 8,155 ≈ R$ 8,16
+ * // centralProfit = 1,00 + (1,32 × 0,125) = 1,00 + 0,165 = 1,165 ≈ R$ 1,17
+ */
+export const calculateFreight = (distanceMeters: number): FreightResult => {
+    const variableFee = distanceMeters * FREIGHT_RATE_PER_METER;
+    const storeFee = round2(FREIGHT_BASE_SIMPLE + variableFee);
+
+    const { courierPart, appPart } = splitVariable(variableFee);
+    const courierFee = round2(COURIER_BASE_FIXED + courierPart);
+    const centralProfit = round2(APP_BASE_FIXED + appPart);
+
+    return { storeFee, courierFee, centralProfit };
+};
+
+/**
+ * Calcula o frete de uma **Parada Adicional** (multi-stop / batching).
+ *
+ * Sem taxa fixa — cobrar apenas R$ 1,32/km sobre a distância adicional.
+ * Split integralmente variável: 12,5% App | 87,5% Entregador.
+ *
+ * @param additionalDistanceMeters - Metros percorridos somente neste trecho adicional
+ */
+export const calculateFreightBatching = (additionalDistanceMeters: number): FreightResult => {
+    const storeFee = round2(additionalDistanceMeters * FREIGHT_RATE_PER_METER);
+    const { courierPart, appPart } = splitVariable(storeFee);
 
     return {
         storeFee,
-        courierFee: Number(courierFee.toFixed(2)),
-        centralProfit: Number(centralProfit.toFixed(2))
+        courierFee: courierPart,
+        centralProfit: appPart,
     };
+};
+
+/**
+ * Calcula a taxa de **Logística Reversa** (retorno do entregador à loja).
+ *
+ * Sem taxa fixa — apenas R$ 1,32/km sobre a distância de retorno.
+ * Split integralmente variável: 12,5% App | 87,5% Entregador.
+ *
+ * @param returnDistanceMeters - Metros do último ponto de entrega de volta à loja
+ */
+export const calculateReturnFee = (returnDistanceMeters: number): FreightResult => {
+    const storeFee = round2(returnDistanceMeters * FREIGHT_RATE_PER_METER);
+    const { courierPart, appPart } = splitVariable(storeFee);
+
+    return {
+        storeFee,
+        courierFee: courierPart,
+        centralProfit: appPart,
+    };
+};
+
+// ── Alias de compatibilidade ────────────────────────────────────
+/** @deprecated Use calculateFreight(distanceMeters) — passa metros, não km */
+export const calculateFreightDistanced = (distanceKm: number): FreightResult => {
+    return calculateFreight(distanceKm * 1000);
 };

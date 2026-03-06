@@ -3,7 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
 import { classifyClient } from '../utils/clientClassifier';
-import { calculateFreightDistanced } from '../utils/freightCalculator';
+import {
+  calculateFreight,
+  calculateFreightBatching,
+  calculateReturnFee,
+  FREIGHT_BASE_SIMPLE,
+  FREIGHT_RATE_PER_METER,
+} from '../utils/freightCalculator';
 
 export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimatedPrice' | 'distanceKm' | 'events' | 'destinationLat' | 'destinationLng' | 'courier' | 'returnFee' | 'pickupCode'> & {
   isReturnRequired?: boolean;
@@ -168,9 +174,18 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       paymentMethod,
       changeFor: paymentMethod === 'CASH' && changeFor ? parseFloat(changeFor) : null,
       isReturnRequired,
-      // Pass calculated values to parent
-      calculatedDistance: routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 1.2,
-      calculatedEarnings: Number((baseFreight * 0.75 + returnFee * 0.75).toFixed(2)),
+      // Pass calculated values to parent (distância em KM para compatibilidade)
+      calculatedDistance: (routeStats?.distanceValue ?? 0) / 1000,
+      calculatedEarnings: (() => {
+        const dm = routeStats?.distanceValue ?? 0;
+        const baseResult = targetCourierId
+          ? calculateFreightBatching(dm)
+          : calculateFreight(dm);
+        const retResult = (isReturnRequired && (settings.returnFeeActive ?? true))
+          ? calculateReturnFee(dm)
+          : null;
+        return Number((baseResult.courierFee + (retResult?.courierFee ?? 0)).toFixed(2));
+      })(),
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined
     });
@@ -349,25 +364,37 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     setComplement("Casa Verde");
   };
 
-  const calculateBaseFreight = () => {
-    const distanceKm = routeStats?.distanceValue ? routeStats.distanceValue / 1000 : 0;
-    const freight = calculateFreightDistanced(distanceKm);
-    const tieredFee = freight.storeFee;
+  // Distância exata em metros fornecida pela API de rotas
+  const distanceMeters = routeStats?.distanceValue ?? 0;
 
-    if (targetCourierId) {
-      // Regra de Batching: desconto de 25% sobre a taxa, mantendo o mínimo da primeira faixa (7.50)
-      return Math.max(7.50, tieredFee * 0.75);
-    }
+  // ── Cálculo do frete base ─────────────────────────────────────────────
+  // Batching: quando um entregador já está em rota e recebe 2º pedido.
+  // A distância adicional é a mesma retornada pela API para a nova parada.
+  const baseFreightResult = targetCourierId
+    ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,44/km
+    : calculateFreight(distanceMeters);           // Base R$9,00 + R$1,44/km
 
-    return tieredFee;
-  };
+  const baseFreight = baseFreightResult.storeFee;
+  const baseCourierEarnings = baseFreightResult.courierFee;
 
-  const baseFreight = calculateBaseFreight();
+  // ── Taxa de retorno ───────────────────────────────────────────────────
+  // R$4,50 base + R$1,44/km sobre a distância do retorno (mesma rota de ida).
   const returnFeeActive = settings.returnFeeActive ?? true;
-  const returnFee = (isReturnRequired && returnFeeActive) ? baseFreight * 0.5 : 0;
+  const returnFeeResult = (isReturnRequired && returnFeeActive)
+    ? calculateReturnFee(distanceMeters)
+    : null;
+  const returnFee = returnFeeResult?.storeFee ?? 0;
+  const returnCourierEarnings = returnFeeResult?.courierFee ?? 0;
 
-  // Total Freight including additional stops (estimate)
-  const totalFreight = baseFreight + returnFee + (additionalStops.length * (baseFreight * 0.5));
+  // ── Total previsto (estimativa) ───────────────────────────────────────
+  // Paradas adicionais: cada uma aplica a taxa de batching sobre a mesma distância base
+  const additionalStopsFee = additionalStops.length > 0
+    ? additionalStops.reduce(
+      (sum) => sum + calculateFreightBatching(distanceMeters).storeFee,
+      0
+    )
+    : 0;
+  const totalFreight = baseFreight + returnFee + additionalStopsFee;
 
   // Calculate change needed
   const calculateChangeNeeded = () => {
@@ -961,28 +988,37 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
           {/* ESTIMATE BREAKDOWN */}
           <div className="bg-warm-200/50 dark:bg-white/5 rounded-lg border border-warm-200 dark:border-white/10 p-3 space-y-1.5">
-            <div className="flex justify-between items-center text-xs text-warm-500">
-              <span>Estimativa de Frete:</span>
-              <span>R$ {(baseFreight || 0).toFixed(2)}</span>
-            </div>
 
+            {/* Taxa de saída — apenas no pedido simples (batching não tem base fixa) */}
+            {!targetCourierId && (
+              <div className="flex justify-between items-center text-xs text-warm-500">
+                <span>Taxa de saída:</span>
+                <span>R$ {FREIGHT_BASE_SIMPLE.toFixed(2)}</span>
+              </div>
+            )}
+
+            {/* Custo por distância */}
+            {distanceMeters > 0 && (
+              <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 font-medium animate-in fade-in">
+                <span className="flex items-center gap-1">
+                  <MapPin size={10} />
+                  {routeStats?.distanceText ?? `${(distanceMeters / 1000).toFixed(2)} km`}
+                  {routeStats?.durationText ? ` (${routeStats.durationText})` : ''}
+                </span>
+                <span>+ R$ {(distanceMeters * FREIGHT_RATE_PER_METER).toFixed(2)}</span>
+              </div>
+            )}
+
+            {/* Taxa de retorno */}
             {isReturnRequired && (
               <div className="flex justify-between items-center text-xs text-guepardo-orange font-medium">
-                <span className="flex items-center gap-1"><ArrowLeftRight size={10} /> Taxa Retorno (50%):</span>
+                <span className="flex items-center gap-1"><ArrowLeftRight size={10} />Retorno (por km):</span>
                 <span>+ R$ {(returnFee || 0).toFixed(2)}</span>
               </div>
             )}
 
-            {/* DYNAMIC ROUTE STATS */}
-            {routeStats && (
-              <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 font-medium animate-in fade-in">
-                <span className="flex items-center gap-1"><MapPin size={10} /> Distância:</span>
-                <span>{routeStats.distanceText} ({routeStats.durationText})</span>
-              </div>
-            )}
-
             <div className="flex justify-between items-center pt-2 border-t border-warm-200 dark:border-white/10 mt-1">
-              <span className="text-xs font-bold text-warm-800 dark:text-gray-300">Total Previsto:</span>
+              <span className="text-xs font-bold text-warm-800 dark:text-gray-300">Total ao Cliente:</span>
               <span className="text-xl font-extrabold text-warm-900 dark:text-white">
                 {street && number ? `R$ ${(totalFreight || 0).toFixed(2)}` : 'R$ ****'}
               </span>
@@ -1017,7 +1053,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             {isSubmitting ? '...' : <>CHAMAR <Bike size={16} strokeWidth={2.5} /></>}
           </button>
         </div>
-      </div> {/* end collapsible */}
-    </div>
+      </div > {/* end collapsible */}
+    </div >
   );
 };
