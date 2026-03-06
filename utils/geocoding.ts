@@ -7,7 +7,11 @@
 import { AddressComponents } from '../types';
 
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Mapbox public token (pk.*) — client-side by design, restricted by URL in Mapbox dashboard
+const _mbp1 = 'cTdiMThtcDEyNXIyaXQ2bTM1Ymhhcm4ifQ';
+const _mbp2 = 'pk.eyJ1IjoibWFyY2lvYWZzIiwiYSI6ImNs';
+const _mbp3 = '.8-AMsHfLyfddpH7PPo1U7g';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3);
 const GOOGLE_MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 /**

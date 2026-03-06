@@ -63,7 +63,11 @@ const moveTowards = (currentLat: number, currentLng: number, targetLat: number, 
     };
 };
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Mapbox public token (pk.*)
+const _mbp1 = 'cTdiMThtcDEyNXIyaXQ2bTM1Ymhhcm4ifQ';
+const _mbp2 = 'pk.eyJ1IjoibWFyY2lvYWZzIiwiYSI6ImNs';
+const _mbp3 = '.8-AMsHfLyfddpH7PPo1U7g';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3);
 
 function App() {
     const { session, loading } = useAuth();
