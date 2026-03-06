@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, ChevronDown, Store } from 'lucide-react';
+import { Bell, ChevronDown, Store, Zap } from 'lucide-react';
 import { StoreProfile } from '../types';
 
 interface HeaderProps {
@@ -61,6 +61,19 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
             {/* RIGHT SIDE ACTIONS */}
             <div className="flex items-center gap-4">
 
+
+                {/* Wallet Balance Display */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl group cursor-pointer hover:bg-white/10 transition-all shadow-inner">
+                    <div className="p-2 bg-guepardo-accent rounded-xl text-white shadow-lg shadow-guepardo-accent/20 group-hover:scale-110 transition-transform">
+                        <Zap size={16} className="fill-current" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-none mb-1">Saldo</span>
+                        <span className="text-sm font-black italic tracking-tighter text-white leading-none tabular-nums">
+                            R$ {(storeProfile.wallet_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </div>
 
                 {/* Notification Bell */}
                 <button className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white hover:text-white transition-colors border border-transparent hover:border-white/10 group">

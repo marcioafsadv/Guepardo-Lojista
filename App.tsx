@@ -15,6 +15,7 @@ import { classifyClient } from './utils/clientClassifier';
 import { GestaoDePedidos } from './components/GestaoDePedidos';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
+import { WalletView } from './components/WalletView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
 import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
@@ -216,10 +217,12 @@ function App() {
                 const finalLng = (typeof lng === 'number' && !isNaN(lng) && lng !== 0) ? lng : -47.300549;
 
                 setRealStoreProfile({
+                    id: data.id,
                     name: data.fantasy_name || data.company_name,
                     address: fullAddress,
                     lat: finalLat,
-                    lng: finalLng
+                    lng: finalLng,
+                    wallet_balance: data.wallet_balance || 0
                 });
             }
         };
@@ -1566,6 +1569,13 @@ function App() {
                         <HistoryView
                             orders={orders}
                             onSelectOrder={setSelectedOrderDetails}
+                        />
+                    )}
+
+                    {currentView === 'wallet' && (
+                        <WalletView
+                            balance={realStoreProfile?.wallet_balance || 0}
+                            storeId={realStoreProfile?.id || ''}
                         />
                     )}
 

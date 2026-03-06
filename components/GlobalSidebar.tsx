@@ -2,7 +2,7 @@
 import React from 'react';
 import { LayoutDashboard, Bike, Users, History, Zap, Settings, MapPin } from 'lucide-react';
 
-export type AppView = 'dashboard' | 'operational' | 'clients' | 'history' | 'settings';
+export type AppView = 'dashboard' | 'operational' | 'clients' | 'history' | 'wallet' | 'settings';
 
 interface GlobalSidebarProps {
   currentView: AppView;
@@ -19,6 +19,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
     { id: 'operational', label: 'Chamar Guepardo', icon: MapPin },
     { id: 'clients', label: 'Clientes', icon: Users },
+    { id: 'wallet', label: 'Carteira', icon: Zap },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'settings', label: 'Configurações', icon: Settings },
   ];
