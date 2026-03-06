@@ -48,4 +48,5 @@ jobs:
           server-dir: public_html/
           protocol: ftp
           delete-removed: true
+          state-name: .ftp-deploy-sync-state-v2.json
           timeout: 300000
