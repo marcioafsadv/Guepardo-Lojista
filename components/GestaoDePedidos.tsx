@@ -391,7 +391,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             <div className="absolute left-4 top-4 bottom-4 z-20 flex flex-col gap-4 pointer-events-none w-[380px]">
 
                 {/* BLOCO 1: FORMULÁRIO (SUPERIOR) */}
-                <div className="bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto shrink-0">
+                <div className="bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto min-h-0">
                     <div className="p-4">
                         <DeliveryForm
                             onSubmit={handleNewOrderSubmit}

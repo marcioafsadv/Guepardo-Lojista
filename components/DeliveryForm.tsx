@@ -432,8 +432,12 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
       {/* COLLAPSIBLE CONTENT */}
       <div
-        className="overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ maxHeight: isFormCollapsed ? 0 : '9999px', opacity: isFormCollapsed ? 0 : 1 }}
+        className="overflow-y-auto transition-all duration-300 ease-in-out custom-scrollbar"
+        style={{
+          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 280px)',
+          opacity: isFormCollapsed ? 0 : 1,
+          paddingRight: isFormCollapsed ? 0 : '4px'
+        }}
       >
         <form onSubmit={handleSubmit} className="space-y-3">
 
