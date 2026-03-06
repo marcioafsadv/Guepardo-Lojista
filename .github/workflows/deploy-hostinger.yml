@@ -47,6 +47,5 @@ jobs:
           local-dir: ./dist/
           server-dir: ./
           protocol: ftp
-          dangerous-clean-slate: true
           log-level: verbose
           timeout: 300000
