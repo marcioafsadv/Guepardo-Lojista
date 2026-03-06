@@ -432,7 +432,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
       {/* COLLAPSIBLE CONTENT */}
       <div
-        className="overflow-y-auto transition-all duration-300 ease-in-out custom-scrollbar"
+        className="overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
         style={{
           maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 280px)',
           opacity: isFormCollapsed ? 0 : 1,
