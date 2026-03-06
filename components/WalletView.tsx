@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
-import { RechargeModal } from './RechargeModal';
+import { RechargeModal } from './RechargeModal.tsx';
 
 interface Transaction {
     id: string;
