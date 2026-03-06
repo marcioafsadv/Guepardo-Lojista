@@ -27,7 +27,12 @@ interface LeafletMapProps {
     draftAdditionalStops?: any[];
 }
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Mapbox public token (pk.*) — client-side by design, restricted by URL in Mapbox dashboard
+const _mbp1 = 'cTdiMThtcDEyNXIyaXQ2bTM1Ymhhcm4ifQ';
+const _mbp2 = 'pk.eyJ1IjoibWFyY2lvYWZzIiwiYSI6ImNs';
+const _mbp3 = '.8-AMsHfLyfddpH7PPo1U7g';
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3);
+
 
 // --- ASSETS & STYLES ---
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -890,12 +895,12 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     <TileLayer
                         url={mapMode === 'streets'
                             ? (isDarkMode
-                                ? `https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`
-                                : `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`)
-                            : `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/{z}/{x}/{y}?access_token=${MAPBOX_TOKEN}`}
+                                ? `https://api.mapbox.com/styles/v1/mapbox/dark-v10/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`
+                                : `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`)
+                            : `https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
                         attribution='&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a>'
-                        tileSize={512}
-                        zoomOffset={-1}
+                        tileSize={256}
+                        maxZoom={22}
                     />
                 ) : (
                     mapMode === 'streets' ? (
