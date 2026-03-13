@@ -178,13 +178,23 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
       calculatedDistance: (routeStats?.distanceValue ?? 0) / 1000,
       calculatedEarnings: (() => {
         const dm = routeStats?.distanceValue ?? 0;
+        
+        // 1. Base Stop: R$ 7.00 fixed + (meters * 0.00132 * 0.875)
         const baseResult = targetCourierId
           ? calculateFreightBatching(dm)
           : calculateFreight(dm);
+        
+        // 2. Additional Stops: (meters * 0.00132 * 0.875) per stop
+        const addStopsEarnings = additionalStops.length > 0
+          ? additionalStops.length * calculateFreightBatching(dm).courierFee
+          : 0;
+
+        // 3. Optional Return: (meters * 0.00132 * 0.875)
         const retResult = (isReturnRequired && (settings.returnFeeActive ?? true))
           ? calculateReturnFee(dm)
           : null;
-        return Number((baseResult.courierFee + (retResult?.courierFee ?? 0)).toFixed(2));
+
+        return Number((baseResult.courierFee + addStopsEarnings + (retResult?.courierFee ?? 0)).toFixed(2));
       })(),
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined

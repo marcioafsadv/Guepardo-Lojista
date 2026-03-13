@@ -25,7 +25,6 @@ jobs:
       - name: 🔨 Install Dependencies
         run: |
           npm install --force --legacy-peer-deps
-          npm list react-leaflet leaflet
 
       - name: 🏗️ Build Project
         run: |

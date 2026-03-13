@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 const ASAAS_WEBHOOK_TOKEN = Deno.env.get("ASAAS_WEBHOOK_TOKEN");
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
     try {
         // 1. Verify Webhook Token (Security)
         const token = req.headers.get("asaas-access-token");
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
             headers: { "Content-Type": "application/json" },
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Webhook Error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 500,

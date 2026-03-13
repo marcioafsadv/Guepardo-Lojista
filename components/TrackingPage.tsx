@@ -64,6 +64,9 @@ export const TrackingPage: React.FC = () => {
 
         fetchData();
 
+        // High-frequency polling as fallback for location tracking
+        const pollInterval = setInterval(fetchData, 8000);
+
         // 3. Real-time Subscription
         const channel = supabase
             .channel(`tracking:${id}`)
@@ -99,6 +102,7 @@ export const TrackingPage: React.FC = () => {
             .subscribe();
 
         return () => {
+            clearInterval(pollInterval);
             supabase.removeChannel(channel);
         };
     }, [id, order?.driver_id]);

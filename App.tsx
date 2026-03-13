@@ -23,6 +23,11 @@ import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, U
 import { supabase } from './lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { geocodeAddress } from './utils/geocoding';
+import {
+    calculateFreight,
+    calculateFreightBatching,
+    calculateReturnFee
+} from './utils/freightCalculator';
 
 // --- CONFIGURAÇÃO PADRÃO (FALLBACK) ---
 const STORE_PROFILE: StoreProfile = {
@@ -163,6 +168,12 @@ function App() {
                 .eq('id', session.user.id)
                 .single();
 
+            if (error) {
+                console.error("❌ [STORE_PROFILE] Error fetching store:", error);
+                setRealStoreProfile(null);
+                return;
+            }
+
             if (data) {
                 const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
 
@@ -225,6 +236,9 @@ function App() {
                     wallet_balance: data.wallet_balance || 0,
                     status: data.status || 'fechada'
                 });
+            } else {
+                console.warn("⚠️ [STORE_PROFILE] User logged in but no store record found for ID:", session.user.id);
+                setRealStoreProfile(null);
             }
         };
         fetchProfile();
@@ -258,109 +272,74 @@ function App() {
         fetchPricingSettings();
     }, []);
 
-    // Fetch Couriers (Profiles + Vehicles)
-    // We fetch "approved" profiles that have a vehicle.
-    useEffect(() => {
-        const fetchCouriers = async () => {
-            try {
-                console.log('🔍 [DEBUG] Fetching couriers from Supabase...');
+    // 🚚 Fetch Couriers (Profiles + Vehicles)
+    const fetchCouriers = useCallback(async () => {
+        try {
+            console.log('🔍 [DEBUG] Fetching couriers from Supabase...');
 
-                // 1. Fetch Approved Profiles
-                const { data: profiles, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('status', 'approved');
+            // 1. Fetch Approved Profiles
+            const { data: profiles, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('status', 'approved');
 
-                if (profileError) {
-                    console.error('❌ [ERROR] Failed to fetch profiles:', profileError);
-                    throw profileError;
-                }
-
-                console.log(`✅ [DEBUG] Found ${profiles?.length || 0} approved profiles`);
-
-                if (profiles && profiles.length > 0) {
-                    const profileIds = profiles.map(p => p.id);
-                    console.log(`🔍 [DEBUG] Profile IDs to search for vehicles:`, profileIds);
-                    console.log(`🔍 [DEBUG] Full profiles data:`, profiles.map(p => ({ id: p.id, name: p.full_name })));
-
-                    // 2. Fetch Vehicles for these profiles
-                    const { data: vehicles, error: vehicleError } = await supabase
-                        .from('vehicles')
-                        .select('*')
-                        .in('user_id', profileIds);
-
-                    if (vehicleError) {
-                        console.error('❌ [ERROR] Failed to fetch vehicles:', vehicleError);
-                        throw vehicleError;
-                    }
-
-                    console.log(`✅ [DEBUG] Found ${vehicles?.length || 0} vehicles`);
-                    console.log(`🔍 [DEBUG] Vehicles data:`, vehicles);
-
-                    // 3. Merge Data
-                    const realCouriers: Courier[] = profiles.map(p => {
-                        const vehicle = vehicles?.find(v => v.user_id === p.id);
-
-                        console.log(`🔍 [DEBUG] Processing courier:`, {
-                            id: p.id,
-                            name: p.full_name,
-                            has_vehicle: !!vehicle,
-                            vehicle_user_id: vehicle?.user_id,
-                            is_online: p.is_online,
-                            has_location: !!(p.current_lat && p.current_lng),
-                            current_lat: p.current_lat,
-                            current_lng: p.current_lng
-                        });
-
-                        if (!vehicle) {
-                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} has no vehicle registered`);
-                            return null; // Only show if has vehicle
-                        }
-
-                        // TEMPORARILY RELAXED FILTER FOR DEBUGGING
-                        // Original filter was too restrictive:
-                        // if (!p.is_online || !p.current_lat || !p.current_lng) return null;
-
-                        // Filter: Show couriers if they are ONLINE OR have an active order assigned to them
-                        const hasLocation = !!(p.current_lat && p.current_lng);
-                        const isOnline = p.is_online === true;
-                        const hasActiveOrder = ordersRef.current.some(o => 
-                            o.courier?.id === p.id && 
-                            o.status !== OrderStatus.DELIVERED && 
-                            o.status !== OrderStatus.CANCELED
-                        );
-
-                        if (!isOnline && !hasActiveOrder) {
-                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} is OFFLINE and has no active orders`);
-                            return null;
-                        }
-
-                        if (!hasLocation) {
-                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} has NO LOCATION (lat=${p.current_lat}, lng=${p.current_lng})`);
-                            return null; // Don't show couriers without location
-                        }
-
-                        return {
-                            id: p.id,
-                            name: p.full_name || 'Entregador',
-                            vehiclePlate: vehicle.plate || '---',
-                            photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
-                            phone: p.phone || '',
-                            lat: p.current_lat,
-                            lng: p.current_lng
-                        };
-                    }).filter(Boolean) as Courier[];
-
-                    console.log(`✅ [RESULT] ${realCouriers.length} couriers available:`, realCouriers);
-                    setAvailableCouriers(realCouriers);
-                } else {
-                    console.warn('⚠️ [WARNING] No approved profiles found in database');
-                }
-            } catch (err) {
-                console.error('❌ [ERROR] Error fetching couriers:', err);
+            if (profileError) {
+                console.error('❌ [ERROR] Failed to fetch profiles:', profileError);
+                throw profileError;
             }
-        };
 
+            if (profiles && profiles.length > 0) {
+                const profileIds = profiles.map(p => p.id);
+
+                // 2. Fetch Vehicles
+                const { data: vehicles, error: vehicleError } = await supabase
+                    .from('vehicles')
+                    .select('*')
+                    .in('user_id', profileIds);
+
+                if (vehicleError) {
+                    console.error('❌ [ERROR] Failed to fetch vehicles:', vehicleError);
+                    throw vehicleError;
+                }
+
+                    // Merge Data
+                const realCouriers: Courier[] = profiles.map(p => {
+                    const vehicle = vehicles?.find(v => v.user_id === p.id);
+                    
+                    const hasActiveOrder = ordersRef.current.some(o => 
+                        o.courier?.id === p.id && 
+                        o.status !== OrderStatus.DELIVERED && 
+                        o.status !== OrderStatus.CANCELED
+                    );
+
+                    // RELAXED FILTER: Show if online OR has an active order (important for tracking during missions)
+                    // We also show them even if they don't have a vehicle record yet, provided they have an active mission.
+                    const isOnline = p.is_online === true;
+                    const hasLocation = !!(p.current_lat && p.current_lng);
+
+                    if (!isOnline && !hasActiveOrder) return null;
+                    if (!hasLocation) return null;
+                    // If not online but has active order, it means they are BUSY/UNAVAILABLE, we still show them.
+
+                    return {
+                        id: p.id,
+                        name: p.full_name || 'Entregador',
+                        vehiclePlate: vehicle?.plate || 'Não Cadastrada',
+                        photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
+                        phone: p.phone || '',
+                        lat: p.current_lat,
+                        lng: p.current_lng
+                    };
+                }).filter(Boolean) as Courier[];
+
+                setAvailableCouriers(realCouriers);
+            }
+        } catch (err) {
+            console.error('❌ [ERROR] Error fetching couriers:', err);
+        }
+    }, [realStoreProfile]);
+
+    useEffect(() => {
         fetchCouriers();
 
         // Realtime Subscription for Courier Location/Status Updates
@@ -369,26 +348,21 @@ function App() {
             .on(
                 'postgres_changes',
                 {
-                    event: '*', // INSERT, UPDATE, DELETE
+                    event: '*',
                     schema: 'public',
-                    table: 'profiles',
-                    filter: `status=eq.approved`
+                    table: 'profiles'
                 },
                 (payload) => {
-                    console.log('🔄 [REALTIME] Courier profile updated:', payload);
-                    // Re-fetch all couriers when any approved profile changes
+                    console.log('🔄 [REALTIME] Courier profile changed:', payload.eventType);
                     fetchCouriers();
                 }
             )
-            .subscribe((status) => {
-                console.log('📡 [REALTIME] Courier subscription status:', status);
-            });
+            .subscribe();
 
         return () => {
-            console.log('🔌 [REALTIME] Unsubscribing from courier updates');
             supabase.removeChannel(courierChannel);
         };
-    }, [realStoreProfile]); // Re-fetch if store moves/init
+    }, [fetchCouriers]);
 
     // Polling logic refactored for stability
     const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
@@ -579,19 +553,21 @@ function App() {
                 });
             }
 
-            // 2. Update existing orders status
+                // 2. Update existing orders status & courier locations
             for (const delivery of deliveries) {
                 const existingOrder = ordersRef.current.find(o => o.id === delivery.id);
                 if (!existingOrder) continue;
 
                 const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
-                if (existingOrder.status === mappedStatus && (delivery.driver_id === existingOrder.courier?.id)) continue;
+                
+                // We MUST update even if status is same to get fresh courier coordinates
+                // during active deliveries (IN_TRANSIT, RETURNING, etc.)
 
                 // Regression checking logic (Ready for pickup vs Arrived)
                 if (existingOrder.status === OrderStatus.READY_FOR_PICKUP && mappedStatus === OrderStatus.ARRIVED_AT_STORE) continue;
 
                 let courierData: Courier | null = null;
-                if (delivery.driver_id && !existingOrder.courier) {
+                if (delivery.driver_id) {
                     const { data: p } = await supabase.from('profiles').select('*').eq('id', delivery.driver_id).single();
                     if (p) {
                         const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', p.id).single();
@@ -616,6 +592,7 @@ function App() {
                         
                         const updatedEvents = synthesizeTimeline(delivery);
 
+                        // Ensure we always update courier data to get fresh coordinates
                         return {
                             ...o,
                             status: mappedStatus,
@@ -636,9 +613,13 @@ function App() {
     useEffect(() => {
         if (!session?.user) return;
         pollData();
-        const pollInterval = setInterval(pollData, 10000);
+        fetchCouriers(); // Initial fetch
+        const pollInterval = setInterval(() => {
+            pollData();
+            fetchCouriers(); // Polling fallback for courier locations
+        }, 8000); // slightly faster polling for location tracking
         return () => clearInterval(pollInterval);
-    }, [pollData]);
+    }, [pollData, fetchCouriers]);
 
     // Fetch Customers
     useEffect(() => {
@@ -917,9 +898,11 @@ function App() {
                 const phoneDigits = stop.clientPhone.replace(/\D/g, '');
                 const phoneSuffix = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "6060";
 
-                // Earnings Calculation: 100% for first, 50% for others (estimate)
-                const baseEarnings = data.calculatedEarnings || 15.00;
-                const stopEarnings = index === 0 ? baseEarnings : baseEarnings * 0.5;
+                // Earnings Calculation: 100% for first, variable share for others
+                const distMeters = (data.calculatedDistance || 1.2) * 1000;
+                const stopEarnings = index === 0 
+                    ? calculateFreight(distMeters).courierFee 
+                    : calculateFreightBatching(distMeters).courierFee;
 
                 // Fallback to random nearby if geocoding fails, but log it
                 const finalLat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
@@ -1044,7 +1027,10 @@ function App() {
 
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
-                const newEarnings = i === 0 ? order.estimatedPrice : Number((order.estimatedPrice * 0.5).toFixed(2));
+                const distMeters = (order.distanceKm || 1.2) * 1000;
+                const newEarnings = i === 0 
+                    ? calculateFreight(distMeters).courierFee 
+                    : calculateFreightBatching(distMeters).courierFee;
 
                 const { error } = await supabase
                     .from('deliveries')
