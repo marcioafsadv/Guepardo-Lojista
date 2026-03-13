@@ -244,11 +244,34 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
         const courierGrouped: Order[] = Array.from(groups.values()).map(batch => {
             if (batch.length === 1) return batch[0];
+            
+            // Representative order for basic info
             const mainOrder = batch[0];
+            
+            // Calculate representative status for the batch
+            // Priority list (highest to lowest importance for merchant view)
+            const statuses = batch.map(o => o.status);
+            let batchStatus = OrderStatus.DELIVERED;
+            
+            if (statuses.includes(OrderStatus.PENDING)) {
+                batchStatus = OrderStatus.PENDING;
+            } else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) {
+                batchStatus = OrderStatus.READY_FOR_PICKUP;
+            } else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) {
+                batchStatus = OrderStatus.ARRIVED_AT_STORE;
+            } else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) {
+                batchStatus = OrderStatus.ACCEPTED;
+            } else if (statuses.includes(OrderStatus.IN_TRANSIT)) {
+                batchStatus = OrderStatus.IN_TRANSIT;
+            } else if (statuses.includes(OrderStatus.RETURNING)) {
+                batchStatus = OrderStatus.RETURNING;
+            }
+
             return {
                 ...mainOrder,
                 isBatch: true,
                 batchOrders: batch,
+                status: batchStatus, 
                 clientName: `${batch.length} Pedidos - Rota ${mainOrder.courier?.name || ''}`,
                 destination: `${batch.length} destinos na rota`
             };

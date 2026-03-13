@@ -222,7 +222,8 @@ function App() {
                     address: fullAddress,
                     lat: finalLat,
                     lng: finalLng,
-                    wallet_balance: data.wallet_balance || 0
+                    wallet_balance: data.wallet_balance || 0,
+                    status: data.status || 'fechada'
                 });
             }
         };
@@ -320,13 +321,18 @@ function App() {
                         // Original filter was too restrictive:
                         // if (!p.is_online || !p.current_lat || !p.current_lng) return null;
 
-                        // Filter: Only show ONLINE couriers with LOCATION
+                        // Filter: Show couriers if they are ONLINE OR have an active order assigned to them
                         const hasLocation = !!(p.current_lat && p.current_lng);
                         const isOnline = p.is_online === true;
+                        const hasActiveOrder = ordersRef.current.some(o => 
+                            o.courier?.id === p.id && 
+                            o.status !== OrderStatus.DELIVERED && 
+                            o.status !== OrderStatus.CANCELED
+                        );
 
-                        if (!isOnline) {
-                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} is OFFLINE (is_online=${p.is_online})`);
-                            return null; // Don't show offline couriers
+                        if (!isOnline && !hasActiveOrder) {
+                            console.warn(`⚠️ [FILTER] Courier ${p.full_name} is OFFLINE and has no active orders`);
+                            return null;
                         }
 
                         if (!hasLocation) {
@@ -415,6 +421,81 @@ function App() {
         }
     }, []);
 
+    const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
+        const events: OrderEvent[] = [];
+        const baseTime = new Date(delivery.created_at);
+
+        // 1. Pedido Criado (Always exists)
+        events.push({
+            status: OrderStatus.PENDING,
+            label: "Pedido Criado",
+            timestamp: baseTime,
+            description: "Aguardando entregadores"
+        });
+
+        // 2. Aceito
+        if (['accepted', 'arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({
+                status: OrderStatus.ACCEPTED,
+                label: "Aceito",
+                timestamp: delivery.accepted_at ? new Date(delivery.accepted_at) : new Date(baseTime.getTime() + 2 * 60000),
+                description: "Entregador aceitou o pedido"
+            });
+        }
+
+        // 3. Na Loja (arrived_pickup)
+        if (['arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({
+                status: OrderStatus.ARRIVED_AT_STORE,
+                label: "Na Loja",
+                timestamp: delivery.arrived_at_pickup_time ? new Date(delivery.arrived_at_pickup_time) : new Date(baseTime.getTime() + 5 * 60000),
+                description: "Guepardo chegou no local"
+            });
+        }
+
+        // 4. Pronto p/ Coleta (ready_for_pickup)
+        if (['ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({
+                status: OrderStatus.READY_FOR_PICKUP,
+                label: "Pronto p/ Coleta",
+                timestamp: delivery.ready_at_time ? new Date(delivery.ready_at_time) : new Date(baseTime.getTime() + 10 * 60000),
+                description: "Lojista marcou como pronto"
+            });
+        }
+
+        // 5. Coletado (in_transit)
+        if (['in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({
+                status: OrderStatus.IN_TRANSIT,
+                label: "Coletado",
+                timestamp: delivery.pickup_time ? new Date(delivery.pickup_time) : new Date(baseTime.getTime() + 15 * 60000),
+                description: "Em rota de entrega"
+            });
+        }
+
+        // 6. Entregue (completed)
+        if (delivery.status === 'completed') {
+            events.push({
+                status: OrderStatus.DELIVERED,
+                label: "Entregue",
+                timestamp: delivery.completed_at ? new Date(delivery.completed_at) : new Date(baseTime.getTime() + 30 * 60000),
+                description: "Pedido finalizado"
+            });
+        }
+
+        // 7. Cancelado
+        if (delivery.status === 'cancelled') {
+            events.push({
+                status: OrderStatus.CANCELED,
+                label: "Cancelado",
+                timestamp: delivery.updated_at ? new Date(delivery.updated_at) : new Date(),
+                description: "Pedido interrompido"
+            });
+        }
+
+        return events;
+    }, []);
+
     const pollData = useCallback(async () => {
         if (!session?.user) return;
         try {
@@ -469,19 +550,14 @@ function App() {
                         addressComplement: items.addressComplement || '',
                         addressCity: items.addressCity || 'Itu',
                         addressCep: items.addressCep || '00000-000',
-                        deliveryValue: items.deliveryValue || 0,
+                        deliveryValue: Number(items.deliveryValue) || 0,
                         paymentMethod: items.paymentMethod || 'PIX',
-                        changeFor: items.changeFor,
+                        changeFor: items.changeFor ? Number(items.changeFor) : null,
                         status: parsedStatus,
                         createdAt: new Date(d.created_at),
-                        estimatedPrice: d.earnings || 0,
+                        estimatedPrice: Number(d.earnings) || 0,
                         distanceKm: 1.2,
-                        events: [{
-                            status: parsedStatus,
-                            label: getStatusLabel(parsedStatus),
-                            timestamp: new Date(d.created_at),
-                            description: courierData ? `Aceito por ${courierData.name}` : 'Sincronizado'
-                        }],
+                        events: synthesizeTimeline(d),
                         pickupCode: d.collection_code,
                         isReturnRequired: items.isReturnRequired,
                         destinationLat: items.destinationLat,
@@ -537,18 +613,16 @@ function App() {
                         if (hasStatusChanged) {
                             if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) playAlert();
                         }
+                        
+                        const updatedEvents = synthesizeTimeline(delivery);
+
                         return {
                             ...o,
                             status: mappedStatus,
                             courier: courierData || o.courier,
                             pickupCode: delivery.collection_code || o.pickupCode,
                             batch_id: delivery.batch_id || o.batch_id,
-                            events: hasStatusChanged ? [...(o.events || []), {
-                                status: mappedStatus,
-                                label: getStatusLabel(mappedStatus),
-                                timestamp: new Date(),
-                                description: 'Status atualizado via servidor'
-                            }] : o.events
+                            events: updatedEvents
                         };
                     }
                     return o;
@@ -557,7 +631,7 @@ function App() {
         } catch (err) {
             console.error('❌ Polling error:', err);
         }
-    }, [session?.user, lastResetDate, mapSupabaseStatusToLocal, getStatusLabel]);
+    }, [session?.user, lastResetDate, mapSupabaseStatusToLocal, getStatusLabel, synthesizeTimeline]);
 
     useEffect(() => {
         if (!session?.user) return;
@@ -596,6 +670,34 @@ function App() {
             ...prev,
             mapTheme: prev.mapTheme === 'dark' ? 'light' : 'dark'
         }));
+    };
+
+    const toggleStoreStatus = async (newStatus: 'aberta' | 'fechada') => {
+        if (!session?.user || !realStoreProfile) return;
+
+        const currentStatus = realStoreProfile.status || 'fechada';
+
+        // Optimistic update
+        setRealStoreProfile(prev => prev ? { ...prev, status: newStatus } : null);
+
+        try {
+            const { error } = await supabase
+                .from('stores')
+                .update({ status: newStatus })
+                .eq('id', session.user.id);
+
+            if (error) {
+                console.error('❌ [STORE_STATUS] Error updating store status:', error);
+                // Revert on error
+                setRealStoreProfile(prev => prev ? { ...prev, status: currentStatus } : null);
+            } else {
+                console.log(`✅ [STORE_STATUS] Store status updated to ${newStatus}`);
+            }
+        } catch (err) {
+            console.error('❌ [STORE_STATUS] Exception updating store status:', err);
+            // Revert on error
+            setRealStoreProfile(prev => prev ? { ...prev, status: currentStatus } : null);
+        }
     };
 
     const playAlert = useCallback(() => {
@@ -1018,7 +1120,8 @@ function App() {
                 .from('deliveries')
                 .update({
                     status: 'ready_for_pickup',
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    ready_at_time: new Date().toISOString()
                 })
                 .in('id', orderIds);
 
@@ -1065,7 +1168,8 @@ function App() {
                 .from('deliveries')
                 .update({
                     status: 'in_transit',
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    pickup_time: new Date().toISOString()
                 })
                 .in('id', orderIds);
 
@@ -1086,7 +1190,9 @@ function App() {
         if (!orderToUpdate) return;
 
         const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
-            ? orderToUpdate.batchOrders.map(o => o.id)
+            ? orderToUpdate.batchOrders
+                .filter(o => o.status === OrderStatus.RETURNING) // CRITICAL: Only finalize those actually returning
+                .map(o => o.id)
             : [orderId];
 
         setOrders(prev => prev.map(o => {
@@ -1124,7 +1230,8 @@ function App() {
                 .from('deliveries')
                 .update({
                     status: 'completed',
-                    updated_at: new Date().toISOString()
+                    updated_at: new Date().toISOString(),
+                    completed_at: new Date().toISOString()
                 })
                 .in('id', orderIds);
 
@@ -1508,7 +1615,7 @@ function App() {
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
 
                 {/* GLOBAL HEADER */}
-                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} />
+                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} onToggleStatus={toggleStoreStatus} />
 
                 <div className="flex-1 overflow-hidden relative flex flex-col">
 

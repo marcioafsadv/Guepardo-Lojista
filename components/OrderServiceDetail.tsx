@@ -113,7 +113,7 @@ const OrderContent: React.FC<{
                             <Banknote size={12} className="text-gray-400" />
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Valor do Pedido</span>
                         </div>
-                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {(order.deliveryValue || 0).toFixed(2)}</span>
+                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {Number(order.deliveryValue || 0).toFixed(2)}</span>
                     </div>
 
                     {/* FRETE */}
@@ -122,7 +122,7 @@ const OrderContent: React.FC<{
                             <Truck size={12} className="text-gray-400" />
                             <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider">Valor do Frete</span>
                         </div>
-                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {(order.estimatedPrice || 0).toFixed(2)}</span>
+                        <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {Number(order.estimatedPrice || 0).toFixed(2)}</span>
                     </div>
 
                     {/* PAGAMENTO */}
@@ -230,11 +230,9 @@ const OrderContent: React.FC<{
                                         <span className={`text-sm font-bold ${isEmbedded ? 'text-gray-900 dark:text-white' : (isDark ? 'text-white' : 'text-gray-900')}`}>
                                             {event.label}
                                         </span>
-                                        {event.description && (
                                             <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                                                 {event.description}
                                             </span>
-                                        )}
                                     </div>
                                 </div>
                             ))

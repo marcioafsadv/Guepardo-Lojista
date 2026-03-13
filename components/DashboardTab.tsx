@@ -569,9 +569,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {(stat.sales || 0).toFixed(0)}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">R$ {Number(stat.sales || 0).toFixed(2).replace('.', ',')}</p>
                     <p className="text-[10px] text-gray-500 font-medium">
-                      + Taxas: R$ {(stat.fees || 0).toFixed(0)}
+                      + Taxas: R$ {Number(stat.fees || 0).toFixed(2).replace('.', ',')}
                     </p>
                   </div>
                 </div>

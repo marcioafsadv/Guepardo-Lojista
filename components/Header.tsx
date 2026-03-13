@@ -5,10 +5,17 @@ import { StoreProfile } from '../types';
 interface HeaderProps {
     storeProfile: StoreProfile;
     notificationCount?: number;
+    onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0 }) => {
-    const [isOpen, setIsOpen] = useState(true);
+export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0, onToggleStatus }) => {
+    const isOpen = storeProfile.status === 'aberta';
+
+    const handleToggle = () => {
+        if (onToggleStatus) {
+            onToggleStatus(isOpen ? 'fechada' : 'aberta');
+        }
+    };
 
     return (
         <header className="h-20 bg-brand-gradient-premium border-b border-white/10 flex items-center justify-between px-6 shrink-0 relative z-40 transition-colors duration-300 shadow-sm">
@@ -18,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
 
                 {/* CLIENT WIDGET (Padaria Rebeca) */}
                 <div
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={handleToggle}
                     className={`flex items-center gap-3 border rounded-full py-1.5 pl-1.5 pr-4 transition-all cursor-pointer group select-none
                     ${isOpen
                             ? 'bg-black/40 hover:bg-black/50 backdrop-blur-md border-white/10 hover:border-white/20'

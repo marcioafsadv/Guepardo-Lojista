@@ -146,6 +146,7 @@ export interface StoreProfile {
   lat: number;
   lng: number;
   wallet_balance?: number;
+  status?: string;
 }
 
 export interface RouteStats {
