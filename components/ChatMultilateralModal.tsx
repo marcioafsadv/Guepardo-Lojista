@@ -14,6 +14,7 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
   const [activeTab, setActiveTab] = useState<ChatRoomType>('COURIER_CLIENT');
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. Fetch Initial Messages & Setup Realtime
@@ -21,6 +22,7 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
     if (!order || !isOpen) return;
 
     const fetchMessages = async () => {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('order_messages')
         .select('*')
@@ -38,6 +40,7 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
           room: m.room_type as ChatRoomType
         })));
       }
+      setIsLoading(false);
     };
 
     fetchMessages();
@@ -151,9 +154,14 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
         {/* MESSAGES AREA */}
         <div 
           ref={scrollRef}
-          className="flex-1 overflow-y-auto p-6 space-y-6 bg-black/40 scrollbar-guepardo shadow-inner"
+          className="flex-1 overflow-y-auto p-6 space-y-6 bg-black/40 scrollbar-guepardo shadow-inner relative"
         >
-          {currentMessages.length === 0 ? (
+          {isLoading ? (
+            <div className="h-full flex flex-col items-center justify-center">
+              <div className="w-12 h-12 border-4 border-guepardo-accent border-t-transparent rounded-full animate-spin"></div>
+              <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-white/30 italic">Sincronizando...</p>
+            </div>
+          ) : currentMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center opacity-10">
               <MessageSquare size={64} className="mb-4 text-white" />
               <p className="text-sm font-black uppercase tracking-[0.3em] text-white">Silêncio no Canal</p>
