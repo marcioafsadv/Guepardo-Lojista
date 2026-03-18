@@ -19,7 +19,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, sto
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-end sm:justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 transition-opacity">
       <div
-        className={`w-full h-full sm:h-[85vh] sm:max-w-xl sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-right sm:slide-in-from-bottom duration-300 relative border ${isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-100'}`}
+        className={`w-full h-full sm:h-[85vh] sm:max-w-xl sm:rounded-[3rem] shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden animate-in slide-in-from-right sm:slide-in-from-bottom duration-500 relative border ${isDark ? 'bg-[#0D0500] border-white/10' : 'bg-white border-gray-100'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <OrderServiceDetail

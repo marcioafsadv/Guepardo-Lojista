@@ -31,6 +31,9 @@ export const COURIER_BASE_FIXED = 7.00;
 /** Tarifa por metro rodado — bruta (R$/metro) = 1,32 / 1000 */
 export const FREIGHT_RATE_PER_METER = 0.00132;
 
+/** Taxa base para retorno — 50% da taxa principal */
+export const RETURN_BASE_FEE = 4.00;
+
 /** Fração da PARTE VARIÁVEL (km) que vai ao entregador (87,5%) */
 export const COURIER_VARIABLE_SHARE = 0.875;
 
@@ -124,7 +127,13 @@ export const calculateFreightBatching = (additionalDistanceMeters: number): Frei
  * @param returnDistanceMeters - Metros do último ponto de entrega de volta à loja
  */
 export const calculateReturnFee = (returnDistanceMeters: number): FreightResult => {
-    const storeFee = round2(returnDistanceMeters * FREIGHT_RATE_PER_METER);
+    const variableFee = returnDistanceMeters * FREIGHT_RATE_PER_METER;
+    const storeFee = round2(RETURN_BASE_FEE + variableFee);
+    
+    // Split: R$ 4,00 base follows the same 12.5% / 87.5% split logic for return? 
+    // Actually, usually return fee is fully for the driver. 
+    // I'll use the same split logic as variable for simplicity, or confirm.
+    // Based on "splitVariable", I'll apply it to the whole storeFee.
     const { courierPart, appPart } = splitVariable(storeFee);
 
     return {

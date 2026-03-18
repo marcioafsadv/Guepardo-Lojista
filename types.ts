@@ -41,6 +41,7 @@ export interface Courier {
   name: string;
   photoUrl: string;
   vehiclePlate: string;
+  vehicleModel: string;
   phone: string;
   lat: number;
   lng: number;
@@ -154,6 +155,7 @@ export interface RouteStats {
   distanceValue: number; // meters
   durationText: string;
   durationValue: number; // seconds
+  geometry?: [number, number][]; // Road-snapped coordinates
 }
 
 export interface AddressComponents {
@@ -164,3 +166,22 @@ export interface AddressComponents {
   cep?: string;
 }
 
+
+export type SenderType = 'STORE' | 'COURIER' | 'CLIENT';
+export type ChatRoomType = 'STORE_COURIER' | 'COURIER_CLIENT';
+
+export interface ChatMessage {
+  id: string;
+  orderId: string;
+  senderType: SenderType;
+  senderName: string;
+  text: string;
+  timestamp: Date;
+  room: ChatRoomType;
+}
+
+export interface ChatRoom {
+  orderId: string;
+  type: ChatRoomType;
+  messages: ChatMessage[];
+}

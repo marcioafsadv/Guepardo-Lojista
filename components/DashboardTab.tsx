@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { AppView } from './GlobalSidebar';
+import { DashboardExportTools } from './DashboardExportTools';
 
 interface DashboardTabProps {
   orders: Order[];
@@ -236,9 +237,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
   return (
     <div className="flex flex-col h-full bg-gray-200 dark:bg-guepardo-gray-900 overflow-y-auto transition-colors duration-300">
 
-      {/* HEADER & FILTERS */}
+      {/* HEADER & FILTERS - REORGANIZED: FILTERS LEFT, EXPORTS RIGHT */}
       <div className="px-8 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Painel Operacional</h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-status-green animate-pulse"></span>
@@ -246,6 +247,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
           </p>
         </div>
 
+        {/* FILTERS LEFT */}
         <div className="flex items-center gap-2">
           <div className="bg-white dark:bg-guepardo-gray-800 p-1 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center">
             <button
@@ -291,6 +293,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
               />
             </div>
           )}
+        </div>
+
+        {/* EXPORTS RIGHT */}
+        <div className="flex items-center justify-end">
+          <DashboardExportTools 
+            orders={filteredOrders} 
+            filterLabel={dateRange.label}
+            kpiData={kpiData}
+          />
         </div>
       </div>
 
@@ -347,7 +358,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
             </div>
             <div className="flex items-center gap-1 mt-1">
               <span className="text-[10px] font-bold text-guepardo-orange flex items-center gap-0.5" title="Total em Taxas Logísticas">
-                Taxas: R$ {kpiData.fees.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                Taxas: R$ {kpiData.fees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>

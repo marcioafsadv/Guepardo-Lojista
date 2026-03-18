@@ -1,13 +1,19 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
-import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle } from 'lucide-react';
+import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle, MessageSquare } from 'lucide-react';
 
 interface ActiveOrderCardProps {
   order: Order;
   storeLat: number;
   storeLng: number;
   onSimulateAccept?: (orderId: string) => void;
+  onChatClick?: (order: Order) => void;
+  onCardClick?: (order: Order) => void;
+  onTrackClick?: (order: Order) => void;
+  onValidateClick?: (order: Order) => void;
+  onConfirmReturn?: (orderId: string) => void;
+  routeStats?: any;
 }
 
 // Helper for distance
@@ -29,7 +35,9 @@ const BASE_STEPS = [
   { status: OrderStatus.DELIVERED, label: 'Entregue' }
 ];
 
-export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLat, storeLng, onSimulateAccept }) => {
+export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ 
+  order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, routeStats
+}) => {
   const [secondsWaiting, setSecondsWaiting] = useState(0);
 
   // Timer logic for Pending state
@@ -68,18 +76,28 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
 
   // Determine current step index
   const currentStepIndex = STEPS.findIndex(s => {
-    if (order.status === OrderStatus.TO_STORE) return s.status === OrderStatus.ACCEPTED;
+    if (order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) return s.status === OrderStatus.ACCEPTED;
     return s.status === order.status;
   });
 
   // 2. Calculate Telemetry (Live Distance & ETA)
   const telemetry = useMemo(() => {
+    // Preference 1: Real Mapbox Metrics
+    if (routeStats) {
+      return {
+        distKm: routeStats.distanceValue / 1000,
+        etaMins: Math.round(routeStats.durationValue / 60),
+        label: (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.RETURNING) ? "até a Loja" : "até o Cliente"
+      };
+    }
+
     if (!order.courier) return null;
 
+    // Preference 2: Straight-line Fallback
     let targetLat, targetLng, label;
 
     // Logic: If coming to store vs going to client
-    if (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.RETURNING) {
+    if (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.RETURNING) {
       targetLat = storeLat;
       targetLng = storeLng;
       label = "até a Loja";
@@ -94,38 +112,40 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
     const etaMins = Math.ceil((distKm / speedKmH) * 60);
 
     return { distKm, etaMins, label };
-  }, [order.courier, order.status, order.destinationLat, order.destinationLng, storeLat, storeLng]);
+  }, [order.courier, order.status, order.destinationLat, order.destinationLng, storeLat, storeLng, routeStats]);
 
 
   return (
     <div className={`
-      relative overflow-hidden transition-all duration-300 mb-4 p-5 rounded-2xl
-      bg-white dark:bg-[#1E1E1E] 
-      border-l-4 border-l-[#FFB800] 
-      shadow-[0_2px_8px_rgba(0,0,0,0.08)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.3)]
-    `}>
+      relative overflow-hidden transition-all duration-300 mb-4 p-6 rounded-[2rem]
+      bg-[#1A0900]/60 backdrop-blur-xl
+      border border-[#8B3A0F]/20 border-l-4 border-l-guepardo-accent
+      shadow-[0_20px_50px_rgba(0,0,0,0.5)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.98]
+    `}
+      onClick={() => onCardClick?.(order)}
+    >
 
       {/* Header: ID & Price */}
       <div className="flex justify-between items-start mb-4">
         <div>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300 text-[10px] font-mono font-bold uppercase tracking-wider mb-1.5">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-black/40 text-white/30 text-[10px] font-black uppercase tracking-[0.2em] mb-3 border border-white/5">
             #{order.display_id || order.id.slice(-4)}
           </span>
           {/* Client Name: High Contrast */}
-          <h3 className="font-bold text-[18px] leading-tight text-[#121212] dark:text-white font-sans">
+          <h3 className="font-black italic text-2xl tracking-tighter text-white leading-none">
             {order.clientName}
           </h3>
           {/* Address: Regular 12px */}
-          <p className="text-[12px] font-normal text-[#4A4A4A] dark:text-[#E0E0E0] mt-1 truncate max-w-[240px]">
+          <p className="text-xs font-black uppercase tracking-tighter text-white/40 mt-2 truncate max-w-[240px]">
             {order.destination}
           </p>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold text-[#121212] dark:text-white tracking-tight">
+          <div className="text-2xl font-black italic text-white tracking-tighter leading-none mb-1">
             R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           {order.changeFor && (
-            <div className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded inline-block mt-1">
+            <div className="text-[10px] font-black text-guepardo-accent bg-black/40 px-2 py-1 rounded-lg border border-guepardo-accent/20 uppercase tracking-wider">
               Troco p/ {order.changeFor}
             </div>
           )}
@@ -135,9 +155,9 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
       {/* STEPPER (Timeline) */}
       <div className="relative flex items-center justify-between mb-6 px-1">
         {/* Connecting Line */}
-        <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 dark:bg-gray-700 -z-0"></div>
+        <div className="absolute top-1/2 left-0 w-full h-1 bg-white/5 rounded-full -z-0"></div>
         <div
-          className="absolute top-1/2 left-0 h-0.5 bg-[#FFB800] -z-0 transition-all duration-1000"
+          className="absolute top-1/2 left-0 h-1 bg-guepardo-accent rounded-full -z-0 transition-all duration-1000 shadow-[0_0_10px_rgba(211,84,0,0.5)]"
           style={{ width: `${(currentStepIndex / (STEPS.length - 1)) * 100}%` }}
         ></div>
 
@@ -147,13 +167,13 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
 
           return (
             <div key={step.label} className="relative z-10 flex flex-col items-center group">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted
-                ? 'bg-[#FFB800] border-[#FFB800] text-black shadow-sm scale-110'
-                : 'bg-white dark:bg-[#2D2D2D] border-gray-200 dark:border-gray-600 text-gray-300 dark:text-gray-600'
-                } ${isCurrent ? 'ring-4 ring-[#FFB800]/20' : ''}`}>
-                {isCompleted ? <CheckCircle2 size={14} strokeWidth={3} /> : <Circle size={10} fill="currentColor" />}
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all duration-500 shadow-2xl ${isCompleted
+                ? 'bg-guepardo-accent border-guepardo-accent text-white scale-110 shadow-glow'
+                : 'bg-black/40 border-white/5 text-white/10'
+                } ${isCurrent ? 'ring-4 ring-guepardo-accent/30 animate-pulse' : ''}`}>
+                {isCompleted ? <CheckCircle2 size={16} strokeWidth={3} /> : <Circle size={10} fill="currentColor" />}
               </div>
-              <span className={`text-[9px] font-bold mt-2 uppercase tracking-wide ${isCurrent ? 'text-[#121212] dark:text-white' : 'text-gray-400 dark:text-gray-600'
+              <span className={`text-[8px] font-black mt-2 uppercase tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent' : 'text-white/20'
                 }`}>
                 {step.label}
               </span>
@@ -165,7 +185,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
       {/* STATUS CONTENT */}
       {order.status === OrderStatus.PENDING ? (
         /* SEARCHING STATE (RADAR) */
-        <div className="bg-yellow-50/50 dark:bg-yellow-900/10 rounded-xl p-4 border border-yellow-100 dark:border-yellow-500/20 flex flex-col items-center justify-center gap-3 text-center py-6 relative overflow-hidden">
+        <div className="bg-black/40 rounded-2xl p-6 border border-white/5 flex flex-col items-center justify-center gap-4 text-center py-8 relative overflow-hidden group/radar shadow-inner">
 
           {/* Radar Animation */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -173,69 +193,77 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
             <div className="absolute w-48 h-48 bg-yellow-400/10 dark:bg-yellow-400/20 rounded-full animate-ping delay-150"></div>
           </div>
 
-          <div className="bg-white dark:bg-[#2D2D2D] p-3 rounded-full shadow-lg relative z-10 animate-bounce-slow">
-            <Search size={24} className="text-[#F57C00] dark:text-[#FFB800]" />
+          <div className="w-16 h-16 bg-black/40 backdrop-blur-3xl rounded-3xl border border-white/5 flex items-center justify-center shadow-2xl relative z-10 group-hover/radar:scale-110 transition-transform duration-500">
+            <Search size={32} className="text-guepardo-accent drop-shadow-glow" />
           </div>
 
-          <div className="relative z-10">
-            <p className="text-sm font-bold text-[#121212] dark:text-white">Procurando Entregadores...</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Aguardando aceite na região</p>
-            <div className="mt-2 inline-block bg-[#121212] dark:bg-white text-white dark:text-[#121212] text-xs font-mono font-bold px-3 py-1 rounded-full">
-              ⏱ {formatTime(secondsWaiting)}
+          <div className="relative z-10 space-y-1">
+            <p className="text-base font-black italic text-white tracking-widest uppercase">Procurando Entregadores</p>
+            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Varredura de Proximidade Ativa</p>
+            <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow">
+              <Clock size={14} /> {formatTime(secondsWaiting)}
             </div>
           </div>
 
           {/* DEV SIMULATION BUTTON */}
           {onSimulateAccept && (
             <button
-              onClick={() => onSimulateAccept(order.id)}
-              className="mt-4 relative z-20 text-[10px] bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300 px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1"
+              onClick={(e) => { e.stopPropagation(); onSimulateAccept(order.id); }}
+              className="mt-6 relative z-20 text-[10px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 px-4 py-2 rounded-xl font-black uppercase tracking-widest transition-all scale-75 opacity-50 hover:opacity-100"
             >
-              <Bike size={12} />
-              [DEV] Simular Aceite
+              [DEBUG] FORÇAR ACEITE
             </button>
           )}
 
           {secondsWaiting > 120 && (
-            <div className="absolute bottom-2 left-0 right-0 mx-4 bg-red-100 text-red-700 text-[10px] p-2 rounded border border-red-200 flex items-center gap-2 justify-center animate-pulse z-20">
-              <AlertTriangle size={12} />
-              Alta demanda! Tentando expandir raio...
+            <div className="absolute bottom-4 left-4 right-4 bg-red-500/10 text-red-500 text-[10px] p-3 rounded-2xl border border-red-500/20 flex items-center gap-3 justify-center animate-pulse z-20 font-black uppercase tracking-wider">
+              <AlertTriangle size={14} />
+              ALTA DEMANDA! EXPANDINDO RAIO...
             </div>
           )}
         </div>
       ) : order.courier ? (
         /* COURIER INFO CARD - High Contrast Mode */
-        <div className="bg-gray-50 dark:bg-white rounded-xl p-3 border border-gray-200 dark:border-transparent relative overflow-hidden">
+        <div className="bg-black/40 rounded-2xl p-5 border border-white/5 relative overflow-hidden group/courier shadow-inner">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover/courier:bg-white/10 transition-colors"></div>
 
           <div className="flex items-center gap-3 relative z-10">
             <div className="relative">
               <img
                 src={order.courier.photoUrl}
                 alt={order.courier.name}
-                className="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-200 shadow-sm"
+                className="w-16 h-16 rounded-2xl object-cover border-2 border-[#8B3A0F]/30 shadow-[0_0_15px_rgba(211,84,0,0.2)] group-hover/courier:scale-105 transition-transform"
               />
-              <div className="absolute -bottom-1 -right-1 bg-green-500 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-100"></div>
+              <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-[#1A0900] shadow-glow-green"></div>
             </div>
 
             <div className="flex-1">
               <div className="flex justify-between items-center">
-                {/* Courier Name: Dark text always since bg is light in both modes (Gray-50 or White) */}
-                <p className="text-sm font-bold text-[#121212]">{order.courier.name}</p>
-                <span className="bg-white dark:bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase border border-gray-200 dark:border-transparent">
-                  {order.courier.vehiclePlate}
-                </span>
+                <p className="text-base font-black italic text-white tracking-tighter">{order.courier.name}</p>
+                <div className="flex items-center gap-2">
+                   {order.status === OrderStatus.ARRIVED_AT_STORE && (
+                     <span className="animate-pulse bg-orange-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase">Na Loja</span>
+                   )}
+                  <span className="bg-black/40 text-white/40 px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-white/5 tracking-widest shadow-inner">
+                    {order.courier.vehiclePlate}
+                  </span>
+                </div>
               </div>
 
               {/* Telemetry Row */}
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-3 mt-3">
                 {telemetry && (
                   <>
-                    <div className={`flex items-center gap-1 text-xs font-bold bg-white dark:bg-gray-100 px-2 py-1 rounded shadow-sm border border-gray-100 dark:border-transparent ${order.status === OrderStatus.IN_TRANSIT ? 'text-green-600' : 'text-blue-600'
+                    <div className={`flex items-center gap-2 text-[10px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border ${order.status === OrderStatus.IN_TRANSIT 
+                        ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-glow-green' 
+                        : (order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) 
+                        ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-glow'
+                        : 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-glow-blue'
                       }`}>
-                      <Clock size={12} strokeWidth={2.5} />
+                      <Clock size={12} strokeWidth={3} />
                       {telemetry.etaMins} min
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-800 font-medium">
+                    <div className="flex items-center gap-2 text-[10px] text-white/30 font-black italic uppercase tracking-tighter">
                       <MapPin size={12} />
                       {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
                     </div>
@@ -245,16 +273,47 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ order, storeLa
             </div>
           </div>
 
-          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-200">
-            <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-white dark:bg-gray-100 border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors text-xs font-bold shadow-sm">
-              <Phone size={14} />
+          <div className="flex gap-3 mt-6">
+            <button 
+              onClick={(e) => { e.stopPropagation(); }}
+              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-black/40 border border-white/5 text-white hover:bg-white/5 transition-all text-xs font-black uppercase tracking-wider shadow-2xl"
+            >
+              <Phone size={14} strokeWidth={3} />
               Ligar
             </button>
-            {/* Status / Track Button - High Contrast Yellow */}
-            <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-[#FFB800] text-black hover:bg-[#F57C00] hover:text-white transition-all text-xs font-bold shadow-sm">
-              <Navigation size={14} />
-              Acompanhar
+            <button 
+              onClick={(e) => { e.stopPropagation(); onChatClick?.(order); }}
+              className="w-12 h-12 bg-black/40 hover:bg-white/5 text-white rounded-xl border border-white/5 transition-all flex items-center justify-center relative shadow-2xl group/chat"
+            >
+              <MessageSquare size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-guepardo-accent rounded-full border-2 border-[#121212]"></div>
             </button>
+            
+            {order.status === OrderStatus.RETURNING ? (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onConfirmReturn?.(order.id); }}
+                className="flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow-green"
+              >
+                <CheckCircle2 size={14} strokeWidth={3} />
+                Finalizar
+              </button>
+            ) : (
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) {
+                    onValidateClick?.(order);
+                  } else {
+                    onTrackClick?.(order);
+                  }
+                }}
+                className={`flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl text-white hover:brightness-110 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow 
+                  ${(order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'bg-green-600 shadow-glow-green' : 'bg-brand-gradient'}`}
+              >
+                <Navigation size={14} strokeWidth={3} />
+                { (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }
+              </button>
+            )}
           </div>
         </div>
       ) : null}

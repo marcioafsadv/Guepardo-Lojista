@@ -505,6 +505,7 @@ function App() {
                                 id: profile.id,
                                 name: profile.full_name || 'Entregador',
                                 vehiclePlate: v?.plate || '---',
+                                vehicleModel: v?.model || '---',
                                 photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
                                 phone: profile.phone || '',
                                 lat: profile.current_lat || 0,
@@ -575,6 +576,7 @@ function App() {
                             id: p.id,
                             name: p.full_name || 'Entregador',
                             vehiclePlate: v?.plate || '---',
+                            vehicleModel: v?.model || '---',
                             photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
                             phone: p.phone || '',
                             lat: p.current_lat || 0,
@@ -1116,6 +1118,7 @@ function App() {
         } catch (err) {
             console.error("❌ Error marking order(s) as ready:", err);
             setNotification({ title: "Erro", message: "Falha ao atualizar status no sistema." });
+            setTimeout(() => setNotification(null), 4000);
         }
     };
 
@@ -1164,10 +1167,12 @@ function App() {
         } catch (err) {
             console.error("❌ Error validating order(s) in DB:", err);
             setNotification({ title: "Erro", message: "Falha ao validar no sistema." });
+            setTimeout(() => setNotification(null), 4000);
         }
 
         // playAlert(); // REMOVED: Only arrive at store should play
         setNotification({ title: "Segurança Confirmada", message: "Pedido(s) despachado(s) com sucesso." });
+        setTimeout(() => setNotification(null), 4000);
     };
 
     // NEW: HANDLE CONFIRM RETURN (Finalize Logic)
@@ -1226,10 +1231,12 @@ function App() {
         } catch (err) {
             console.error("❌ Error finalizing order(s) in DB:", err);
             setNotification({ title: "Erro", message: "Falha ao finalizar no sistema." });
+            setTimeout(() => setNotification(null), 4000);
         }
 
         // playAlert(); // REMOVED: Only arrive at store should play
         setNotification({ title: "Logística Reversa Concluída", message: "Devolução confirmada. Pedido(s) encerrado(s)." });
+        setTimeout(() => setNotification(null), 4000);
     };
 
     // NEW: HANDLE CANCEL ORDER
@@ -1290,6 +1297,7 @@ function App() {
             } catch (err) {
                 console.error("❌ Error cancelling order in DB:", err);
                 setNotification({ title: "Erro", message: "Falha ao cancelar no servidor." });
+                setTimeout(() => setNotification(null), 4000);
             }
         };
         cancelOrderInDB();
@@ -1329,6 +1337,7 @@ function App() {
             setSelectedOrderDetails(null);
 
             setNotification({ title: "Banco Zerado", message: "Histórico e pedidos removidos com sucesso." });
+            setTimeout(() => setNotification(null), 4000);
 
             // SOFT RESET: Save timestamp to ignore older data (Double safety against RLS failures)
             const now = new Date().toISOString();
@@ -1343,6 +1352,7 @@ function App() {
             setLastResetDate(now);
             setOrders([]); // Force clear
             setNotification({ title: "Banco Zerado (Local)", message: "Limpeza visual realizada." });
+            setTimeout(() => setNotification(null), 4000);
         }
     };
 
@@ -1595,13 +1605,15 @@ function App() {
                 currentView={currentView}
                 onChangeView={setCurrentView}
                 hasActiveOrders={activeOrdersList.length > 0}
+                storeProfile={realStoreProfile || STORE_PROFILE}
+                onToggleStatus={toggleStoreStatus}
             />
 
             {/* MAIN CONTENT AREA */}
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
 
                 {/* GLOBAL HEADER */}
-                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} onToggleStatus={toggleStoreStatus} />
+                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} onToggleStatus={toggleStoreStatus} onSelectView={setCurrentView} />
 
                 <div className="flex-1 overflow-hidden relative flex flex-col">
 
@@ -1648,6 +1660,7 @@ function App() {
                             onValidatePickup={handleValidatePickup}
                             onCancelOrder={handleCancelOrder}
                             onConfirmReturn={handleConfirmReturn}
+                            mapboxToken={MAPBOX_TOKEN}
                             onResetDatabase={handleResetDatabase}
                             onBulkAssign={handleBulkAssign}
                             theme={settings.mapTheme}
@@ -1687,7 +1700,7 @@ function App() {
                 order={selectedOrderDetails}
                 storeProfile={realStoreProfile || STORE_PROFILE}
                 onClose={() => setSelectedOrderDetails(null)}
-                theme={settings.theme}
+                theme="dark"
             />
 
             <ClientHistoryModal

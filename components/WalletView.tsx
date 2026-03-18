@@ -49,11 +49,12 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
 
                 {/* Balance Card - PREMIUM */}
-                <div className="lg:col-span-2 relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-brand-gradient-premium opacity-90 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"></div>
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
+                <div className="lg:col-span-2 relative overflow-hidden group rounded-3xl border border-white/10 hover:border-emerald-500/50 transition-all duration-500 shadow-2xl">
+                    <div className="absolute inset-0 bg-brand-gradient-green-premium opacity-95 group-hover:opacity-100 transition-opacity duration-500"></div>
+                    <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] group-hover:bg-emerald-500/30 transition-all duration-700"></div>
+                    <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px]"></div>
 
-                    <div className="relative p-10 flex flex-col justify-between h-full min-h-[240px]">
+                    <div className="relative p-10 flex flex-col justify-between h-full min-h-[260px]">
                         <div>
                             <span className="text-white/60 text-xs font-bold uppercase tracking-widest">Saldo Disponível</span>
                             <div className="flex items-baseline gap-2 mt-2">
@@ -67,8 +68,9 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                         <div className="flex gap-4 mt-8">
                             <button
                                 onClick={() => setIsRechargeModalOpen(true)}
-                                className="group relative bg-[#E26D21] hover:bg-[#F37E32] text-white px-8 py-4 rounded-2xl font-black italic text-lg shadow-2xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3"
+                                className="group relative bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-5 rounded-2xl font-black italic text-lg shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-3 overflow-hidden"
                             >
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
                                 RECARREGAR AGORA
                             </button>
@@ -82,34 +84,34 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                 </div>
 
                 {/* Quick Stats */}
-                <div className="bg-white/5 border border-white/10 rounded-3xl p-8 flex flex-col justify-between">
+                <div className="bg-guepardo-gray-800/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col justify-between hover:border-white/20 transition-colors shadow-xl">
                     <div>
                         <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Uso este mês</span>
-                        <div className="mt-4 flex flex-col gap-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
-                                        <TrendingUp size={20} />
+                        <div className="mt-6 flex flex-col gap-8">
+                            <div className="flex items-center justify-between group/stat">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-green-500/10 rounded-xl text-green-500 group-hover/stat:bg-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(34,197,94,0.2)] transition-all">
+                                        <TrendingUp size={22} />
                                     </div>
-                                    <span className="text-sm font-medium text-white/70">Entradas</span>
+                                    <span className="text-sm font-bold text-white/80">Entradas</span>
                                 </div>
-                                <span className="font-bold text-green-500">+ R$ 150,00</span>
+                                <span className="text-xl font-black text-green-500 tracking-tight">+ R$ 150,00</span>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-red-500/10 rounded-lg text-red-500">
-                                        <ArrowDownRight size={20} />
+                            <div className="flex items-center justify-between group/stat">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-red-500/10 rounded-xl text-red-500 group-hover/stat:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(239,68,68,0.2)] transition-all">
+                                        <ArrowDownRight size={22} />
                                     </div>
-                                    <span className="text-sm font-medium text-white/70">Saídas</span>
+                                    <span className="text-sm font-bold text-white/80">Saídas</span>
                                 </div>
-                                <span className="font-bold text-red-400">- R$ 15,50</span>
+                                <span className="text-xl font-black text-red-400 tracking-tight">- R$ 15,50</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-8 pt-8 border-t border-white/5">
-                        <p className="text-[10px] text-white/30 uppercase font-bold text-center">
+                        <p className="text-[10px] text-white/30 uppercase font-black text-center tracking-tighter">
                             Taxas de transação podem ser aplicadas pelo Asaas
                         </p>
                     </div>
@@ -117,24 +119,28 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden flex-1 flex flex-col">
-                <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                    <h3 className="font-black italic tracking-tight flex items-center gap-2">
-                        <History size={18} className="text-guepardo-accent" />
+            <div className="bg-guepardo-gray-800/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex-1 flex flex-col shadow-2xl">
+                <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                    <h3 className="font-black italic tracking-tight flex items-center gap-3 text-lg">
+                        <div className="p-2 bg-guepardo-accent/10 rounded-lg shadow-[0_0_15px_rgba(211,84,0,0.15)]">
+                            <History size={20} className="text-guepardo-accent" />
+                        </div>
                         ÚLTIMAS MOVIMENTAÇÕES
                     </h3>
-                    <div className="text-xs text-white/40 font-medium">Exibindo últimas 20 transações</div>
+                    <div className="text-[10px] text-white/30 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                        Exibindo últimas 20 transações
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead className="bg-black/20 text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">
+                        <thead className="bg-[#1A0900]/40 text-[10px] font-black text-white/40 uppercase tracking-[0.25em] border-b border-white/5">
                             <tr>
-                                <th className="px-8 py-4">Data/Hora</th>
-                                <th className="px-8 py-4">Descrição</th>
-                                <th className="px-8 py-4">Método</th>
-                                <th className="px-8 py-4 text-center">Status</th>
-                                <th className="px-8 py-4 text-right">Valor</th>
+                                <th className="px-8 py-5">Data/Hora</th>
+                                <th className="px-8 py-5">Descrição</th>
+                                <th className="px-8 py-5">Método</th>
+                                <th className="px-8 py-5 text-center">Status</th>
+                                <th className="px-8 py-5 text-right">Valor</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
@@ -156,10 +162,10 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-2">
-                                            {tx.method === 'PIX' && <QrCode size={14} className="text-blue-400" />}
-                                            {tx.method === 'CARD' && <CreditCard size={14} className="text-purple-400" />}
-                                            {tx.method === 'BALANCE' && <Wallet size={14} className="text-orange-400" />}
-                                            <span className="text-xs font-bold text-white/60 uppercase">{tx.method}</span>
+                                            {tx.method === 'PIX' && <QrCode size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.3)]" />}
+                                            {tx.method === 'CARD' && <CreditCard size={16} className="text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.3)]" />}
+                                            {tx.method === 'BALANCE' && <Wallet size={16} className="text-guepardo-accent drop-shadow-[0_0_8px_rgba(211,84,0,0.3)]" />}
+                                            <span className="text-xs font-black text-white/70 uppercase tracking-tight">{tx.method}</span>
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-center">

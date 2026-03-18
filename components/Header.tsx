@@ -6,9 +6,10 @@ interface HeaderProps {
     storeProfile: StoreProfile;
     notificationCount?: number;
     onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
+    onSelectView?: (view: any) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0, onToggleStatus }) => {
+export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0, onToggleStatus, onSelectView }) => {
     const isOpen = storeProfile.status === 'aberta';
 
     const handleToggle = () => {
@@ -20,73 +21,40 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
     return (
         <header className="h-20 bg-brand-gradient-premium border-b border-white/10 flex items-center justify-between px-6 shrink-0 relative z-40 transition-colors duration-300 shadow-sm">
 
-            <div className="flex items-center gap-8">
+            {/* LEFT SIDE (Empty to allow centering) */}
+            <div className="flex-1" />
 
-
-                {/* CLIENT WIDGET (Padaria Rebeca) */}
-                <div
-                    onClick={handleToggle}
-                    className={`flex items-center gap-3 border rounded-full py-1.5 pl-1.5 pr-4 transition-all cursor-pointer group select-none
-                    ${isOpen
-                            ? 'bg-black/40 hover:bg-black/50 backdrop-blur-md border-white/10 hover:border-white/20'
-                            : 'bg-red-500/20 hover:bg-red-500/30 border-red-500/30 hover:border-red-500/40' // Closed State Style
-                        }`}
-                >
-                    {/* Client Logo/Avatar */}
-                    <div className={`w-8 h-8 rounded-full border-2 overflow-hidden relative transition-colors flex items-center justify-center ${isOpen ? 'bg-white border-white/20' : 'bg-red-900/50 border-red-500/50 grayscale'}`}>
-                        <Store className={`w-5 h-5 transition-colors ${isOpen ? 'text-black' : 'text-red-300'}`} />
-                    </div>
-
-                    {/* Client Info */}
-                    <div className="flex flex-col">
-                        <span className={`text-sm font-bold leading-none transition-colors text-shadow-sm ${isOpen ? 'text-white group-hover:text-white' : 'text-red-100'}`}>
-                            {storeProfile.name}
-                        </span>
-                        <span className={`text-[10px] flex items-center gap-1 mt-0.5 font-medium ${isOpen ? 'text-white/90' : 'text-red-200'}`}>
-                            {isOpen ? 'Loja aberta' : 'Loja fechada'}
-                            <span className={`w-1.5 h-1.5 rounded-full ml-0.5 shadow-glow-sm ${isOpen ? 'bg-white animate-pulse' : 'bg-red-500'}`}></span>
-                        </span>
-                    </div>
-
-                    {/* Dropdown Icon */}
-                    <ChevronDown size={14} className={`ml-2 transition-transform duration-300 ${isOpen ? 'text-white/70 group-hover:text-white' : 'text-red-300 rotate-180'}`} />
-                </div>
-            </div>
-
-            {/* CENTER BRAND LOGO */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-auto flex items-center justify-center group cursor-pointer">
-                <div className="relative h-full w-auto flex items-center gap-3">
-                    <div className="absolute inset-0 bg-white/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 w-[120%] -left-[10%]"></div>
-                    <img src="/cheetah-scooter.png" alt="Guepardo" className="h-14 w-auto object-contain transform group-hover:scale-110 transition-transform duration-300 drop-shadow-md" />
-                    <div className="flex flex-col items-start">
-                        <span className="text-white font-black italic text-xl leading-none tracking-tighter shadow-sm">GUEPARDO</span>
-                        <span className="text-[#FF6B00] font-bold text-[9px] leading-none tracking-[0.3em] mt-0.5 shadow-sm">DELIVERY</span>
-                    </div>
-                </div>
+            {/* CENTER - MANTIDAMENTE VAZIO (Widget movido para a barra lateral) */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
             </div>
 
             {/* RIGHT SIDE ACTIONS */}
-            <div className="flex items-center gap-4">
-
-
-                {/* Wallet Balance Display */}
-                <div className="flex items-center gap-3 px-4 py-2 bg-white/5 border border-white/10 rounded-2xl group cursor-pointer hover:bg-white/10 transition-all shadow-inner">
-                    <div className="p-2 bg-guepardo-accent rounded-xl text-white shadow-lg shadow-guepardo-accent/20 group-hover:scale-110 transition-transform">
-                        <Zap size={16} className="fill-current" />
+            <div className="flex-1 flex items-center justify-end gap-4">
+                
+                {/* Wallet Balance Display - RELUZENTE STYLE & CLICKABLE */}
+                <div 
+                    onClick={() => onSelectView?.('wallet')}
+                    className="flex items-center gap-3 px-5 py-2.5 bg-black/80 backdrop-blur-xl border-2 border-[#FF6B00] rounded-2xl group cursor-pointer hover:bg-black transition-all shadow-[0_0_20px_rgba(255,107,0,0.25)] relative overflow-hidden"
+                >
+                    {/* Glowing highlight animation */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FF6B00]/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    
+                    <div className="p-2 bg-[#FF6B00] rounded-xl text-white shadow-[0_0_15px_rgba(255,107,0,0.4)] group-hover:scale-110 transition-transform">
+                        <Zap size={18} className="fill-current" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest leading-none mb-1">Saldo</span>
-                        <span className="text-sm font-black italic tracking-tighter text-white leading-none tabular-nums">
+                        <span className="text-[9px] font-bold text-white/40 uppercase tracking-[0.2em] leading-none mb-1">Saldo</span>
+                        <span className="text-lg font-black italic tracking-tighter text-white leading-none tabular-nums drop-shadow-[0_0_8px_rgba(255,107,0,0.3)]">
                             R$ {(storeProfile.wallet_balance || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                     </div>
                 </div>
 
                 {/* Notification Bell */}
-                <button className="relative w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white hover:text-white transition-colors border border-transparent hover:border-white/10 group">
-                    <Bell size={20} />
+                <button className="relative w-12 h-12 rounded-full bg-black/80 hover:bg-black border-2 border-white/5 hover:border-[#FF6B00]/50 flex items-center justify-center text-white transition-all group shadow-lg">
+                    <Bell size={22} className="group-hover:rotate-12 transition-transform" />
                     {notificationCount > 0 && (
-                        <span className="absolute top-2 right-2.5 w-2 h-2 bg-white rounded-full border border-guepardo-accent shadow-sm"></span>
+                        <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-[#FF6B00] rounded-full border-2 border-black shadow-[0_0_8px_#FF6B00]"></span>
                     )}
                 </button>
             </div>

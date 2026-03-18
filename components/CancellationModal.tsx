@@ -4,13 +4,13 @@ import { Order, OrderStatus } from '../types';
 import { X, AlertTriangle, Trash2, Info, DollarSign } from 'lucide-react';
 
 interface CancellationModalProps {
-    isOpen: boolean;
+    order: Order;
     onClose: () => void;
     onConfirm: (orderId: string, reason: string) => void;
-    order: Order | null;
 }
 
-export const CancellationModal: React.FC<CancellationModalProps> = ({ isOpen, onClose, onConfirm, order }) => {
+export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onClose, onConfirm }) => {
+    const isOpen = !!order;
     const [reason, setReason] = useState<string>('');
     const [customReason, setCustomReason] = useState<string>('');
 

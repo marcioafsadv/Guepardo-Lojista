@@ -190,7 +190,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           : 0;
 
         // 3. Optional Return: (meters * 0.00132 * 0.875)
-        const retResult = (isReturnRequired && (settings.returnFeeActive ?? true))
+        const retResult = (isReturnRequired && (settings?.returnFeeActive ?? true))
           ? calculateReturnFee(dm)
           : null;
 
@@ -269,7 +269,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
         console.log("📡 [DeliveryForm] Debouncer: empty street, clearing map");
         onAddressChange('');
       }
-    }, 1000); // 1 second debounce
+    }, 600); // 0.6 second debounce (optimized for real-time feel)
 
     return () => clearTimeout(timer);
   }, [street, number, neighborhood, cityState, cep, onAddressChange]);
@@ -389,7 +389,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
   // ── Taxa de retorno ───────────────────────────────────────────────────
   // R$4,50 base + R$1,44/km sobre a distância do retorno (mesma rota de ida).
-  const returnFeeActive = settings.returnFeeActive ?? true;
+  const returnFeeActive = settings?.returnFeeActive ?? true;
   const returnFeeResult = (isReturnRequired && returnFeeActive)
     ? calculateReturnFee(distanceMeters)
     : null;
@@ -417,19 +417,22 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   const changeNeeded = calculateChangeNeeded();
 
   return (
-    <div className="w-full flex flex-col relative" ref={wrapperRef}>
+    <div className="w-full flex flex-col relative bg-[#1A0900]/95 backdrop-blur-3xl border border-[#8B3A0F]/30 rounded-[2.5rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" ref={wrapperRef}>
 
       {/* COMPACT HEADER */}
       <div
-        className="flex items-center justify-between mb-4 pb-2 border-b border-warm-200 dark:border-white/10 cursor-pointer select-none"
+        className="flex items-center justify-between mb-6 pb-4 border-b border-white/10 cursor-pointer select-none group"
         onClick={() => setIsFormCollapsed(prev => !prev)}
         title={isFormCollapsed ? 'Expandir formulário' : 'Minimizar formulário'}
       >
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 bg-guepardo-accent/10 rounded-lg text-guepardo-accent border border-guepardo-accent/20">
-            <Bike size={16} strokeWidth={2.5} />
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-guepardo-accent rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)] group-hover:shadow-[0_0_25px_rgba(211,84,0,0.6)] transition-all duration-300">
+            <Bike size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
           </div>
-          <h2 className="text-sm font-bold text-warm-800 dark:text-white leading-none">Chamar Guepardo</h2>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Logística Express</span>
+            <h2 className="text-xl font-black italic text-white tracking-tighter leading-none">Chamar Guepardo</h2>
+          </div>
         </div>
         <button
           type="button"
@@ -453,13 +456,13 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
           {/* CUSTOMER SEARCH / NAME */}
           <div className="relative group/input z-50">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <User className="text-gray-500 group-focus-within/input:text-guepardo-accent transition-colors" size={16} />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <User className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={18} />
             </div>
             <input
               type="text"
               placeholder="Nome (Busca Automática)"
-              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium text-warm-800 dark:text-white placeholder-warm-500"
+              className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
               value={clientName}
               onChange={(e) => {
                 setClientName(e.target.value);
@@ -503,13 +506,13 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
           {/* PHONE / WHATSAPP */}
           <div className="relative group/input z-40">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Phone className="text-gray-500 group-focus-within/input:text-guepardo-accent transition-colors" size={16} />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Phone className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={18} />
             </div>
             <input
               type="tel"
               placeholder="Telefone / WhatsApp"
-              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all font-medium text-warm-800 dark:text-white placeholder-warm-500"
+              className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
               value={clientPhone}
               onChange={(e) => {
                 // Basic phone mask (digits only)
@@ -534,12 +537,12 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           )}
 
           {/* ADDRESS ROW 1 */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <div className="relative group/input w-1/3 min-w-[90px]">
               <input
                 type="text"
                 placeholder="CEP"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={cep}
                 onChange={handleCepChange}
                 maxLength={9}
@@ -550,7 +553,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Rua"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 required
@@ -559,13 +562,13 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           </div>
 
           {/* ADDRESS ROW 2 */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <div className="relative group/input w-1/4">
               <input
                 ref={numberInputRef}
                 type="text"
                 placeholder="Nº"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
                 required
@@ -575,7 +578,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Comp (apto, bloco...)"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={complement}
                 onChange={(e) => setComplement(e.target.value)}
               />
@@ -583,12 +586,12 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           </div>
 
           {/* ADDRESS ROW 3: Neighborhood & City (Visible fallback) */}
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <div className="relative group/input flex-1">
               <input
                 type="text"
                 placeholder="Bairro"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
                 required
@@ -598,7 +601,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Cidade/UF"
-                className="w-full px-3 py-2 bg-white dark:bg-warm-800 border border-warm-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-warm-800 dark:text-white placeholder-warm-500"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={cityState}
                 onChange={(e) => setCityState(e.target.value)}
                 required
@@ -607,15 +610,15 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           </div>
 
           {/* FINANCEIROS - LINHA 1: VALOR E METODO */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div className="relative group/input">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-gray-500 text-xs font-bold">R$</span>
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="text-white/20 text-xs font-black">R$</span>
               </div>
               <input
                 type="number"
                 placeholder="Valor"
-                className="w-full pl-8 pr-3 py-2 bg-white dark:bg-guepardo-gray-800 border border-stone-300 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 font-bold text-stone-800 dark:text-white placeholder-stone-500"
+                className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
                 value={deliveryValue}
                 onChange={(e) => setDeliveryValue(e.target.value)}
               />
@@ -628,15 +631,15 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   setPaymentMethod(e.target.value as any);
                   if (e.target.value !== 'CASH') setChangeFor('');
                 }}
-                className="w-full px-3 py-2 bg-white dark:bg-guepardo-gray-800 border border-stone-300 dark:border-white/10 rounded-lg text-xs font-bold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-stone-800 dark:text-gray-200 appearance-none"
+                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-xs font-black italic focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white appearance-none"
               >
                 <option value="PIX">PIX</option>
                 <option value="CARD">Cartão (Maq.)</option>
                 <option value="CASH">Dinheiro</option>
               </select>
               {/* Custom Arrow */}
-              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-gray-500"></div>
+              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-white/20"></div>
               </div>
             </div>
           </div>
@@ -644,20 +647,20 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           {/* CAMPO DE TROCO - APARECE APENAS EM DINHEIRO */}
           {paymentMethod === 'CASH' && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-              <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/30 rounded-lg p-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
+              <div className="bg-guepardo-accent/5 border border-guepardo-accent/20 rounded-[1.5rem] p-5 space-y-3">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
-                    <label className="text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
-                      <Banknote size={12} /> Troco para quanto?
+                    <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
+                      <Banknote size={14} /> Troco para quanto?
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-orange-500 text-xs font-bold">R$</span>
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span className="text-guepardo-accent text-xs font-black">R$</span>
                       </div>
                       <input
                         type="number"
                         placeholder="Ex: 50.00"
-                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-guepardo-gray-800 border-2 border-orange-200 dark:border-orange-900/50 rounded-lg text-sm font-bold focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition-all text-stone-800 dark:text-white placeholder-orange-300"
+                        className="w-full pl-11 pr-4 py-3 bg-black/40 border-2 border-guepardo-accent/20 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white placeholder-guepardo-accent/30"
                         value={changeFor}
                         onChange={(e) => setChangeFor(e.target.value)}
                         required
@@ -665,14 +668,14 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     </div>
                   </div>
                   <div className="shrink-0 text-right pt-4">
-                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-tighter leading-none mb-1">Troco Total</p>
-                    <p className={`text-lg font-black leading-none ${changeNeeded > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-stone-300'}`}>
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-tighter leading-none mb-2">Troco Total</p>
+                    <p className={`text-2xl font-black italic tracking-tighter leading-none ${changeNeeded > 0 ? 'text-guepardo-accent' : 'text-white/10'}`}>
                       R$ {changeNeeded.toFixed(2)}
                     </p>
                   </div>
                 </div>
                 {changeNeeded > 0 && (
-                  <p className="text-[9px] text-orange-600/80 dark:text-orange-400/80 font-medium italic">
+                  <p className="text-[10px] text-guepardo-accent/60 font-black italic uppercase tracking-wider">
                     * O entregador deverá levar R$ {changeNeeded.toFixed(2)} em espécie.
                   </p>
                 )}
@@ -682,31 +685,32 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
           {/* ADDITIONAL STOPS */}
           {additionalStops.length > 0 && (
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-bold text-guepardo-accent uppercase tracking-widest">Paradas Adicionais ({additionalStops.length})</span>
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between px-2">
+                <span className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em]">Paradas Adicionais ({additionalStops.length})</span>
               </div>
               {additionalStops.map((stop, index) => (
-                <div key={stop.id} className="bg-white dark:bg-white/5 border border-warm-200 dark:border-white/10 rounded-xl p-3 space-y-3 relative animate-in slide-in-from-right-2 duration-300">
+                <div key={stop.id} className="bg-[#1A0900]/40 border border-[#8B3A0F]/20 rounded-[1.5rem] p-5 space-y-4 relative animate-in slide-in-from-right-4 duration-500 overflow-hidden group/stop">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-guepardo-accent/5 rounded-full -mr-12 -mt-12 blur-2xl group-hover/stop:bg-guepardo-accent/10 transition-colors"></div>
                   <button
                     type="button"
                     onClick={() => removeStop(stop.id)}
-                    className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition-colors"
+                    className="absolute top-4 right-4 text-white/20 hover:text-red-500 transition-colors z-10"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={16} />
                   </button>
 
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">Parada #{index + 1}</p>
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">Parada #{index + 1}</p>
 
                   {/* NOME DO CLIENTE */}
                   <div className="relative group/input">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="text-gray-400 group-focus-within/input:text-guepardo-accent transition-colors" size={12} />
+                      <User className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={14} />
                     </div>
                     <input
                       type="text"
                       placeholder="Nome do Cliente"
-                      className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.clientName}
                       onChange={(e) => {
                         updateStop(stop.id, 'clientName', e.target.value);
@@ -751,12 +755,12 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   {/* TELEFONE */}
                   <div className="relative group/input">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="text-gray-400 group-focus-within/input:text-guepardo-accent transition-colors" size={12} />
+                      <Phone className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={14} />
                     </div>
                     <input
                       type="tel"
                       placeholder="Telefone / WhatsApp"
-                      className="w-full pl-8 pr-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.clientPhone}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '');
@@ -770,11 +774,11 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   </div>
 
                   {/* CEP E RUA */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <input
                       type="text"
                       placeholder="CEP"
-                      className="w-24 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="w-28 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.addressCep}
                       onChange={(e) => {
                         let val = e.target.value.replace(/\D/g, '');
@@ -800,7 +804,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="text"
                       placeholder="Rua"
-                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="flex-1 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.addressStreet}
                       onChange={(e) => updateStop(stop.id, 'addressStreet', e.target.value)}
                       required
@@ -808,11 +812,11 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   </div>
 
                   {/* NÚMERO E COMPLEMENTO */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <input
                       type="text"
                       placeholder="Nº"
-                      className="w-16 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white text-center"
+                      className="w-16 px-3 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic text-center"
                       value={stop.addressNumber}
                       onChange={(e) => updateStop(stop.id, 'addressNumber', e.target.value)}
                       required
@@ -820,18 +824,18 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="text"
                       placeholder="Complemento"
-                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="flex-1 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.addressComplement}
                       onChange={(e) => updateStop(stop.id, 'addressComplement', e.target.value)}
                     />
                   </div>
 
                   {/* BAIRRO E CIDADE */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <input
                       type="text"
                       placeholder="Bairro"
-                      className="flex-1 px-3 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="flex-1 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.addressNeighborhood}
                       onChange={(e) => updateStop(stop.id, 'addressNeighborhood', e.target.value)}
                       required
@@ -839,7 +843,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="text"
                       placeholder="Cidade/UF"
-                      className="w-24 px-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 text-warm-800 dark:text-white"
+                      className="w-28 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
                       value={stop.addressCity}
                       onChange={(e) => updateStop(stop.id, 'addressCity', e.target.value)}
                       required
@@ -847,15 +851,15 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   </div>
 
                   {/* VALOR E FORMA DE PAGAMENTO */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <div className="flex-1 relative">
-                      <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                        <span className="text-gray-500 text-[10px] font-bold">R$</span>
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-white/20 text-[10px] font-black">R$</span>
                       </div>
                       <input
                         type="number"
                         placeholder="Valor"
-                        className="w-full pl-6 pr-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-xs focus:outline-none focus:border-orange-500 font-bold text-warm-800 dark:text-white placeholder-stone-500"
+                        className="w-full pl-8 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 font-black italic text-white placeholder-white/10"
                         value={stop.deliveryValue}
                         onChange={(e) => updateStop(stop.id, 'deliveryValue', e.target.value)}
                       />
@@ -863,7 +867,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <select
                       value={stop.paymentMethod}
                       onChange={(e) => updateStop(stop.id, 'paymentMethod', e.target.value)}
-                      className="w-24 px-2 py-1.5 bg-gray-50 dark:bg-warm-800 border border-warm-200 dark:border-white/10 rounded-md text-[10px] font-bold focus:outline-none focus:border-orange-500 text-warm-800 dark:text-gray-200 appearance-none"
+                      className="w-28 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-[10px] font-black italic focus:outline-none focus:border-guepardo-accent/50 text-white appearance-none"
                     >
                       <option value="PIX">PIX</option>
                       <option value="CARD">Cartão</option>
@@ -882,7 +886,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                         onChange={(e) => updateStop(stop.id, 'changeFor', e.target.value)}
                       />
                       {parseFloat(stop.changeFor) > parseFloat(stop.deliveryValue) && (
-                        <span className="text-[10px] font-bold text-orange-600">
+                        <span className="text-[10px] font-black text-guepardo-accent italic uppercase tracking-tighter">
                           Troco: R$ {(parseFloat(stop.changeFor) - (parseFloat(stop.deliveryValue) || 0)).toFixed(2)}
                         </span>
                       )}
@@ -898,14 +902,14 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             type="button"
             onClick={addStop}
             disabled={additionalStops.length >= 4}
-            className="w-full py-2 border-2 border-dashed border-warm-300 dark:border-white/10 rounded-xl text-xs font-bold text-warm-500 dark:text-gray-400 hover:border-guepardo-accent hover:text-guepardo-accent transition-all flex items-center justify-center gap-2 group mb-2"
+            className="w-full py-3 border-2 border-dashed border-white/10 rounded-[1.5rem] text-xs font-black text-white/30 hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4"
           >
-            <MapPin size={14} className="group-hover:animate-bounce" />
+            <MapPin size={16} className="group-hover:animate-bounce" />
             Adicionar Outra Parada (+)
           </button>
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-stone-500 dark:text-white/30 uppercase tracking-wider flex items-center gap-2">
-              <User className="w-3 h-3" />
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-2">
+              <User className="w-4 h-4 text-guepardo-accent" />
               Direcionar para Entregador
             </label>
             <div className="grid grid-cols-1 gap-2">
@@ -918,9 +922,9 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     onClearSelection();
                   }
                 }}
-                className={`w-full px-3 py-2 border rounded-lg text-xs font-bold focus:outline-none transition-all appearance-none ${targetCourierId
-                  ? 'bg-guepardo-accent/10 border-guepardo-accent text-guepardo-accent shadow-sm'
-                  : 'bg-white dark:bg-warm-800 border-warm-300 dark:border-white/10 text-warm-500 dark:text-gray-400'
+                className={`w-full px-4 py-3 border rounded-2xl text-xs font-black focus:outline-none transition-all appearance-none ${targetCourierId
+                  ? 'bg-guepardo-dark/40 border-guepardo-accent text-white shadow-[0_0_20px_rgba(211,84,0,0.3)]'
+                  : 'bg-black/40 border-white/5 text-white/40'
                   }`}
               >
                 <optgroup label="🚀 Chamada Geral" className="text-gray-900 bg-white">
@@ -928,7 +932,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 </optgroup>
 
                 {availableCouriers.length > 0 && (
-                  <optgroup label="📍 Disponíveis (Direto)" className="text-gray-900 bg-white">
+                  <optgroup label="📍 Disponíveis (Direto)" className="text-white bg-guepardo-dark">
                     {availableCouriers.map(courier => (
                       <option key={courier.id} value={courier.id}>
                         Guepardo: {courier.name} ({courier.vehiclePlate})
@@ -938,7 +942,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 )}
 
                 {activeCouriersWithOrders.length > 0 && (
-                  <optgroup label="👤 Em Rota / Batching (Adicionar)" className="text-gray-900 bg-white">
+                  <optgroup label="👤 Em Rota / Batching (Adicionar)" className="text-white bg-guepardo-dark">
                     {activeCouriersWithOrders
                       .filter(courier => {
                         const courierOrders = allOrders.filter(o => o.courier?.id === courier.id);
@@ -953,87 +957,96 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 )}
               </select>
               {targetCourierId && (
-                <p className="text-[10px] text-guepardo-accent font-bold flex items-center gap-1">
-                  <CheckCheck size={10} /> Chamada será direcionada exclusivamente ao Guepardo selecionado.
+                <p className="text-[10px] text-guepardo-accent font-black uppercase tracking-wider italic flex items-center gap-2">
+                  <CheckCheck size={12} /> Chamada será direcionada exclusivamente ao Guepardo selecionado.
                 </p>
               )}
             </div>
           </div>
 
           {/* RETURN TRIP TOGGLE & ALERTS */}
-          <div className="space-y-2 mt-1">
+          <div className="space-y-3 mt-2">
             {/* Toggle Switch for Return */}
-            <label className="flex items-center gap-3 p-2 rounded-lg bg-white dark:bg-white/5 border border-warm-300 dark:border-white/10 cursor-pointer hover:bg-warm-50 dark:hover:bg-white/10 transition-colors group">
-              <div className="relative">
+            <label className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
+              <div className="relative z-10">
                 <input
                   type="checkbox"
                   checked={isReturnRequired}
                   onChange={(e) => setIsReturnRequired(e.target.checked)}
                   className="sr-only"
                 />
-                <div className={`w-9 h-5 rounded-full shadow-inner transition-colors duration-200 ${isReturnRequired ? 'bg-orange-500' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                <div className={`absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${isReturnRequired ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                <div className={`w-10 h-6 rounded-full shadow-inner transition-colors duration-300 ${isReturnRequired ? 'bg-guepardo-accent' : 'bg-white/10'}`}></div>
+                <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-4' : 'translate-x-0'}`}></div>
               </div>
-              <div className="flex-1">
-                <p className={`text-xs font-bold ${isReturnRequired ? 'text-orange-700 dark:text-orange-400' : 'text-gray-500 dark:text-gray-300'}`}>Necessita Retorno à Loja?</p>
-                <p className="text-[9px] text-gray-400 dark:text-gray-500 leading-none">Ex: Maquininha, Recibo Assinado, Troca</p>
+              <div className="flex-1 relative z-10">
+                <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
+                <p className="text-[10px] text-white/10 font-black tracking-tighter uppercase">Ex: Maquininha, Recibo Assinado, Troca</p>
               </div>
             </label>
 
             {/* Price Alert: Return Required */}
             {isReturnRequired && (
-              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800/30 rounded-lg p-2.5 flex items-start gap-2 animate-in fade-in">
-                <ArrowLeftRight size={14} className="text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+              <div className="bg-guepardo-accent/5 border border-guepardo-accent/20 rounded-2xl p-4 flex items-start gap-4 animate-in fade-in zoom-in-95 duration-500">
+                <div className="w-8 h-8 bg-guepardo-accent/20 rounded-lg flex items-center justify-center text-guepardo-accent shrink-0">
+                  <ArrowLeftRight size={16} />
+                </div>
                 <div>
-                  <p className="text-[10px] font-bold text-orange-800 dark:text-orange-300 leading-tight">Entrega com Retorno (+50%)</p>
-                  <p className="text-[9px] text-orange-700 dark:text-orange-400/80">O motoboy deverá voltar ao estabelecimento.</p>
+                  <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-tight mb-1">Entrega com Retorno (+50%)</p>
+                  <p className="text-[10px] text-guepardo-accent font-black italic uppercase tracking-tighter">O motoboy deverá voltar ao estabelecimento.</p>
                 </div>
               </div>
             )}
 
             {/* ALERTA DE CARTÃO */}
             {paymentMethod === 'CARD' && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-lg p-2 flex items-center gap-2 animate-in fade-in">
-                <CreditCard size={14} className="text-blue-600 dark:text-blue-400" />
-                <span className="text-[10px] font-bold text-blue-800 dark:text-blue-300">Maquininha: Retorno ativado automaticamente</span>
+              <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-4 flex items-center gap-4 animate-in fade-in zoom-in-95 duration-500">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center text-blue-400 shrink-0">
+                  <CreditCard size={16} />
+                </div>
+                <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Maquininha: Retorno ativado automaticamente</span>
               </div>
             )}
           </div>
 
           {/* ESTIMATE BREAKDOWN */}
-          <div className="bg-warm-200/50 dark:bg-white/5 rounded-lg border border-warm-200 dark:border-white/10 p-3 space-y-1.5">
+          <div className="bg-black/40 rounded-[1.5rem] border border-[#8B3A0F]/20 p-5 space-y-3 mt-4 relative overflow-hidden group/estimate">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover/estimate:bg-white/10 transition-colors"></div>
 
             {/* Taxa de saída — apenas no pedido simples (batching não tem base fixa) */}
             {!targetCourierId && (
-              <div className="flex justify-between items-center text-xs text-warm-500">
+              <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
                 <span>Taxa de saída:</span>
-                <span>R$ {FREIGHT_BASE_SIMPLE.toFixed(2)}</span>
+                <span className="text-white/40">R$ {FREIGHT_BASE_SIMPLE.toFixed(2)}</span>
               </div>
             )}
 
             {/* Custo por distância */}
             {distanceMeters > 0 && (
-              <div className="flex justify-between items-center text-xs text-blue-600 dark:text-blue-400 font-medium animate-in fade-in">
-                <span className="flex items-center gap-1">
-                  <MapPin size={10} />
+              <div className="flex justify-between items-center text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] animate-in fade-in relative z-10">
+                <span className="flex items-center gap-2">
+                  <MapPin size={12} className="text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                   {routeStats?.distanceText ?? `${(distanceMeters / 1000).toFixed(2)} km`}
                   {routeStats?.durationText ? ` (${routeStats.durationText})` : ''}
                 </span>
-                <span>+ R$ {(distanceMeters * FREIGHT_RATE_PER_METER).toFixed(2)}</span>
+                <span className="font-italic tracking-tighter text-blue-300">+ R$ {(distanceMeters * FREIGHT_RATE_PER_METER).toFixed(2)}</span>
               </div>
             )}
 
             {/* Taxa de retorno */}
             {isReturnRequired && (
-              <div className="flex justify-between items-center text-xs text-guepardo-orange font-medium">
-                <span className="flex items-center gap-1"><ArrowLeftRight size={10} />Retorno (por km):</span>
-                <span>+ R$ {(returnFee || 0).toFixed(2)}</span>
+              <div className="flex justify-between items-center text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] relative z-10">
+                <span className="flex items-center gap-2">
+                  <ArrowLeftRight size={12} className="text-guepardo-accent shadow-[0_0_10px_rgba(211,84,0,0.5)]" />
+                  Retorno (KM):
+                </span>
+                <span className="font-italic tracking-tighter">+ R$ {(returnFee || 0).toFixed(2)}</span>
               </div>
             )}
 
-            <div className="flex justify-between items-center pt-2 border-t border-warm-200 dark:border-white/10 mt-1">
-              <span className="text-xs font-bold text-warm-800 dark:text-gray-300">Total ao Cliente:</span>
-              <span className="text-xl font-extrabold text-warm-900 dark:text-white">
+            <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-2 relative z-10">
+              <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total ao Cliente</span>
+              <span className="text-3xl font-black italic text-white tracking-tighter">
                 {street && number ? `R$ ${(totalFreight || 0).toFixed(2)}` : 'R$ ****'}
               </span>
             </div>
@@ -1041,30 +1054,39 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
         </form>
 
-        <div className="flex gap-2">
+        <div className="flex gap-4 pt-4">
           <button
             type="button"
             onClick={onToggleSelection}
-            className={`w-12 h-12 mt-4 rounded-lg flex items-center justify-center transition-all border-2 ${isSelecting
-              ? 'bg-orange-500 text-white border-orange-600 shadow-lg shadow-orange-500/30 animate-pulse'
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border-2 relative overflow-hidden group/hardhat ${isSelecting
+              ? 'bg-guepardo-accent text-white border-guepardo-accent shadow-glow animate-pulse'
               : targetCourierId
-                ? 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 border-orange-500 shadow-sm'
-                : 'bg-white dark:bg-warm-800 text-orange-600 border-orange-200 dark:border-orange-500/30 hover:bg-orange-50 dark:hover:bg-orange-500/10'
+                ? 'bg-guepardo-accent/20 text-guepardo-accent border-guepardo-accent/50 shadow-glow-sm'
+                : 'bg-black/40 text-white/20 border-white/5 hover:border-guepardo-accent/50 hover:text-white transition-all'
               }`}
             title={isSelecting ? 'Selecione no Mapa' : 'Selecionar Guepardo no Mapa'}
           >
-            <HardHat size={24} strokeWidth={isSelecting || targetCourierId ? 2.5 : 2} />
+            <div className="absolute inset-0 bg-brand-gradient opacity-0 group-hover/hardhat:opacity-10 transition-opacity"></div>
+            <HardHat size={28} strokeWidth={2.5} className="relative z-10" />
           </button>
 
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !clientName || !street || !number}
-            className={`flex-1 py-3 mt-4 rounded-lg font-bold text-sm shadow-md flex items-center justify-center gap-2 transition-all transform active:scale-95 duration-200 ${!clientName || !street || !number
-              ? 'bg-warm-100 dark:bg-white/5 text-warm-500 dark:text-gray-500 cursor-not-allowed shadow-none'
-              : 'bg-orange-600 hover:bg-orange-700 text-white hover:brightness-110 shadow-orange-500/30'
+            className={`flex-1 h-14 rounded-2xl font-black italic text-base flex items-center justify-center gap-3 transition-all transform active:scale-95 duration-200 shadow-2xl relative overflow-hidden group/chamar ${!clientName || !street || !number
+              ? 'bg-black/40 text-white/5 cursor-not-allowed border border-white/5'
+              : 'bg-brand-gradient text-white border border-[#8B3A0F]/50 shadow-[0_0_30px_rgba(211,84,0,0.4)] hover:shadow-[0_0_40px_rgba(211,84,0,0.6)] hover:brightness-110 active:brightness-90'
               }`}
           >
-            {isSubmitting ? '...' : <>CHAMAR <Bike size={16} strokeWidth={2.5} /></>}
+            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover/chamar:opacity-20 transition-opacity"></div>
+            {isSubmitting ? (
+              <Loader2 className="animate-spin" size={20} />
+            ) : (
+              <>
+                <span className="tracking-tighter">CHAMAR GUEPARDO</span>
+                <Bike size={20} strokeWidth={3} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </>
+            )}
           </button>
         </div>
       </div > {/* end collapsible */}

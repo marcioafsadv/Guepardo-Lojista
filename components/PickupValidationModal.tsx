@@ -1,17 +1,21 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, ShieldCheck, X } from 'lucide-react';
+import { Order } from '../types';
 
 interface PickupValidationModalProps {
-  isOpen: boolean;
+  order: Order;
   onClose: () => void;
-  onValidate: (code: string) => void;
-  courierName: string;
-  correctCode?: string; // KEEP FOR BACKWARD COMPATIBILITY but optional
-  validCodes?: string[]; // NEW: Array of valid codes for the batch
+  onSuccess: (code: string) => void;
 }
 
-export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ isOpen, onClose, onValidate, courierName, correctCode, validCodes }) => {
+export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ order, onClose, onSuccess }) => {
+  const isOpen = !!order;
+  const courierName = order.courier?.name || 'Entregador';
+  const validCodes = order.isBatch && order.batchOrders 
+    ? order.batchOrders.map(o => o.pickupCode).filter(Boolean) as string[]
+    : [order.pickupCode].filter(Boolean) as string[];
+
   const [code, setCode] = useState(['', '', '', '']);
   const [error, setError] = useState(false);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -21,7 +25,6 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ is
       setTimeout(() => inputsRef.current[0]?.focus(), 100);
       setCode(['', '', '', '']);
       setError(false);
-      // Reset refs array to ensure clean slate
       inputsRef.current = inputsRef.current.slice(0, 4);
     }
   }, [isOpen]);
@@ -50,10 +53,10 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ is
       // ELSE: Check against correctCode.
       const isValid = validCodes && validCodes.length > 0
         ? validCodes.includes(fullCode)
-        : fullCode === correctCode;
+        : false;
 
       if (isValid) {
-        onValidate(fullCode);
+        onSuccess(fullCode);
       } else {
         setError(true);
         // Clear code after brief error display

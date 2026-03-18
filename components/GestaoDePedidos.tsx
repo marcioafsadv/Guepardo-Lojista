@@ -5,11 +5,15 @@ import { DeliveryForm } from './DeliveryForm';
 import { LeafletMap } from './LeafletMap';
 import { PickupValidationModal } from './PickupValidationModal';
 import { OrderServiceDetail } from './OrderServiceDetail';
+import { ChatMultilateralModal } from './ChatMultilateralModal';
 import { CancellationModal } from './CancellationModal';
 import {
     Clock, MapPin, AlertCircle, Lock, LockOpen, PackageCheck, Send, Loader2, MessageCircle, Zap,
-    ChevronRight, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike
+    ChevronRight, ChevronLeft, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike
 } from 'lucide-react';
+import { ActiveOrderCard } from './ActiveOrderCard';
+import { geocodeAddress } from '../utils/geocoding';
+import { calculateRoute } from '../utils/routing';
 
 interface GestaoDePedidosProps {
     orders: Order[];
@@ -29,6 +33,7 @@ interface GestaoDePedidosProps {
     theme: string;
     settings: StoreSettings;
     onToggleMapTheme: () => void;
+    mapboxToken?: string;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -56,6 +61,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onValidatePickup,
     onCancelOrder,
     onConfirmReturn,
+    mapboxToken,
     onResetDatabase,
     onBulkAssign,
     theme,
@@ -71,6 +77,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // --- VISUAL ROUTE FEEDBACK STATE ---
     const [draftAddress, setDraftAddress] = useState<string | AddressComponents>('');
     const [routeStats, setRouteStats] = useState<RouteStats | null>(null);
+    const [activeRouteStats, setActiveRouteStats] = useState<RouteStats | null>(null);
     const [draftAdditionalStops, setDraftAdditionalStops] = useState<any[]>([]);
 
     // Drawer State
@@ -79,48 +86,131 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // Targeted Selection State
     const [isSelectingCourier, setIsSelectingCourier] = useState(false);
     const [targetCourierId, setTargetCourierId] = useState<string>('');
+    const [isFormCollapsed, setIsFormCollapsed] = useState(false);
 
     // Bulk Actions State
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
     // Sync drawer with active order
-    // Sync drawer with active order SELECTION (Expand on new selection)
     useEffect(() => {
         if (activeOrder) {
             setShowDetailDrawer(true);
         }
     }, [activeOrder?.id]);
 
-    // Auto-collapse when status changes to "Moving" states (To Store / In Transit)
+    /* 
+    // REMOVED: User wants to keep details visible during route tracking
     useEffect(() => {
         if (activeOrder && (activeOrder.status === OrderStatus.TO_STORE || activeOrder.status === OrderStatus.IN_TRANSIT)) {
             setShowDetailDrawer(false);
         }
     }, [activeOrder?.status]);
+    */
 
     const handleCloseDrawer = () => {
         setShowDetailDrawer(false);
-        // Small timeout to allow animation to finish before clearing state
         setTimeout(() => setActiveOrder(null), 300);
+    };
+    
+    // --- REAL-TIME ROUTE CALCULATION ---
+    useEffect(() => {
+        if (!draftAddress) {
+            setRouteStats(null);
+            return;
+        }
+
+        const computeRoute = async () => {
+            console.log("📍 [GestaoDePedidos] Auto-calculating route metrics...");
+            
+            // 1. Geocode Destination
+            const destCoords = await geocodeAddress(draftAddress, { lat: storeProfile.lat, lng: storeProfile.lng });
+            if (!destCoords) {
+                console.warn("⚠️ [GestaoDePedidos] Could not geocode main address");
+                setRouteStats(null);
+                return;
+            }
+
+            // 2. Geocode Additional Stops (if any)
+            const coords: [number, number][] = [[storeProfile.lat, storeProfile.lng], [destCoords.lat, destCoords.lng]];
+            
+            for (const stop of draftAdditionalStops) {
+                const stopAddr = `${stop.addressStreet}, ${stop.addressNumber}, ${stop.addressNeighborhood}, ${stop.addressCity}`;
+                const stopCoords = await geocodeAddress(stopAddr, { lat: storeProfile.lat, lng: storeProfile.lng });
+                if (stopCoords) {
+                    coords.push([stopCoords.lat, stopCoords.lng]);
+                }
+            }
+
+            // 3. Calculate Route
+            const stats = await calculateRoute(coords);
+            if (stats) {
+                setRouteStats(stats);
+            } else {
+                // Fallback to straight-line if Routing API fails
+                const dist = calculateDistance(storeProfile.lat, storeProfile.lng, destCoords.lat, destCoords.lng);
+                setRouteStats({
+                    distanceText: `${dist.toFixed(1)} km`,
+                    durationText: `${Math.round(dist * 2.5)} min`, // Very rough estimate
+                    distanceValue: dist * 1000,
+                    durationValue: dist * 1000 * 2.5 * 60
+                });
+            }
+        };
+
+        computeRoute();
+    }, [draftAddress, draftAdditionalStops.length, storeProfile.lat, storeProfile.lng]);
+
+    // --- ACTIVE ORDER TRACKING (ROAD-SNAPPED) ---
+    useEffect(() => {
+        if (!activeOrder || !activeOrder.courier || activeOrder.status === OrderStatus.PENDING) {
+            setActiveRouteStats(null);
+            return;
+        }
+
+        const computeActiveRoute = async () => {
+            console.log("🛣️ [GestaoDePedidos] Calculating road path for active order:", activeOrder.id);
+            
+            const points: [number, number][] = [[activeOrder.courier!.lat, activeOrder.courier!.lng]];
+            
+            // Logic: Courier -> Store -> Destination
+            if (activeOrder.status === OrderStatus.ACCEPTED || activeOrder.status === OrderStatus.TO_STORE || activeOrder.status === OrderStatus.ARRIVED_AT_STORE) {
+                points.push([storeProfile.lat, storeProfile.lng]);
+            }
+            
+            if (activeOrder.destinationLat && activeOrder.destinationLng) {
+                points.push([activeOrder.destinationLat, activeOrder.destinationLng]);
+            }
+
+            const stats = await calculateRoute(points);
+            if (stats) setActiveRouteStats(stats);
+        };
+
+        computeActiveRoute();
+        // Recalculate if courier moves significantly or status changes
+    }, [activeOrder?.id, activeOrder?.status, activeOrder?.courier?.lat, activeOrder?.courier?.lng]);
+
+    // --- CHAT STATE ---
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
+
+    const handleOpenChat = (order: Order) => {
+        setSelectedOrderForChat(order);
+        setIsChatOpen(true);
     };
 
     // --- HANDLERS ---
-    const handleOpenValidation = (e: React.MouseEvent, order: Order) => {
-        e.stopPropagation();
+    const handleOpenValidation = (order: Order) => {
         setOrderToInteract(order);
         setValidationModalOpen(true);
     };
 
-    const handleOpenCancellation = (e: React.MouseEvent, order: Order) => {
-        e.stopPropagation();
-        setOrderToInteract(order);
-        setCancellationModalOpen(true);
+    const handleOrderSelect = (order: Order) => {
+        setActiveOrder(order);
     };
 
     const handleValidationSuccess = (code: string) => {
         if (orderToInteract) {
             if (orderToInteract.isBatch && orderToInteract.batchOrders) {
-                // Validate ALL orders in the batch
                 orderToInteract.batchOrders.forEach(order => onValidatePickup(order.id));
             } else {
                 onValidatePickup(orderToInteract.id);
@@ -134,26 +224,15 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         onCancelOrder(orderId, reason);
         setCancellationModalOpen(false);
         setOrderToInteract(null);
-        // If the cancelled order was the active one, close drawer
         if (activeOrder?.id === orderId) {
             handleCloseDrawer();
         }
-        // SAFETY: Clear draft route if it happens to be lingering
         setDraftAddress('');
         setRouteStats(null);
     };
 
     const handleNewOrderSubmit = (data: any) => {
-        console.log("🚀 [GestaoDePedidos] handleNewOrderSubmit triggered with data:", data);
-
-        if (data.targetCourierId) {
-            console.log("🎯 [GestaoDePedidos] Targeted courier detected in payload:", data.targetCourierId);
-        } else {
-            console.log("📣 [GestaoDePedidos] No target courier (Standard Broadcast)");
-        }
-
         onNewOrder(data);
-        // Clear draft route and targeted courier upon successful submission
         setDraftAddress('');
         setRouteStats(null);
         setDraftAdditionalStops([]);
@@ -162,7 +241,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     };
 
     const handleCourierSelect = (courierId: string) => {
-        console.log("📍 [GestaoDePedidos] Courier selected from map:", courierId);
         setTargetCourierId(courierId);
         setIsSelectingCourier(false);
     };
@@ -244,28 +322,16 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
         const courierGrouped: Order[] = Array.from(groups.values()).map(batch => {
             if (batch.length === 1) return batch[0];
-            
-            // Representative order for basic info
             const mainOrder = batch[0];
-            
-            // Calculate representative status for the batch
-            // Priority list (highest to lowest importance for merchant view)
             const statuses = batch.map(o => o.status);
             let batchStatus = OrderStatus.DELIVERED;
             
-            if (statuses.includes(OrderStatus.PENDING)) {
-                batchStatus = OrderStatus.PENDING;
-            } else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) {
-                batchStatus = OrderStatus.READY_FOR_PICKUP;
-            } else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) {
-                batchStatus = OrderStatus.ARRIVED_AT_STORE;
-            } else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) {
-                batchStatus = OrderStatus.ACCEPTED;
-            } else if (statuses.includes(OrderStatus.IN_TRANSIT)) {
-                batchStatus = OrderStatus.IN_TRANSIT;
-            } else if (statuses.includes(OrderStatus.RETURNING)) {
-                batchStatus = OrderStatus.RETURNING;
-            }
+            if (statuses.includes(OrderStatus.PENDING)) batchStatus = OrderStatus.PENDING;
+            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
+            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
+            else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+            else if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+            else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
 
             return {
                 ...mainOrder,
@@ -284,479 +350,192 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         });
     }, [activeOrders]);
 
-    const activeCouriersWithOrders = useMemo(() => {
-        const couriersMap = new Map<string, Courier>();
-        orders.forEach(o => {
-            if (o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED && o.courier) {
-                couriersMap.set(o.courier.id, o.courier);
-            }
-        });
-        return Array.from(couriersMap.values());
-    }, [orders]);
-
-    // --- HELPER: CARD VISUALS & LOGIC ---
-    const getCardConfig = (order: Order) => {
-        // LED Proximity Logic
-        let isNearby = false;
-        if (order.courier && (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.RETURNING)) {
-            const dist = calculateDistance(order.courier.lat, order.courier.lng, storeProfile.lat, storeProfile.lng);
-            if (dist < 0.2) isNearby = true; // Less than 200m
-        }
-
-        switch (order.status) {
-            case OrderStatus.PENDING:
-                return {
-                    border: 'border-l-status-amber',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-status-amber/10 text-status-amber border border-status-amber/20',
-                    statusText: 'Procurando...',
-                    action: null,
-                    isNearby: false,
-                    text: 'text-gray-300'
-                };
-            case OrderStatus.ACCEPTED:
-            case OrderStatus.TO_STORE:
-                return {
-                    border: 'border-l-guepardo-accent',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-guepardo-accent/10 text-guepardo-accent border border-guepardo-accent/20',
-                    statusText: 'A CAMINHO DA LOJA',
-                    action: 'PREPARE',
-                    isNearby,
-                    text: 'text-white'
-                };
-            case OrderStatus.ARRIVED_AT_STORE:
-                return {
-                    border: 'border-l-guepardo-accent',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-guepardo-accent text-guepardo-gray-900 border border-guepardo-accent font-extrabold animate-pulse',
-                    statusText: 'GUEPARDO NA LOJA',
-                    action: 'PREPARE',
-                    isNearby: true,
-                    text: 'text-white'
-                };
-            case OrderStatus.READY_FOR_PICKUP:
-                return {
-                    border: 'border-l-status-green',
-                    bg: 'bg-guepardo-gray-800', // removed green tint for cleaner dark mode
-                    badge: 'bg-status-green/10 text-status-green border border-status-green/20',
-                    statusText: 'AGUARDANDO CÓDIGO',
-                    action: 'VALIDATE',
-                    isNearby: false,
-                    text: 'text-white'
-                };
-            case OrderStatus.IN_TRANSIT:
-                return {
-                    border: 'border-l-status-blue',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-status-blue/10 text-status-blue border border-status-blue/20',
-                    statusText: 'EM TRÂNSITO',
-                    action: 'TRACK',
-                    isNearby: false,
-                    text: 'text-white'
-                };
-            case OrderStatus.RETURNING:
-                return {
-                    border: 'border-l-purple-500',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-purple-500/10 text-purple-400 border border-purple-500/20',
-                    statusText: 'EM RETORNO',
-                    action: 'CONFIRM_RETURN',
-                    isNearby: isNearby,
-                    text: 'text-gray-300'
-                };
-            default:
-                return {
-                    border: 'border-l-gray-600',
-                    bg: 'bg-guepardo-gray-800',
-                    badge: 'bg-gray-700 text-gray-400',
-                    statusText: order.status,
-                    action: null,
-                    isNearby: false,
-                    text: 'text-gray-500'
-                };
-        }
-    };
-
-    const getPaymentIcon = (method: string) => {
-        switch (method) {
-            case 'CARD': return <CreditCard size={12} className="text-blue-600" />;
-            case 'CASH': return <Banknote size={12} className="text-green-600" />;
-            case 'PIX': return <QrCode size={12} className="text-guepardo-orange" />;
-            default: return <Wallet size={12} className="text-gray-400" />;
-        }
-    };
-
     return (
-        <div className="relative h-full w-full overflow-hidden font-sans bg-gray-200 dark:bg-guepardo-gray-900 transition-colors duration-300">
-
-            {/* CAMADA 0: MAPA BACKGROUND (FULLSCREEN) */}
-            <div className="absolute inset-0 z-0 pointer-events-auto">
-                <LeafletMap
-                    store={storeProfile}
-                    activeOrder={activeOrder}
-                    filteredOrders={activeOrders}
+        <div className="flex w-full h-full overflow-hidden bg-black p-0 gap-0 relative">
+            {/* --- LEFT SIDEBAR (Form + Monitoring) --- */}
+            <div className={`p-6 flex flex-col gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] relative ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'w-[528px] opacity-100 translate-x-0'}`}>
+                {/* Delivery Form */}
+                <DeliveryForm
+                    onSubmit={handleNewOrderSubmit}
+                    isSubmitting={false}
+                    existingCustomers={customers}
+                    onAddressChange={setDraftAddress}
+                    onAdditionalStopsChange={setDraftAdditionalStops}
+                    routeStats={routeStats}
+                    settings={settings}
                     availableCouriers={availableCouriers}
+                    allOrders={orders}
+                    isSelecting={isSelectingCourier}
+                    onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
+                    externalTargetId={targetCourierId}
+                    onClearSelection={() => setTargetCourierId('')}
+                />
+
+                {/* --- MONITORING PANEL (Moved below Form) --- */}
+                <div className="bg-[#1A0900]/80 backdrop-blur-3xl border border-[#8B3A0F]/30 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]">
+                    
+                    {/* Status Summary & Search */}
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">Monitoramento</h2>
+                        <div className="relative">
+                            <input 
+                                type="text"
+                                placeholder="BUSCAR..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="bg-black/40 border border-[#8B3A0F]/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-white placeholder:text-white/20 focus:border-guepardo-accent outline-none w-32 transition-all"
+                            />
+                            <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20" />
+                        </div>
+                    </div>
+
+                    {/* Online Pulse */}
+                    <div className="flex items-center justify-between mb-8 p-4 bg-black/40 border border-[#8B3A0F]/20 rounded-2xl shadow-inner">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-guepardo-accent/20 rounded-lg flex items-center justify-center text-guepardo-accent shadow-glow-sm">
+                                <Bike size={16} strokeWidth={2.5} />
+                            </div>
+                            <span className="text-xs font-black text-white uppercase tracking-widest">Pilotos Ativos</span>
+                        </div>
+                        <span className="text-sm font-black italic text-guepardo-accent uppercase">{availableCouriers.length} ON</span>
+                    </div>
+
+                    <div className="space-y-3 pb-20 flex-1 overflow-y-auto scrollbar-guepardo">
+                        {groupedOrders.map((order) => (
+                            <ActiveOrderCard
+                                key={order.id}
+                                order={order}
+                                storeLat={storeProfile.lat}
+                                storeLng={storeProfile.lng}
+                                onChatClick={handleOpenChat}
+                                onCardClick={handleOrderSelect}
+                                onTrackClick={(o) => {
+                                    setActiveOrder(o);
+                                }}
+                                onValidateClick={handleOpenValidation}
+                                onConfirmReturn={onConfirmReturn}
+                                routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
+                            />
+                        ))}
+
+                        {groupedOrders.length === 0 && (
+                            <div className="text-center py-20 opacity-30">
+                                <div className="w-20 h-20 bg-black/40 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#8B3A0F]/20 shadow-[0_0_30px_rgba(139,58,15,0.2)]">
+                                    <Radio size={40} className="text-white animate-pulse" />
+                                </div>
+                                <p className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Nenhum pedido ativo</p>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-2">Aguardando...</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* --- COLLAPSE/EXPAND TOGGLE (Floating) --- */}
+            <button
+                onClick={() => setIsFormCollapsed(!isFormCollapsed)}
+                className={`
+                    absolute top-1/2 -translate-y-1/2 z-[60]
+                    w-8 h-20 bg-brand-gradient-premium border border-white/10 
+                    rounded-r-2xl flex items-center justify-center text-white
+                    shadow-[5px_0_15px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300
+                    ${isFormCollapsed ? 'left-0' : 'left-[504px]'}
+                `}
+                title={isFormCollapsed ? "Abrir Formulário" : "Fechar Formulário"}
+            >
+                {isFormCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} className="translate-x-[-1px]" />}
+            </button>
+
+            {/* --- MIDDLE COLUMN: MAP --- */}
+            <div className="flex-1 overflow-hidden relative">
+                <LeafletMap
+                    orders={groupedOrders}
+                    activeOrder={activeOrder}
+                    storeProfile={storeProfile}
+                    couriers={availableCouriers}
+                    onCourierClick={handleCourierSelect}
                     theme={theme}
-                    toggleTheme={onToggleMapTheme}
-                    draftDestinationAddress={draftAddress}
+                    draftAddress={draftAddress}
                     draftAdditionalStops={draftAdditionalStops}
-                    onRouteCalculated={setRouteStats}
-                    isSelectingCourier={isSelectingCourier}
-                    onCourierSelect={(id) => {
-                        setTargetCourierId(id);
-                        setIsSelectingCourier(false);
-                    }}
+                    draftRouteStats={routeStats}
+                    activeRouteStats={activeRouteStats}
+                    onCardClick={handleOrderSelect}
+                    mapboxToken={mapboxToken}
                 />
             </div>
 
-            {/* CAMADA 1: ÁREA OPERACIONAL (ESQUERDA - FLEX COL) */}
-            <div className="absolute left-4 top-4 bottom-4 z-20 flex flex-col gap-4 pointer-events-none w-[380px]">
+            {/* BATCH ACTION BAR */}
+            {selectedOrderIds.length > 0 && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[340px] bg-guepardo-gray-900 border border-guepardo-accent shadow-2xl rounded-2xl p-4 z-50 ring-4 ring-orange-500/20 pointer-events-auto">
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="bg-guepardo-accent p-1.5 rounded-lg text-white">
+                                    <Layers size={16} />
+                                </div>
+                                <span className="text-white text-xs font-black uppercase tracking-widest">{selectedOrderIds.length} selecionados</span>
+                            </div>
+                            <button onClick={() => setSelectedOrderIds([])} className="text-gray-400 hover:text-white">
+                                <X size={16} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                {/* BLOCO 1: FORMULÁRIO (SUPERIOR) */}
-                <div className="bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto min-h-0">
-                    <div className="p-4">
-                        <DeliveryForm
-                            onSubmit={handleNewOrderSubmit}
-                            isSubmitting={false}
-                            existingCustomers={customers}
-                            onAddressChange={setDraftAddress}
-                            routeStats={routeStats}
-                            settings={settings}
-                            activeCouriersWithOrders={activeCouriersWithOrders}
-                            availableCouriers={availableCouriers}
-                            allOrders={orders}
-                            isSelecting={isSelectingCourier}
-                            onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
-                            externalTargetId={targetCourierId}
-                            onClearSelection={() => setTargetCourierId('')}
-                            onAdditionalStopsChange={setDraftAdditionalStops}
+            {/* --- ORDER DETAILS DRAWER (Floating right side) --- */}
+            {activeOrder && (
+                <div className="fixed top-0 right-0 h-full z-[1001] flex items-center pr-8 pointer-events-none">
+                     <div className={`pointer-events-auto w-[450px] h-[90vh] bg-[#121212] border border-white/5 shadow-2xl rounded-[3rem] overflow-hidden transition-all duration-500 transform ${showDetailDrawer ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
+                        <OrderServiceDetail
+                            order={activeOrder}
+                            storeProfile={storeProfile}
+                            isEmbedded={true}
+                            onClose={handleCloseDrawer}
+                            onCancelClick={(o) => {
+                                setOrderToInteract(o);
+                                setCancellationModalOpen(true);
+                            }}
+                            onConfirmReturn={onConfirmReturn}
+                            isExpanded={true}
+                            theme="dark"
                         />
-                    </div>
+                     </div>
                 </div>
+            )}
 
-                {/* BLOCO 2: MONITORAMENTO (INFERIOR - FLEX-1) */}
-                <div className="flex-1 bg-warm-100 dark:bg-guepardo-gray-900/90 backdrop-blur-xl shadow-2xl shadow-warm-300/50 flex flex-col border border-warm-200 dark:border-white/10 rounded-3xl overflow-hidden ring-1 ring-black/5 dark:ring-black/50 transition-colors duration-300 pointer-events-auto">
-                    <div className="flex-1 overflow-y-auto p-4 scrollbar-guepardo">
-                        <h3 className="text-xs font-bold text-stone-500 dark:text-gray-400 uppercase mb-1 pl-1 flex items-center justify-between">
-                            <span>Monitoramento Ativo</span>
-                            <span className="bg-warm-200 dark:bg-white/10 text-warm-800 dark:text-white px-2 py-0.5 rounded-md border border-warm-300 dark:border-white/10">{activeOrders.length}</span>
-                        </h3>
-                        <h3 className="text-xs font-bold text-stone-500 dark:text-gray-400 uppercase mb-3 pl-1 flex items-center justify-between">
-                            <span className="flex items-center gap-1"><Bike size={12} className="text-guepardo-accent" /> Guepardos On-line</span>
-                            <span className="bg-guepardo-accent/10 text-guepardo-accent px-2 py-0.5 rounded-md border border-guepardo-accent/20">{availableCouriers.length}</span>
-                        </h3>
+            {/* --- MODALS --- */}
+            {validationModalOpen && orderToInteract && (
+                <PickupValidationModal
+                    order={orderToInteract}
+                    onClose={() => setValidationModalOpen(false)}
+                    onSuccess={handleValidationSuccess}
+                />
+            )}
 
+            {cancellationModalOpen && orderToInteract && (
+                <CancellationModal
+                    order={orderToInteract}
+                    onClose={() => setCancellationModalOpen(false)}
+                    onConfirm={handleCancellationConfirm}
+                />
+            )}
 
-                        {/* ZERAR BANCO BUTTON */}
-
-
-                        <div className="space-y-3 pb-20">
-                            {groupedOrders.map((order) => {
-                                const config = getCardConfig(order);
-                                const isSelected = activeOrder?.id === order.id;
-                                const changeNeeded = order.paymentMethod === 'CASH' && order.changeFor
-                                    ? order.changeFor - order.deliveryValue
-                                    : 0;
-
-                                // For batches, we show IDs of all orders
-                                const displayIds = order.isBatch && order.batchOrders
-                                    ? order.batchOrders.map(o => o.display_id || o.id.slice(-4)).join(', ')
-                                    : (order.display_id || order.id.slice(-4));
-
-                                return (
-                                    <div
-                                        key={order.id}
-                                        onClick={() => handleCardClick(order)}
-                                        className={`
-                                                relative rounded-2xl shadow-lg cursor-pointer transition-all duration-300 mb-3
-                                                hover:shadow-glow-sm hover:-translate-y-1 
-                                                bg-white dark:bg-warm-800
-                                                border-l-[4px] border-l-guepardo-accent
-                                                ${isSelected ? 'ring-2 ring-guepardo-accent ring-offset-2 ring-offset-warm-900 z-10 shadow-glow scale-[1.02]' : 'border-y border-r border-warm-200 dark:border-white/5'}
-                                            `}
-                                    >
-                                        {/* PROXIMITY LED */}
-                                        {config.isNearby && (
-                                            <div className="absolute -top-1.5 -right-1.5 z-20">
-                                                <span className="flex h-4 w-4">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white shadow-sm"></span>
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {/* BULK SELECTION CHECKBOX (Only for Pending) */}
-                                        {order.status === OrderStatus.PENDING && (
-                                            <div className="absolute top-2 left-2 z-30" onClick={(e) => e.stopPropagation()}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selectedOrderIds.includes(order.id)}
-                                                    onChange={() => {
-                                                        setSelectedOrderIds(prev =>
-                                                            prev.includes(order.id)
-                                                                ? prev.filter(id => id !== order.id)
-                                                                : [...prev, order.id]
-                                                        );
-                                                    }}
-                                                    className="w-4 h-4 rounded border-gray-300 text-guepardo-accent focus:ring-guepardo-accent cursor-pointer"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {/* CANCEL BUTTON (HOVER) */}
-                                        {!order.isBatch && (
-                                            <button
-                                                onClick={(e) => handleOpenCancellation(e, order)}
-                                                className="absolute top-2 right-2 p-1.5 rounded-full bg-transparent hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors z-30"
-                                                title="Cancelar Pedido"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
-                                        )}
-
-                                        <div className="p-4">
-                                            {/* Header do Card */}
-                                            <div className="flex justify-between items-start mb-2 pr-6">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-[10px] font-bold text-warm-500 dark:text-gray-400 bg-warm-50 dark:bg-white/10 px-1.5 py-0.5 rounded border border-warm-200 dark:border-transparent">
-                                                        #{displayIds}
-                                                    </span>
-                                                    {!order.isBatch && (
-                                                        <div className="p-1 rounded bg-warm-50 dark:bg-white/5 border border-warm-200 dark:border-white/10" title={order.paymentMethod}>
-                                                            {getPaymentIcon(order.paymentMethod)}
-                                                        </div>
-                                                    )}
-                                                    {order.isBatch && <Layers size={14} className="text-guepardo-accent" />}
-                                                </div>
-                                                <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${order.status === OrderStatus.READY_FOR_PICKUP ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    order.status === OrderStatus.RETURNING ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                                        'bg-orange-100 text-orange-700 border-orange-200'
-                                                    }`}>
-                                                    {config.statusText}
-                                                </span>
-                                            </div>
-
-                                            {/* Informações Principais */}
-                                            <div className="mb-4">
-                                                <h4 className="text-[18px] font-bold text-warm-800 dark:text-white leading-tight mb-1 font-sans">
-                                                    {order.clientName}
-                                                </h4>
-                                                <p className="text-[12px] font-normal text-warm-500 dark:text-[#E0E0E0] truncate flex items-center gap-1">
-                                                    <MapPin size={10} /> {order.destination}
-                                                </p>
-
-                                                {order.isBatch && order.batchOrders && (
-                                                    <div className="mt-2 space-y-1">
-                                                        {order.batchOrders.map(bo => (
-                                                            <div key={bo.id} className="text-[10px] text-warm-500 dark:text-gray-400 flex justify-between items-center group/item hover:text-guepardo-accent transition-colors">
-                                                                <span className="flex items-center gap-1">
-                                                                    <Hash size={8} /> {bo.display_id || bo.id.slice(-4)} - {bo.clientName}
-                                                                </span>
-                                                                {/* bo.pickupCode suppressed for batch view */}
-                                                                {false && bo.pickupCode && (
-                                                                    <span className="bg-guepardo-accent/10 text-guepardo-accent px-1.5 py-0.5 rounded font-bold">
-                                                                        {bo.pickupCode}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-
-                                                {!order.isBatch && order.courier && order.status !== OrderStatus.PENDING && (
-                                                    <p className="text-[10px] font-bold text-guepardo-accent mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-left-2 transition-all">
-                                                        <Zap size={10} fill="currentColor" />
-                                                        Pedido aceito pelo Entregador "{order.courier.name}" via aplicativo Guepardo Entregador.
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Financial Alert */}
-                                            {!order.isBatch && changeNeeded > 0 && (
-                                                <div className="mb-3 px-2 py-1 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 rounded text-[10px] font-bold text-red-700 dark:text-red-400 flex items-center gap-1">
-                                                    <Banknote size={12} />
-                                                    Troco: levar R$ {(changeNeeded || 0).toFixed(2)}
-                                                </div>
-                                            )}
-
-                                            {/* Return Required Alert */}
-                                            {!order.isBatch && order.isReturnRequired && order.status !== OrderStatus.RETURNING && (
-                                                <div className="mb-3 px-2 py-1 bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 rounded text-[10px] font-bold text-orange-700 dark:text-orange-400 flex items-center gap-1">
-                                                    <ArrowLeftRight size={12} />
-                                                    Retorno Obrigatório (+50%)
-                                                </div>
-                                            )}
-
-                                            {/* Action Area */}
-                                            <div onClick={(e) => e.stopPropagation()}>
-                                                {/* ACTION: PREPARE */}
-                                                {config.action === 'PREPARE' && (
-                                                    <div className="flex gap-2">
-                                                        <div
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (order.courier?.phone) {
-                                                                    window.open(`https://wa.me/55${order.courier.phone.replace(/\D/g, '')}`, '_blank');
-                                                                } else {
-                                                                    alert('Entregador sem telefone cadastrado.');
-                                                                }
-                                                            }}
-                                                            className="flex-1 flex items-center gap-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-lg p-2 border border-green-200 dark:border-green-800 shadow-sm cursor-pointer group transition-all"
-                                                        >
-                                                            <div className="relative">
-                                                                <img src={order.courier?.photoUrl} className="w-8 h-8 rounded-full bg-gray-200 object-cover border border-green-200 dark:border-green-700" alt="" />
-                                                                <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border border-white">
-                                                                    <MessageCircle size={8} color="white" strokeWidth={3} />
-                                                                </div>
-                                                            </div>
-                                                            <div className="overflow-hidden">
-                                                                <p className="text-[10px] font-bold text-green-900 dark:text-green-100 truncate group-hover:text-green-700 transition-colors uppercase">{order.courier?.name}</p>
-                                                                <p className="text-[9px] text-green-700 dark:text-green-300 font-mono truncate">{order.courier?.vehiclePlate}</p>
-                                                            </div>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => onMarkAsReady(order.id)}
-                                                            className="flex-1 bg-guepardo-accent hover:bg-guepardo-orange text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all uppercase"
-                                                        >
-                                                            <PackageCheck size={16} />
-                                                            Pronto
-                                                        </button>
-                                                    </div>
-                                                )}
-
-                                                {/* ACTION: VALIDATE */}
-                                                {config.action === 'VALIDATE' && (
-                                                    <button
-                                                        onClick={(e) => handleOpenValidation(e, order)}
-                                                        className="w-full h-11 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all animate-pulse-slow uppercase tracking-wide border-b-4 border-green-800 active:border-b-0 active:translate-y-1"
-                                                    >
-                                                        <Lock size={16} />
-                                                        Validar Código
-                                                    </button>
-                                                )}
-
-                                                {/* ACTION: CONFIRM RETURN */}
-                                                {config.action === 'CONFIRM_RETURN' && (
-                                                    <button
-                                                        onClick={() => onConfirmReturn(order.id)}
-                                                        className="w-full h-11 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-md flex items-center justify-center gap-2 transition-all uppercase tracking-wide border-b-4 border-purple-800 active:border-b-0 active:translate-y-1 animate-pulse"
-                                                    >
-                                                        <CheckCheck size={18} />
-                                                        Confirmar Devolução
-                                                    </button>
-                                                )}
-
-                                                {/* ACTION: TRACK */}
-                                                {config.action === 'TRACK' && (
-                                                    <div className="w-full h-9 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/20 rounded-lg flex items-center justify-center gap-2 text-xs font-bold">
-                                                        <Send size={14} />
-                                                        Em deslocamento
-                                                    </div>
-                                                )}
-
-                                                {/* LOADING (Searching) */}
-                                                {!config.action && (
-                                                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden mt-2">
-                                                        <div className="bg-guepardo-accent h-full w-1/3 animate-loading-bar rounded-full"></div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-
-                            {groupedOrders.length === 0 && (
-                                <div className="text-center py-12 opacity-40">
-                                    <Radio size={32} className="mx-auto mb-2 text-gray-400" />
-                                    <p className="text-sm text-gray-500 font-medium">Nenhum pedido ativo</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    {/* PAINEL 2: FLOATING CAPSULE (OS) moved to root */}
-                </div>
-
-                {/* BATCH ACTION BAR (Floating overlay at bottom center of left column area) */}
-                {selectedOrderIds.length > 0 && (
-                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[340px] bg-guepardo-gray-900 border border-guepardo-accent shadow-2xl rounded-2xl p-4 z-50 animate-in slide-in-from-bottom-5 duration-300 ring-4 ring-orange-500/20 pointer-events-auto">
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="bg-guepardo-accent p-1.5 rounded-lg text-white">
-                                        <Layers size={16} />
-                                    </div>
-                                    <span className="text-white text-xs font-black uppercase tracking-widest">{selectedOrderIds.length} selecionados</span>
-                                </div>
-                                <button onClick={() => setSelectedOrderIds([])} className="text-gray-400 hover:text-white">
-                                    <X size={16} />
-                                </button>
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-[10px] text-gray-400 font-bold uppercase">Atribuir lote para:</p>
-                                <select
-                                    className="w-full bg-guepardo-gray-800 border border-white/10 rounded-lg py-2 px-3 text-white text-xs font-bold focus:outline-none focus:border-guepardo-accent"
-                                    onChange={(e) => {
-                                        if (e.target.value) {
-                                            onBulkAssign(selectedOrderIds, e.target.value);
-                                            setSelectedOrderIds([]);
-                                        }
-                                    }}
-                                    defaultValue=""
-                                >
-                                    <option value="" disabled>Selecionar Entregador...</option>
-                                    {availableCouriers.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name} ({c.vehiclePlate})</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* MODAL DE VALIDAÇÃO (Root Level) */}
-            <PickupValidationModal
-                isOpen={validationModalOpen}
-                onClose={() => setValidationModalOpen(false)}
-                onValidate={handleValidationSuccess}
-                courierName={orderToInteract?.courier?.name || 'Entregador'}
-                correctCode={orderToInteract?.pickupCode || '0000'}
-                validCodes={
-                    orderToInteract?.isBatch && orderToInteract.batchOrders
-                        ? orderToInteract.batchOrders.map(o => o.pickupCode || '')
-                        : orderToInteract?.pickupCode ? [orderToInteract.pickupCode] : []
-                }
-            />
-
-            {/* MODAL DE CANCELAMENTO (Root Level) */}
-            <CancellationModal
-                isOpen={cancellationModalOpen}
-                onClose={() => setCancellationModalOpen(false)}
-                onConfirm={handleCancellationConfirm}
-                order={orderToInteract}
-            />
-
-            {/* PAINEL DE DETALHES (Root Level) */}
-            {
-                activeOrder && (
-                    <OrderServiceDetail
-                        order={activeOrder}
-                        storeProfile={storeProfile}
-                        onCancelClick={(order) => {
-                            setOrderToInteract(order);
-                            setCancellationModalOpen(true);
-                        }}
-                        onConfirmReturn={onConfirmReturn}
-                        isExpanded={showDetailDrawer}
-                        onToggleExpand={() => setShowDetailDrawer(prev => !prev)}
-                        onClose={handleCloseDrawer}
-                        theme={theme}
-                    />
-                )
-            }
+            {isChatOpen && selectedOrderForChat && (
+                <ChatMultilateralModal
+                    order={selectedOrderForChat}
+                    onClose={() => setIsChatOpen(false)}
+                    theme={theme}
+                />
+            )}
         </div>
     );
 };
+
+// Sub-components used in GestaoDePedidos
+const Search = ({ size, className }: { size: number, className: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+);
