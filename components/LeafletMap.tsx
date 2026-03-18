@@ -281,6 +281,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             routes.push({
                 id,
                 path,
+                orders: sorted, // Include orders for tracking logic
                 color: courier ? COLORS.orange : COLORS.blue,
                 hasCourier: !!courier,
                 name: courier?.name || 'Não atribuído'
@@ -406,7 +407,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
                 {/* 3. ACTIVE ROUTES & STOPS */}
                 {batchRoutes.map(route => {
-                    const isTrackingActive = activeOrder && activeRouteStats?.geometry && route.orders.some(o => o.id === activeOrder.id);
+                    const isTrackingActive = activeOrder && activeRouteStats?.geometry && route.orders?.some(o => o.id === activeOrder.id);
                     
                     return (
                         <React.Fragment key={route.id}>
