@@ -180,13 +180,38 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             
             const points: [number, number][] = [[activeOrder.courier!.lat, activeOrder.courier!.lng]];
             
-            // Logic: Courier -> Store -> Destination
-            if (activeOrder.status === OrderStatus.ACCEPTED || activeOrder.status === OrderStatus.TO_STORE || activeOrder.status === OrderStatus.ARRIVED_AT_STORE) {
-                points.push([storeProfile.lat, storeProfile.lng]);
-            }
-            
-            if (activeOrder.destinationLat && activeOrder.destinationLng) {
-                points.push([activeOrder.destinationLat, activeOrder.destinationLng]);
+            if (activeOrder.isBatch && activeOrder.batchOrders) {
+                // For batches, follow the delivery sequence
+                const sortedStops = [...activeOrder.batchOrders].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+                
+                // If any order still needs pickup, add store first
+                if (sortedStops.some(o => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.TO_STORE)) {
+                    points.push([storeProfile.lat, storeProfile.lng]);
+                }
+
+                sortedStops.forEach(o => {
+                    if (o.destinationLat && o.destinationLng && o.status !== OrderStatus.RETURNING) {
+                        points.push([o.destinationLat, o.destinationLng]);
+                    }
+                });
+
+                // If returning, end at store
+                if (sortedStops.some(o => o.status === OrderStatus.RETURNING)) {
+                    points.push([storeProfile.lat, storeProfile.lng]);
+                }
+            } else {
+                // Single order logic
+                if (activeOrder.status === OrderStatus.ACCEPTED || activeOrder.status === OrderStatus.TO_STORE || activeOrder.status === OrderStatus.ARRIVED_AT_STORE) {
+                    points.push([storeProfile.lat, storeProfile.lng]);
+                }
+                
+                if (activeOrder.destinationLat && activeOrder.destinationLng && activeOrder.status !== OrderStatus.RETURNING) {
+                    points.push([activeOrder.destinationLat, activeOrder.destinationLng]);
+                }
+
+                if (activeOrder.status === OrderStatus.RETURNING) {
+                    points.push([storeProfile.lat, storeProfile.lng]);
+                }
             }
 
             const stats = await calculateRoute(points);

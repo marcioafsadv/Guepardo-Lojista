@@ -177,6 +177,22 @@
       background: #D35400;
       color: white;
     }
+
+    /* Ensure ONLY courier markers transition to avoid map panning artifacts */
+    .courier-marker, .courier-icon-transition {
+      transition: transform 2.8s linear !important;
+      z-index: 1000 !important;
+    }
+
+    .stop-marker {
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 500 !important;
+    }
+
+    .destination-marker {
+      filter: drop-shadow(0 0 15px rgba(204, 255, 0, 0.6));
+      z-index: 900 !important;
+    }
   </style>
 
 

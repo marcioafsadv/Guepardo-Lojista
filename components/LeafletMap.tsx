@@ -22,18 +22,15 @@ const COLORS = {
 };
 
 // --- MARKER ICONS (Premium Brand Stylized) ---
-const createCustomIcon = (iconHtml: string, color: string) => L.divIcon({
+const createCustomIcon = (html: string, color: string) => L.divIcon({
     html: `
-    <div class="relative group cursor-pointer transition-all duration-300">
-      <div class="absolute -inset-1 bg-${color}/20 rounded-full blur-sm group-hover:bg-${color}/40 transition-all"></div>
-      <div class="relative w-8 h-8 flex items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl overflow-hidden group-hover:scale-110 transition-all">
-        <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-        ${iconHtml}
+    <div class="relative group cursor-pointer" style="transition: all 2.8s linear;">
+      <div class="absolute inset-0 bg-${color}-500/20 rounded-full blur-sm group-hover:scale-110 transition-transform"></div>
+      <div class="relative bg-black/60 backdrop-blur-md border border-white/20 p-2 rounded-2xl group-hover:border-white/40 transition-all shadow-2xl">
+        ${html}
       </div>
     </div>`,
-    className: 'custom-leaflet-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
+    className: 'courier-icon-transition'
 });
 
 const storeIcon = L.divIcon({
@@ -53,16 +50,30 @@ const storeIcon = L.divIcon({
 });
 const clientIcon = createCustomIcon(`<svg viewBox="0 0 24 24" width="20" height="20" stroke="#2980B9" stroke-width="2.5" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`, 'blue');
 
+const destinationMarkerIcon = L.divIcon({
+    html: `
+    <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+      <svg width="40" height="40" viewBox="0 0 40 40" style="filter: drop-shadow(0 0 8px rgba(204, 255, 0, 0.9));">
+        <circle cx="20" cy="20" r="15" fill="rgba(204, 255, 0, 0.3)">
+          <animate attributeName="r" values="10;18;10" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="20" cy="20" r="10" fill="#7B3F00" stroke="#CCFF00" stroke-width="3" />
+        <circle cx="20" cy="20" r="3" fill="#CCFF00" />
+      </svg>
+    </div>`,
+    className: 'destination-marker',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+});
+
 const createStopMarker = (num: number, label: string, color: string) => L.divIcon({
     html: `
-    <div class="relative flex flex-col items-center">
-        <div class="w-6 h-6 flex items-center justify-center rounded-lg bg-black border-2 border-${color} shadow-2xl relative overflow-hidden group">
-            <div class="absolute inset-0 bg-${color}/10"></div>
-            <span class="text-white font-black text-[10px] relative z-10">${num}</span>
-        </div>
-        <div class="mt-1 px-1.5 py-0.5 bg-black/80 backdrop-blur-md rounded-md border border-white/5 whitespace-nowrap">
-            <p class="text-[7px] font-black text-white/60 uppercase tracking-widest">${label}</p>
-        </div>
+    <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
+      <div style="padding: 4px 10px; background: rgba(123, 63, 0, 0.9); backdrop-filter: blur(8px); border: 2px solid #CCFF00; color: white; font-size: 10px; font-weight: 900; border-radius: 12px; margin-bottom: 6px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 10px rgba(204, 255, 0, 0.3);">
+        ${num}. ${label}
+      </div>
+      <div style="width: 12px; height: 12px; background: #7B3F00; border: 2px solid #CCFF00; border-radius: 50%; box-shadow: 0 0 8px #CCFF00;"></div>
     </div>`,
     className: 'stop-marker',
     iconSize: [40, 30],
@@ -83,7 +94,7 @@ const createCourierIcon = (courier: Courier, status: OrderStatus | 'IDLE') => {
                 <p class="text-[7px] font-black text-white italic tracking-tighter uppercase line-clamp-1">${courier.name.split(' ')[0]}</p>
             </div>
         </div>`,
-        className: 'courier-marker',
+        className: 'courier-marker transition-all duration-1000 ease-linear',
         iconSize: [40, 50],
         iconAnchor: [20, 25]
     });
@@ -201,8 +212,12 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         if (typeof draftAddress === 'object' && draftAddress.lat && draftAddress.lng) {
             return [draftAddress.lat, draftAddress.lng] as [number, number];
         }
+        // Fallback: Use the end of the route geometry if available
+        if (draftRouteStats?.geometry && draftRouteStats.geometry.length > 0) {
+            return draftRouteStats.geometry[draftRouteStats.geometry.length - 1];
+        }
         return null;
-    }, [draftAddress]);
+    }, [draftAddress, draftRouteStats?.geometry]);
 
     const draftStopCoords = useMemo(() => {
         const coordsMap: Record<string, [number, number]> = {};
@@ -409,8 +424,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                                     pathOptions={{ 
                                         color: route.color, 
                                         weight: 4, 
-                                        opacity: 0.9,
-                                        dashArray: '10, 5'
+                                        opacity: 0.9
                                     }}
                                 />
                             ) : (
@@ -421,8 +435,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                                         pathOptions={{ 
                                             color: route.color, 
                                             weight: 2, 
-                                            opacity: route.hasCourier ? 0.9 : 0.6,
-                                            dashArray: route.hasCourier ? '1, 5' : '5, 5'
+                                            opacity: route.hasCourier ? 0.9 : 0.6
                                         }}
                                     />
                                     {/* Lines between stops (Solid) */}
@@ -472,10 +485,10 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     <>
                         <Polyline 
                             positions={routePolyline}
-                            pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8, dashArray: '10, 10' }}
+                            pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8 }}
                         />
                         {destinationCoords && (
-                             <Marker position={destinationCoords} icon={clientIcon}>
+                             <Marker position={destinationCoords} icon={destinationMarkerIcon}>
                                 <Popup>
                                     <div className="text-xs">
                                         <p className="font-bold text-orange-600">Destino Principal</p>

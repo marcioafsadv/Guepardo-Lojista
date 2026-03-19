@@ -4,6 +4,7 @@ import { Navigation, Phone, MapPin, Clock, Package, CheckCircle2, MessageCircle 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../lib/supabaseClient';
+import { calculateRoute } from '../utils/routing';
 
 export const TrackingPage: React.FC = () => {
     const [id, setId] = useState<string>('');
@@ -65,7 +66,7 @@ export const TrackingPage: React.FC = () => {
         fetchData();
 
         // High-frequency polling as fallback for location tracking
-        const pollInterval = setInterval(fetchData, 8000);
+        const pollInterval = setInterval(fetchData, 3000);
 
         // 3. Real-time Subscription
         const channel = supabase
@@ -148,14 +149,21 @@ export const TrackingPage: React.FC = () => {
         // Destination Marker
         if (destLat && destLng) {
             const destIcon = L.divIcon({
-                className: 'custom-div-icon',
+                className: 'destination-marker',
                 html: `
-                    <div class="relative flex items-center justify-center w-8 h-8 rounded-full bg-orange-500/20 border-2 border-orange-500 text-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <div style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="40" height="40" viewBox="0 0 40 40" style="filter: drop-shadow(0 0 8px rgba(204, 255, 0, 0.9));">
+                            <circle cx="20" cy="20" r="15" fill="rgba(204, 255, 0, 0.3)">
+                                <animate attributeName="r" values="10;18;10" dur="2s" repeatCount="indefinite" />
+                                <animate attributeName="opacity" values="0.2;0.5;0.2" dur="2s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="20" cy="20" r="10" fill="#7B3F00" stroke="#CCFF00" stroke-width="3" />
+                            <circle cx="20" cy="20" r="3" fill="#CCFF00" />
+                        </svg>
                     </div>
                 `,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
             });
             markersRef.current.destination = L.marker([destLat, destLng], { icon: destIcon }).addTo(map);
             markers.push([destLat, destLng]);
@@ -164,33 +172,51 @@ export const TrackingPage: React.FC = () => {
         // Courier Marker
         if (courierLat && courierLng) {
             const courierIcon = L.divIcon({
-                className: 'custom-div-icon',
+                className: 'courier-icon-transition',
                 html: `
                     <div class="relative flex flex-col items-center justify-center">
-                       <div class="w-12 h-12 bg-white rounded-full p-1 shadow-lg z-20 relative border-2 border-orange-500">
-                            <img src="${courierProfile.avatar_url || 'https://ui-avatars.com/api/?name=Moto&background=FFC107'}" class="w-full h-full rounded-full object-cover" />
-                            <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white animate-pulse"></div>
+                       <div class="w-12 h-12 bg-black/80 backdrop-blur-md rounded-full p-1 shadow-glow z-20 relative border-2 border-orange-500 overflow-hidden">
+                            <img src="${courierProfile.avatar_url || 'https://ui-avatars.com/api/?name=C&background=FFC107'}" class="w-full h-full rounded-full object-cover" />
+                            <div class="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-black animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
                        </div>
-                       <div class="w-4 h-1.5 bg-black/50 blur-sm rounded-full mt-1"></div>
+                       <div class="w-6 h-2 bg-black/40 blur-sm rounded-full mt-1"></div>
                     </div>
                 `,
-                iconSize: [48, 60],
+                iconSize: [48, 62],
                 iconAnchor: [24, 48]
             });
             markersRef.current.courier = L.marker([courierLat, courierLng], { icon: courierIcon }).addTo(map);
             markers.push([courierLat, courierLng]);
 
-            // Route Line
+            // Route Line (Road-Snapped)
             if (destLat && destLng) {
-                markersRef.current.route = L.polyline([
-                    [courierLat, courierLng],
-                    [destLat, destLng]
-                ], {
-                    color: '#f97316',
-                    weight: 3,
-                    dashArray: '5, 10',
-                    opacity: 0.5
-                }).addTo(map);
+                const updateRoute = async () => {
+                    const stats = await calculateRoute([[courierLat, courierLng], [destLat, destLng]]);
+                    if (stats?.geometry) {
+                        if (markersRef.current.route) markersRef.current.route.remove();
+                        markersRef.current.route = L.polyline(stats.geometry as L.LatLngExpression[], {
+                            color: '#fb923c', // orange-400
+                            weight: 6,
+                            opacity: 0.8,
+                            lineCap: 'round',
+                            lineJoin: 'round',
+                            className: 'animate-pulse' // Subtle feedback
+                        }).addTo(map);
+                    } else {
+                        // Fallback to straight line
+                        if (markersRef.current.route) markersRef.current.route.remove();
+                        markersRef.current.route = L.polyline([
+                            [courierLat, courierLng],
+                            [destLat, destLng]
+                        ], {
+                            color: '#fb923c',
+                            weight: 4,
+                            opacity: 0.5,
+                            dashArray: '5, 10'
+                        }).addTo(map);
+                    }
+                };
+                updateRoute();
             }
         }
 

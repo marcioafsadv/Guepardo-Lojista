@@ -619,7 +619,7 @@ function App() {
         const pollInterval = setInterval(() => {
             pollData();
             fetchCouriers(); // Polling fallback for courier locations
-        }, 8000); // slightly faster polling for location tracking
+        }, 3000); // slightly faster polling for location tracking
         return () => clearInterval(pollInterval);
     }, [pollData, fetchCouriers]);
 
