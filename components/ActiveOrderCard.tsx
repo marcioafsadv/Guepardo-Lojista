@@ -117,10 +117,10 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
   return (
     <div className={`
-      relative overflow-hidden transition-all duration-300 mb-4 p-6 rounded-[2rem]
-      bg-[#1A0900]/60 backdrop-blur-xl
-      border border-[#8B3A0F]/20 border-l-4 border-l-guepardo-accent
-      shadow-[0_20px_50px_rgba(0,0,0,0.5)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.98]
+      relative overflow-hidden transition-all duration-300 mb-4 p-6 rounded-[2.5rem]
+      bg-black/40 backdrop-blur-xl
+      border border-white/10 border-l-[6px] border-l-guepardo-accent
+      shadow-[0_20px_40px_rgba(0,0,0,0.4)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.98]
     `}
       onClick={() => onCardClick?.(order)}
     >
@@ -141,11 +141,11 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-black italic text-white tracking-tighter leading-none mb-1">
+          <div className="text-2xl font-black italic text-white tracking-tighter leading-none mb-1 text-shadow-glow">
             R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           {order.changeFor && (
-            <div className="text-[10px] font-black text-guepardo-accent bg-black/40 px-2 py-1 rounded-lg border border-guepardo-accent/20 uppercase tracking-wider">
+            <div className="text-[10px] font-black text-guepardo-accent bg-black/40 px-2 py-1 rounded-lg border border-guepardo-accent/20 uppercase tracking-wider text-shadow-glow">
               Troco p/ {order.changeFor}
             </div>
           )}
@@ -173,7 +173,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 } ${isCurrent ? 'ring-4 ring-guepardo-accent/30 animate-pulse' : ''}`}>
                 {isCompleted ? <CheckCircle2 size={16} strokeWidth={3} /> : <Circle size={10} fill="currentColor" />}
               </div>
-              <span className={`text-[8px] font-black mt-2 uppercase tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent' : 'text-white/20'
+              <span className={`text-[8px] font-black mt-2 uppercase tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent text-shadow-glow' : 'text-white/20'
                 }`}>
                 {step.label}
               </span>
@@ -200,8 +200,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           <div className="relative z-10 space-y-1">
             <p className="text-base font-black italic text-white tracking-widest uppercase">Procurando Entregadores</p>
             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Varredura de Proximidade Ativa</p>
-            <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow">
-              <Clock size={14} /> {formatTime(secondsWaiting)}
+            <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow text-shadow-glow">
+              <Clock size={14} className="drop-shadow-glow" /> {formatTime(secondsWaiting)}
             </div>
           </div>
 
@@ -242,7 +242,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 <p className="text-base font-black italic text-white tracking-tighter">{order.courier.name}</p>
                 <div className="flex items-center gap-2">
                    {order.status === OrderStatus.ARRIVED_AT_STORE && (
-                     <span className="animate-pulse bg-orange-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase">Na Loja</span>
+                     <span className="animate-pulse bg-orange-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase text-shadow-glow">Na Loja</span>
                    )}
                   <span className="bg-black/40 text-white/40 px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-white/5 tracking-widest shadow-inner">
                     {order.courier.vehiclePlate}
@@ -310,8 +310,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 className={`flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl text-white hover:brightness-110 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow 
                   ${(order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'bg-green-600 shadow-glow-green' : 'bg-brand-gradient'}`}
               >
-                <Navigation size={14} strokeWidth={3} />
-                { (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }
+                <Navigation size={14} strokeWidth={3} className="drop-shadow-glow" />
+                <span className="text-shadow-glow">{ (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }</span>
               </button>
             )}
           </div>

@@ -32,9 +32,9 @@
                 800: '#1E1E1E', // Cards / Secondary
                 700: '#2D2D2D', // Borders
               },
-              accent: '#D35400', // Branding Orange (was Yellow)
-              gold: '#D35400',   // Legacy support mapped to new Orange
-              orange: '#E67E22', // Secondary Brand (Lighter Orange)
+              accent: '#FF6B00', // Vibrant Branding Orange (High Visibility)
+              gold: '#FF6B00',   // Mapping to new vibrant orange
+              orange: '#FFA433', // Bright Orange (Secondary)
               dark: '#1a0900',   // Premium Dark Brown/Orange
               rust: '#8B3A0F',   // Premium Rust/Orange
               brown: {
@@ -59,16 +59,16 @@
             }
           },
           backgroundImage: {
-            'brand-gradient': 'linear-gradient(135deg, #D35400 0%, #E67E22 100%)',
+            'brand-gradient': 'linear-gradient(135deg, #FF6B00 0%, #FFA433 100%)',
             'brand-gradient-premium': 'linear-gradient(135deg, #8B3A0F 0%, #1A0900 100%)',
             'brand-gradient-green-premium': 'linear-gradient(135deg, #065F46 0%, #022C22 100%)',
-            'brand-glow': 'radial-gradient(circle at center, rgba(211, 84, 0, 0.15) 0%, transparent 70%)',
-            'brand-glow-orange': 'radial-gradient(circle at center, rgba(230, 126, 34, 0.2) 0%, transparent 70%)',
+            'brand-glow': 'radial-gradient(circle at center, rgba(255, 107, 0, 0.25) 0%, transparent 70%)',
+            'brand-glow-orange': 'radial-gradient(circle at center, rgba(255, 164, 51, 0.25) 0%, transparent 70%)',
             'brand-glow-green': 'radial-gradient(circle at center, rgba(16, 185, 129, 0.15) 0%, transparent 70%)',
           },
           boxShadow: {
-            'glow': '0 0 15px rgba(211, 84, 0, 0.3)',
-            'glow-sm': '0 0 8px rgba(211, 84, 0, 0.2)',
+            'glow': '0 0 20px rgba(255, 107, 0, 0.4)',
+            'glow-sm': '0 0 12px rgba(255, 107, 0, 0.3)',
           }
         }
       }
@@ -106,6 +106,14 @@
 
     .text-shadow-sm {
       text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .text-shadow-glow {
+      text-shadow: 0 0 10px rgba(255, 107, 0, 0.5), 0 0 20px rgba(255, 107, 0, 0.2);
+    }
+
+    .drop-shadow-glow {
+      filter: drop-shadow(0 0 8px rgba(255, 107, 0, 0.6));
     }
 
     /* Custom styled scrollbar */

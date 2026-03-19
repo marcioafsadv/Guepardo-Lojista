@@ -25,76 +25,67 @@ const COLORS = {
 const createCustomIcon = (iconHtml: string, color: string) => L.divIcon({
     html: `
     <div class="relative group cursor-pointer transition-all duration-300">
-      <div class="absolute -inset-2 bg-${color}/20 rounded-full blur-md group-hover:bg-${color}/40 transition-all"></div>
-      <div class="relative w-12 h-12 flex items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden group-hover:scale-110 group-hover:-translate-y-1 transition-all">
+      <div class="absolute -inset-1 bg-${color}/20 rounded-full blur-sm group-hover:bg-${color}/40 transition-all"></div>
+      <div class="relative w-8 h-8 flex items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl shadow-xl overflow-hidden group-hover:scale-110 transition-all">
         <div class="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
         ${iconHtml}
-        <div class="absolute bottom-0 left-0 w-full h-1 bg-${color}"></div>
       </div>
-      <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-${color} rotate-45 shadow-lg"></div>
     </div>`,
     className: 'custom-leaflet-marker',
-    iconSize: [48, 48],
-    iconAnchor: [24, 48]
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
 });
 
 const storeIcon = L.divIcon({
     html: `
     <div class="relative group cursor-pointer transition-all duration-300">
-      <div class="absolute -inset-4 bg-orange-500/20 rounded-full blur-xl animate-pulse"></div>
-      <div class="absolute -inset-1 bg-orange-500/40 rounded-full blur-sm group-hover:bg-orange-500/60 transition-all"></div>
-      <div class="relative w-14 h-14 flex items-center justify-center bg-black/60 backdrop-blur-3xl border-2 border-orange-500 rounded-full shadow-[0_0_20px_rgba(211,84,0,0.4)] overflow-hidden group-hover:scale-110 transition-all">
-        <svg viewBox="0 0 24 24" width="28" height="28" stroke="#FF6B00" stroke-width="2" fill="none" class="drop-shadow-glow">
-          <path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/>
+      <div class="absolute -inset-3 bg-orange-500/30 rounded-full blur-xl animate-pulse"></div>
+      <div class="relative w-10 h-10 flex items-center justify-center bg-black/80 backdrop-blur-3xl border-2 border-orange-500 rounded-full shadow-[0_0_15px_rgba(211,84,0,0.5)] overflow-hidden group-hover:scale-110 transition-all">
+        <svg viewBox="0 0 24 24" width="20" height="20" stroke="#FF6B00" stroke-width="2.5" fill="none" class="drop-shadow-glow">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
       </div>
     </div>`,
     className: 'custom-leaflet-marker',
-    iconSize: [60, 60],
-    iconAnchor: [30, 30]
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
 });
 const clientIcon = createCustomIcon(`<svg viewBox="0 0 24 24" width="20" height="20" stroke="#2980B9" stroke-width="2.5" fill="none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`, 'blue');
 
 const createStopMarker = (num: number, label: string, color: string) => L.divIcon({
     html: `
     <div class="relative flex flex-col items-center">
-        <div class="w-8 h-8 flex items-center justify-center rounded-xl bg-black border-2 border-${color} shadow-2xl relative overflow-hidden group">
+        <div class="w-6 h-6 flex items-center justify-center rounded-lg bg-black border-2 border-${color} shadow-2xl relative overflow-hidden group">
             <div class="absolute inset-0 bg-${color}/10"></div>
-            <span class="text-white font-black text-xs relative z-10">${num}</span>
+            <span class="text-white font-black text-[10px] relative z-10">${num}</span>
         </div>
-        <div class="mt-1 px-2 py-0.5 bg-black/80 backdrop-blur-md rounded-md border border-white/5 whitespace-nowrap">
-            <p class="text-[8px] font-black text-white/60 uppercase tracking-widest">${label}</p>
+        <div class="mt-1 px-1.5 py-0.5 bg-black/80 backdrop-blur-md rounded-md border border-white/5 whitespace-nowrap">
+            <p class="text-[7px] font-black text-white/60 uppercase tracking-widest">${label}</p>
         </div>
     </div>`,
     className: 'stop-marker',
-    iconSize: [60, 40],
-    iconAnchor: [30, 40]
+    iconSize: [40, 30],
+    iconAnchor: [20, 30]
 });
 
 const createCourierIcon = (courier: Courier, status: OrderStatus | 'IDLE') => {
     const isMoving = status === OrderStatus.IN_TRANSIT || status === OrderStatus.TO_STORE || status === OrderStatus.RETURNING;
-    const colorClass = isMoving ? 'border-[#FF6B00]' : 'border-white/20';
-    const bgClass = isMoving ? 'bg-[#FF6B00]/10' : 'bg-black/60';
-
+    
     return L.divIcon({
         html: `
-        <div class="relative group cursor-pointer">
-            <div class="absolute -inset-1 bg-black/40 rounded-2xl blur-sm"></div>
-            <div class="relative w-14 h-14 ${bgClass} backdrop-blur-3xl border-2 ${colorClass} rounded-2xl p-1 shadow-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 overflow-hidden flex items-center justify-center">
-                <img src="/cheetah-scooter.png" class="w-10 h-10 object-contain" />
-                ${isMoving ? `
-                    <div class="absolute -top-1 -right-1 flex gap-0.5">
-                        <div class="w-2 h-2 bg-orange-500 rounded-full animate-ping"></div>
-                        <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    </div>` : ''}
+        <div class="relative group cursor-pointer flex flex-col items-center">
+            ${isMoving ? `<div class="absolute -inset-3 bg-orange-500/30 rounded-full blur-xl animate-pulse shadow-[0_0_40px_rgba(255,107,0,0.7)]"></div>` : ''}
+            <div class="relative transition-all duration-300 group-hover:scale-125">
+                <img src="/cheetah-scooter.png" class="w-10 h-10 object-contain ${isMoving ? 'drop-shadow-[0_0_12px_rgba(255,107,0,1)] brightness-125' : 'filter grayscale-[30%] opacity-80'}" />
             </div>
-            <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg">
-                <p class="text-[8px] font-black text-white italic tracking-tighter uppercase line-clamp-1">${courier.name.split(' ')[0]}</p>
+            <div class="mt-1 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg">
+                <p class="text-[7px] font-black text-white italic tracking-tighter uppercase line-clamp-1">${courier.name.split(' ')[0]}</p>
             </div>
         </div>`,
         className: 'courier-marker',
-        iconSize: [56, 70],
-        iconAnchor: [28, 56]
+        iconSize: [40, 50],
+        iconAnchor: [20, 25]
     });
 };
 

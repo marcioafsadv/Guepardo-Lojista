@@ -19,19 +19,29 @@ export const SplashScreen: React.FC = () => {
             {/* Logo hero — ocupa ~45% da largura */}
             <div className="flex flex-col items-center flex-1 justify-center w-full px-6">
                 <img
-                    src="/guepardo-loading.png"
+                    src="/cheetah-icon.png"
                     alt="Guepardo Delivery"
                     className="w-[45vw] max-w-[220px] object-contain"
                     style={{
-                        filter: 'drop-shadow(0 12px 40px rgba(220, 100, 10, 0.55)) drop-shadow(0 2px 8px rgba(0,0,0,0.8))',
+                        filter: 'drop-shadow(0 16px 48px rgba(200,80,10,0.65)) drop-shadow(0 4px 12px rgba(0,0,0,0.7))',
                     }}
                 />
 
-                {/* Subtítulo identificador */}
-                <p className="mt-5 text-[11px] font-bold tracking-[0.55em] uppercase"
-                    style={{ color: '#F59E0B', letterSpacing: '0.55em' }}>
-                    LOJISTA
-                </p>
+                {/* Branding Text */}
+                <div className="flex flex-col items-center mt-6">
+                    <p
+                        className="text-2xl font-black uppercase tracking-wider"
+                        style={{ color: 'white', textShadow: '0 2px 12px rgba(200,80,10,0.7)' }}
+                    >
+                        Guepardo <span style={{ color: '#FF8C28' }}>Delivery</span>
+                    </p>
+                    <p
+                        className="text-[10px] font-bold uppercase tracking-[0.55em] mt-1.5"
+                        style={{ color: 'rgba(255,190,80,0.6)' }}
+                    >
+                        LOJISTA
+                    </p>
+                </div>
             </div>
 
             {/* Loading area — parte inferior */}

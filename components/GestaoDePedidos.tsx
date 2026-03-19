@@ -15,6 +15,14 @@ import { ActiveOrderCard } from './ActiveOrderCard';
 import { geocodeAddress } from '../utils/geocoding';
 import { calculateRoute } from '../utils/routing';
 
+// Sub-components used in GestaoDePedidos
+const SearchIcon = ({ size, className }: { size: number, className: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+);
+
 interface GestaoDePedidosProps {
     orders: Order[];
     storeProfile: StoreProfile;
@@ -351,11 +359,30 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     }, [activeOrders]);
 
     return (
-        <div className="flex w-full h-full overflow-hidden bg-black p-0 gap-0 relative">
-            {/* --- LEFT SIDEBAR (Form + Monitoring) --- */}
-            <div className={`p-6 flex flex-col gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] relative ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'w-[528px] opacity-100 translate-x-0'}`}>
-                {/* Delivery Form */}
-                <DeliveryForm
+        <div className="w-full h-full overflow-hidden relative bg-black">
+            {/* --- BACKGROUND MAP --- */}
+            <div className="absolute inset-0 z-0">
+                <LeafletMap
+                    orders={groupedOrders}
+                    activeOrder={activeOrder}
+                    storeProfile={storeProfile}
+                    couriers={availableCouriers}
+                    onCourierClick={handleCourierSelect}
+                    theme={theme}
+                    draftAddress={draftAddress}
+                    draftAdditionalStops={draftAdditionalStops}
+                    draftRouteStats={routeStats}
+                    activeRouteStats={activeRouteStats}
+                    onCardClick={handleOrderSelect}
+                    mapboxToken={mapboxToken}
+                />
+            </div>
+
+            {/* --- LEFT OVERLAY (Form + Monitoring) --- */}
+            <div className={`absolute top-0 left-0 h-full p-6 flex flex-col gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'w-[528px] opacity-100 translate-x-0'}`}>
+                <div className="pointer-events-auto flex flex-col gap-6 h-full overflow-hidden">
+                    {/* Delivery Form */}
+                    <DeliveryForm
                     onSubmit={handleNewOrderSubmit}
                     isSubmitting={false}
                     existingCustomers={customers}
@@ -368,29 +395,30 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     isSelecting={isSelectingCourier}
                     onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
                     externalTargetId={targetCourierId}
-                    onClearSelection={() => setTargetCourierId('')}
-                />
+                        onClearSelection={() => setTargetCourierId('')}
+                    />
 
-                {/* --- MONITORING PANEL (Moved below Form) --- */}
-                <div className="bg-[#1A0900]/80 backdrop-blur-3xl border border-[#8B3A0F]/30 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]">
+                    {/* --- MONITORING PANEL (Moved below Form) --- */}
+                    <div className="bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
+                         style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}>
                     
                     {/* Status Summary & Search */}
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">Monitoramento</h2>
                         <div className="relative">
-                            <input 
-                                type="text"
-                                placeholder="BUSCAR..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="bg-black/40 border border-[#8B3A0F]/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-white placeholder:text-white/20 focus:border-guepardo-accent outline-none w-32 transition-all"
-                            />
-                            <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20" />
+                             <input 
+                                 type="text"
+                                 placeholder="BUSCAR..."
+                                 value={searchTerm}
+                                 onChange={(e) => setSearchTerm(e.target.value)}
+                                 className="bg-black/60 border border-white/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-white placeholder:text-white/45 focus:border-guepardo-accent/80 outline-none w-32 transition-all"
+                             />
+                             <SearchIcon size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20" />
                         </div>
                     </div>
 
                     {/* Online Pulse */}
-                    <div className="flex items-center justify-between mb-8 p-4 bg-black/40 border border-[#8B3A0F]/20 rounded-2xl shadow-inner">
+                    <div className="flex items-center justify-between mb-8 p-4 bg-black/60 border border-white/10 rounded-2xl shadow-inner">
                         <div className="flex items-center gap-3">
                             <div className="w-8 h-8 bg-guepardo-accent/20 rounded-lg flex items-center justify-center text-guepardo-accent shadow-glow-sm">
                                 <Bike size={16} strokeWidth={2.5} />
@@ -420,13 +448,14 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
                         {groupedOrders.length === 0 && (
                             <div className="text-center py-20 opacity-30">
-                                <div className="w-20 h-20 bg-black/40 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#8B3A0F]/20 shadow-[0_0_30px_rgba(139,58,15,0.2)]">
+                                <div className="w-20 h-20 bg-black/60 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-[0_0_30px_rgba(139,58,15,0.2)]">
                                     <Radio size={40} className="text-white animate-pulse" />
                                 </div>
                                 <p className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Nenhum pedido ativo</p>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-2">Aguardando...</p>
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -446,23 +475,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                 {isFormCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} className="translate-x-[-1px]" />}
             </button>
 
-            {/* --- MIDDLE COLUMN: MAP --- */}
-            <div className="flex-1 overflow-hidden relative">
-                <LeafletMap
-                    orders={groupedOrders}
-                    activeOrder={activeOrder}
-                    storeProfile={storeProfile}
-                    couriers={availableCouriers}
-                    onCourierClick={handleCourierSelect}
-                    theme={theme}
-                    draftAddress={draftAddress}
-                    draftAdditionalStops={draftAdditionalStops}
-                    draftRouteStats={routeStats}
-                    activeRouteStats={activeRouteStats}
-                    onCardClick={handleOrderSelect}
-                    mapboxToken={mapboxToken}
-                />
-            </div>
 
             {/* BATCH ACTION BAR */}
             {selectedOrderIds.length > 0 && (
@@ -532,10 +544,3 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     );
 };
 
-// Sub-components used in GestaoDePedidos
-const Search = ({ size, className }: { size: number, className: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-    </svg>
-);

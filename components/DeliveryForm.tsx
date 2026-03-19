@@ -37,7 +37,7 @@ interface DeliveryFormProps {
   onAdditionalStopsChange?: (stops: any[]) => void;
 }
 
-export const DeliveryForm: React.FC<DeliveryFormProps> = ({
+export const DeliveryForm = ({
   onSubmit,
   isSubmitting,
   existingCustomers,
@@ -52,7 +52,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
   externalTargetId = '',
   onClearSelection,
   onAdditionalStopsChange
-}) => {
+}: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
 
   // Client & Payment
@@ -414,10 +414,12 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
     return pay > val ? pay - val : 0;
   };
 
-  const changeNeeded = calculateChangeNeeded();
+  const totalChangeNeeded = calculateChangeNeeded();
 
   return (
-    <div className="w-full flex flex-col relative bg-[#1A0900]/95 backdrop-blur-3xl border border-[#8B3A0F]/30 rounded-[2.5rem] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]" ref={wrapperRef}>
+    <div className="w-full flex flex-col relative bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)]"
+         style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}
+         ref={wrapperRef}>
 
       {/* COMPACT HEADER */}
       <div
@@ -462,7 +464,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             <input
               type="text"
               placeholder="Nome (Busca Automática)"
-              className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+              className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
               value={clientName}
               onChange={(e) => {
                 setClientName(e.target.value);
@@ -512,7 +514,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             <input
               type="tel"
               placeholder="Telefone / WhatsApp"
-              className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+              className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
               value={clientPhone}
               onChange={(e) => {
                 // Basic phone mask (digits only)
@@ -542,7 +544,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="CEP"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={cep}
                 onChange={handleCepChange}
                 maxLength={9}
@@ -553,7 +555,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Rua"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 required
@@ -568,7 +570,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 ref={numberInputRef}
                 type="text"
                 placeholder="Nº"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
                 required
@@ -578,7 +580,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Comp (apto, bloco...)"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={complement}
                 onChange={(e) => setComplement(e.target.value)}
               />
@@ -591,7 +593,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Bairro"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
                 required
@@ -601,7 +603,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="text"
                 placeholder="Cidade/UF"
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={cityState}
                 onChange={(e) => setCityState(e.target.value)}
                 required
@@ -618,7 +620,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <input
                 type="number"
                 placeholder="Valor"
-                className="w-full pl-11 pr-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/20"
+                className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={deliveryValue}
                 onChange={(e) => setDeliveryValue(e.target.value)}
               />
@@ -631,7 +633,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   setPaymentMethod(e.target.value as any);
                   if (e.target.value !== 'CASH') setChangeFor('');
                 }}
-                className="w-full px-4 py-3 bg-black/40 border border-white/5 rounded-2xl text-xs font-black italic focus:outline-none focus:border-guepardo-accent/50 focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white appearance-none"
+                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-xs font-black italic focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white appearance-none"
               >
                 <option value="PIX">PIX</option>
                 <option value="CARD">Cartão (Maq.)</option>
@@ -650,8 +652,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <div className="bg-guepardo-accent/5 border border-guepardo-accent/20 rounded-[1.5rem] p-5 space-y-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1">
-                    <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 mb-2">
-                      <Banknote size={14} /> Troco para quanto?
+                    <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 mb-2 text-shadow-glow">
+                      <Banknote size={14} className="drop-shadow-glow" /> Troco para quanto?
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -660,7 +662,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                       <input
                         type="number"
                         placeholder="Ex: 50.00"
-                        className="w-full pl-11 pr-4 py-3 bg-black/40 border-2 border-guepardo-accent/20 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white placeholder-guepardo-accent/30"
+                        className="w-full pl-11 pr-4 py-3 bg-black/60 border-2 border-guepardo-accent/40 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white placeholder-guepardo-accent/50"
                         value={changeFor}
                         onChange={(e) => setChangeFor(e.target.value)}
                         required
@@ -669,14 +671,14 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                   </div>
                   <div className="shrink-0 text-right pt-4">
                     <p className="text-[10px] font-black text-white/20 uppercase tracking-tighter leading-none mb-2">Troco Total</p>
-                    <p className={`text-2xl font-black italic tracking-tighter leading-none ${changeNeeded > 0 ? 'text-guepardo-accent' : 'text-white/10'}`}>
-                      R$ {changeNeeded.toFixed(2)}
+                    <p className={`text-2xl font-black italic tracking-tighter leading-none ${totalChangeNeeded > 0 ? 'text-guepardo-accent text-shadow-glow' : 'text-white/10'}`}>
+                      R$ {totalChangeNeeded.toFixed(2)}
                     </p>
                   </div>
                 </div>
-                {changeNeeded > 0 && (
+                {totalChangeNeeded > 0 && (
                   <p className="text-[10px] text-guepardo-accent/60 font-black italic uppercase tracking-wider">
-                    * O entregador deverá levar R$ {changeNeeded.toFixed(2)} em espécie.
+                    * O entregador deverá levar R$ {totalChangeNeeded.toFixed(2)} em espécie.
                   </p>
                 )}
               </div>
@@ -687,7 +689,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
           {additionalStops.length > 0 && (
             <div className="space-y-4 pt-4">
               <div className="flex items-center justify-between px-2">
-                <span className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em]">Paradas Adicionais ({additionalStops.length})</span>
+                <span className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] text-shadow-glow">Paradas Adicionais ({additionalStops.length})</span>
               </div>
               {additionalStops.map((stop, index) => (
                 <div key={stop.id} className="bg-[#1A0900]/40 border border-[#8B3A0F]/20 rounded-[1.5rem] p-5 space-y-4 relative animate-in slide-in-from-right-4 duration-500 overflow-hidden group/stop">
@@ -710,7 +712,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="text"
                       placeholder="Nome do Cliente"
-                      className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
+                      className="w-full pl-10 pr-4 py-2 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 text-white font-black italic placeholder-white/45"
                       value={stop.clientName}
                       onChange={(e) => {
                         updateStop(stop.id, 'clientName', e.target.value);
@@ -760,7 +762,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="tel"
                       placeholder="Telefone / WhatsApp"
-                      className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
+                      className="w-full pl-10 pr-4 py-2 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 text-white font-black italic placeholder-white/45"
                       value={stop.clientPhone}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, '');
@@ -778,7 +780,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                     <input
                       type="text"
                       placeholder="CEP"
-                      className="w-28 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
+                      className="w-28 px-4 py-2 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 text-white font-black italic placeholder-white/45"
                       value={stop.addressCep}
                       onChange={(e) => {
                         let val = e.target.value.replace(/\D/g, '');
@@ -908,8 +910,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
             Adicionar Outra Parada (+)
           </button>
           <div className="space-y-3">
-            <label className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] flex items-center gap-2">
-              <User className="w-4 h-4 text-guepardo-accent" />
+            <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 text-shadow-glow">
+              <User className="w-4 h-4 text-guepardo-accent drop-shadow-glow" />
               Direcionar para Entregador
             </label>
             <div className="grid grid-cols-1 gap-2">
@@ -957,8 +959,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 )}
               </select>
               {targetCourierId && (
-                <p className="text-[10px] text-guepardo-accent font-black uppercase tracking-wider italic flex items-center gap-2">
-                  <CheckCheck size={12} /> Chamada será direcionada exclusivamente ao Guepardo selecionado.
+                <p className="text-[10px] text-guepardo-accent font-black uppercase tracking-wider italic flex items-center gap-2 text-shadow-glow">
+                  <CheckCheck size={12} className="drop-shadow-glow" /> Chamada será direcionada exclusivamente ao Guepardo selecionado.
                 </p>
               )}
             </div>
@@ -980,7 +982,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
                 <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-4' : 'translate-x-0'}`}></div>
               </div>
               <div className="flex-1 relative z-10">
-                <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
+                <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent text-shadow-glow' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
                 <p className="text-[10px] text-white/10 font-black tracking-tighter uppercase">Ex: Maquininha, Recibo Assinado, Troca</p>
               </div>
             </label>
@@ -1046,7 +1048,7 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
 
             <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-2 relative z-10">
               <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total ao Cliente</span>
-              <span className="text-3xl font-black italic text-white tracking-tighter">
+              <span className="text-3xl font-black italic text-white tracking-tighter text-shadow-glow">
                 {street && number ? `R$ ${(totalFreight || 0).toFixed(2)}` : 'R$ ****'}
               </span>
             </div>
@@ -1083,8 +1085,8 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({
               <Loader2 className="animate-spin" size={20} />
             ) : (
               <>
-                <span className="tracking-tighter">CHAMAR GUEPARDO</span>
-                <Bike size={20} strokeWidth={3} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                <span className="tracking-tighter text-shadow-glow">CHAMAR GUEPARDO</span>
+                <Bike size={20} strokeWidth={3} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform drop-shadow-glow" />
               </>
             )}
           </button>
