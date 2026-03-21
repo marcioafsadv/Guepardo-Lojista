@@ -14,7 +14,6 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
     const [step, setStep] = useState<PaymentStep>('SELECT_AMOUNT');
     const [amount, setAmount] = useState<number>(0);
     const [method, setMethod] = useState<'PIX' | 'CREDIT_CARD' | 'BOLETO'>('PIX');
-    const [provider, setProvider] = useState<'asaas' | 'mercadopago'>('mercadopago');
     const [loading, setLoading] = useState(false);
     const [pixData, setPixData] = useState<{ qrCode: string, payload: string } | null>(null);
 
@@ -35,33 +34,20 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setStep('PROCESSING');
 
         try {
-            const endpoint = provider === 'mercadopago' ? 'mercadopago-payment' : 'asaas-payment';
-            const { data, error } = await supabase.functions.invoke(endpoint, {
+            const { data, error } = await supabase.functions.invoke('mercadopago-payment', {
                 body: { amount, method: 'PIX', description: 'Recarga de Saldo - Guepardo' }
             });
 
             if (error) throw error;
 
-            if (provider === 'mercadopago') {
-                if (data.qrCode) {
-                    setPixData({
-                        qrCode: `data:image/png;base64,${data.qrCode}`,
-                        payload: data.qrCodePayload
-                    });
-                    setStep('SHOW_PIX');
-                } else {
-                    throw new Error("Erro ao gerar QR Code Mercado Pago");
-                }
+            if (data.qrCode) {
+                setPixData({
+                    qrCode: `data:image/png;base64,${data.qrCode}`,
+                    payload: data.qrCodePayload
+                });
+                setStep('SHOW_PIX');
             } else {
-                if (data.pix) {
-                    setPixData({
-                        qrCode: data.pix.encodedImage,
-                        payload: data.pix.payload
-                    });
-                    setStep('SHOW_PIX');
-                } else {
-                    throw new Error("Erro ao gerar QR Code Pix");
-                }
+                throw new Error("Erro ao gerar QR Code Mercado Pago");
             }
         } catch (err: any) {
             console.error("Erro no pagamento:", err);
@@ -155,30 +141,6 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
 
                     {step === 'SELECT_METHOD' && (
                         <div className="space-y-6">
-                            <div>
-                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest block mb-4">Escolha o Provedor</label>
-                                <div className="grid grid-cols-2 gap-3 pb-2">
-                                    <button
-                                        onClick={() => setProvider('mercadopago')}
-                                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${provider === 'mercadopago' ? 'bg-blue-500/10 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}
-                                    >
-                                        <div className={`p-2 rounded-lg ${provider === 'mercadopago' ? 'bg-blue-500 text-white' : 'bg-white/5'}`}>
-                                            <Zap size={18} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-center">Mercado Pago</span>
-                                    </button>
-                                    <button
-                                        onClick={() => setProvider('asaas')}
-                                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${provider === 'asaas' ? 'bg-emerald-500/10 border-emerald-500 text-white' : 'bg-white/5 border-white/10 text-white/40'}`}
-                                    >
-                                        <div className={`p-2 rounded-lg ${provider === 'asaas' ? 'bg-emerald-500 text-white' : 'bg-white/5'}`}>
-                                            <TrendingUp size={18} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-wider text-center">Asaas</span>
-                                    </button>
-                                </div>
-                            </div>
-
                             <label className="text-xs font-bold text-white/40 uppercase tracking-widest block">Método de pagamento</label>
 
                             <div className="space-y-3">
@@ -247,7 +209,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                         <div className="py-20 flex flex-col items-center justify-center text-center">
                             <div className="w-16 h-16 border-4 border-guepardo-accent border-t-transparent rounded-full animate-spin mb-6"></div>
                             <h4 className="text-xl font-black italic tracking-tighter mb-2">GERANDO COBRANÇA</h4>
-                            <p className="text-white/40 text-sm font-medium">Comunicação segura com {provider === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}...</p>
+                            <p className="text-white/40 text-sm font-medium">Comunicação segura com Mercado Pago...</p>
                         </div>
                     )}
 

@@ -94,6 +94,9 @@ Deno.serve(async (req: Request) => {
             throw new Error(`MP Error: ${mpMessage}`);
         }
 
+        const point_of_interaction = paymentData.point_of_interaction || {};
+        const transaction_data = point_of_interaction.transaction_data || {};
+
         // 3. Register Transaction in DB (Using Admin Client to bypass RLS)
         const { error: txError } = await supabaseAdmin.from("wallet_transactions").insert({
             store_id: store.id,
@@ -102,15 +105,14 @@ Deno.serve(async (req: Request) => {
             status: 'PENDING',
             payment_method: 'PIX',
             mercadopago_payment_id: String(paymentData.id),
+            pix_qr_code: transaction_data.qr_code_base64,
+            pix_copy_paste: transaction_data.qr_code,
             description: paymentBody.description
         });
 
         if (txError) {
             console.error("Error saving transaction to DB:", txError);
         }
-
-        const point_of_interaction = paymentData.point_of_interaction || {};
-        const transaction_data = point_of_interaction.transaction_data || {};
 
         return new Response(JSON.stringify({
             success: true,

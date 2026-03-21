@@ -10,6 +10,8 @@ interface Transaction {
     type: 'RECHARGE' | 'PAYMENT' | 'REFUND';
     method: 'PIX' | 'CARD' | 'BOLETO' | 'BALANCE';
     status: 'CONFIRMED' | 'PENDING' | 'FAILED';
+    qrCode?: string;
+    qrCodePayload?: string;
 }
 
 interface WalletViewProps {
@@ -21,6 +23,14 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
     const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     const fetchTransactions = async () => {
         if (!storeId) return;
@@ -42,7 +52,9 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                     amount: tx.type === 'PAYMENT' ? -tx.amount : tx.amount,
                     type: tx.type,
                     method: tx.payment_method,
-                    status: tx.status
+                    status: tx.status,
+                    qrCode: tx.pix_qr_code,
+                    qrCodePayload: tx.pix_copy_paste
                 })));
             }
         } catch (err) {
@@ -91,8 +103,8 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
 
                 <div className="flex items-center gap-4">
                     <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-full flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        <span className="text-[10px] font-bold text-white/70 uppercase">Conectado ao Asaas</span>
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
+                        <span className="text-[10px] font-bold text-white/70 uppercase">Pagamentos via Mercado Pago</span>
                     </div>
                 </div>
             </div>
@@ -173,8 +185,9 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                 </div>
 
                 <div className="mt-8 pt-8 border-t border-white/5">
-                    <p className="text-[10px] text-white/30 uppercase font-black text-center tracking-tighter">
-                        Dados baseados no seu extrato mensal
+                    <p className="text-[10px] text-white/30 uppercase font-bold text-center tracking-widest flex items-center justify-center gap-2">
+                        <QrCode size={12} className="text-blue-500/50" />
+                        Sistema de Pagamentos Seguro
                     </p>
                 </div>
             </div>
@@ -217,45 +230,122 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                         <tbody className="divide-y divide-white/5">
                             {transactions.length > 0 ? (
                                 transactions.map(tx => (
-                                    <tr key={tx.id} className="hover:bg-white/5 transition-colors group">
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-3 text-sm text-white/80">
-                                                <Clock size={14} className="text-white/20" />
-                                                {tx.date}
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-white uppercase tracking-tight">
-                                                    {tx.type === 'RECHARGE' ? 'Recarga de Saldo' : tx.type === 'PAYMENT' ? 'Pagamento de Frete' : 'Estorno'}
+                                    <React.Fragment key={tx.id}>
+                                        <tr 
+                                            onClick={() => tx.status === 'PENDING' && tx.qrCode ? setExpandedTxId(expandedTxId === tx.id ? null : tx.id) : null}
+                                            className={`
+                                                transition-all border-l-2
+                                                ${tx.status === 'PENDING' && tx.qrCode ? 'cursor-pointer hover:bg-white/[0.03]' : 'hover:bg-white/5'}
+                                                ${expandedTxId === tx.id ? 'bg-white/[0.05] border-l-guepardo-accent' : 'border-l-transparent'}
+                                            `}
+                                        >
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-3 text-sm text-white/80">
+                                                    <Clock size={14} className="text-white/20" />
+                                                    {tx.date}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-white uppercase tracking-tight">
+                                                        {tx.type === 'RECHARGE' ? 'Recarga de Saldo' : tx.type === 'PAYMENT' ? 'Pagamento de Frete' : 'Estorno'}
+                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-white/30 font-medium">ID: #{tx.id.toString().slice(-6).padStart(6, '0')}</span>
+                                                        {tx.status === 'PENDING' && tx.qrCode && (
+                                                            <span className="text-[10px] text-guepardo-accent flex items-center gap-1 font-bold animate-pulse">
+                                                                <Plus size={10} /> VER QR CODE
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    {tx.method === 'PIX' && <QrCode size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.3)]" />}
+                                                    {tx.method === 'CARD' && <CreditCard size={16} className="text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.3)]" />}
+                                                    {tx.method === 'BALANCE' && <Wallet size={16} className="text-guepardo-accent drop-shadow-[0_0_8px_rgba(211,84,0,0.3)]" />}
+                                                    <span className="text-xs font-black text-white/70 uppercase tracking-tight">{tx.method}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-5 text-center">
+                                                <span className={`
+                                                    px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider
+                                                    ${tx.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                                        tx.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                            'bg-red-500/20 text-red-400 border border-red-500/30'}
+                                                `}>
+                                                    {tx.status === 'CONFIRMED' ? 'Concluído' : tx.status === 'PENDING' ? 'Pendente' : 'Falhou'}
                                                 </span>
-                                                <span className="text-[10px] text-white/30 font-medium">ID: #{tx.id.toString().slice(-6).padStart(6, '0')}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-2">
-                                                {tx.method === 'PIX' && <QrCode size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.3)]" />}
-                                                {tx.method === 'CARD' && <CreditCard size={16} className="text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.3)]" />}
-                                                {tx.method === 'BALANCE' && <Wallet size={16} className="text-guepardo-accent drop-shadow-[0_0_8px_rgba(211,84,0,0.3)]" />}
-                                                <span className="text-xs font-black text-white/70 uppercase tracking-tight">{tx.method}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-5 text-center">
-                                            <span className={`
-                                                px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider
-                                                ${tx.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                    tx.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                        'bg-red-500/20 text-red-400 border border-red-500/30'}
-                                            `}>
-                                                {tx.status === 'CONFIRMED' ? 'Concluído' : tx.status === 'PENDING' ? 'Pendente' : 'Falhou'}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-5 text-right">
-                                            <span className={`text-sm font-black italic tracking-tight ${tx.amount > 0 ? 'text-green-400' : 'text-white'}`}>
-                                                {tx.amount > 0 ? '+' : ''} R$ {Math.abs(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </td>
-                                    </tr>
+                                            </td>
+                                            <td className="px-8 py-5 text-right">
+                                                <span className={`text-sm font-black italic tracking-tight ${tx.amount > 0 ? 'text-green-400' : 'text-white'}`}>
+                                                    {tx.amount > 0 ? '+' : ''} R$ {Math.abs(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </td>
+                                        </tr>
+
+                                        {/* Expanded QR Code Row */}
+                                        {expandedTxId === tx.id && tx.qrCode && (
+                                            <tr>
+                                                <td colSpan={5} className="px-8 py-0">
+                                                    <div className="overflow-hidden animate-in slide-in-from-top-4 duration-300">
+                                                        <div className="bg-white/[0.02] border-x border-b border-white/5 rounded-b-2xl p-8 mb-4 flex flex-col md:flex-row items-center justify-center gap-12">
+                                                            {/* QR Code Presentation */}
+                                                            <div className="relative group">
+                                                                <div className="absolute -inset-4 bg-blue-500/20 rounded-3xl blur-2xl group-hover:bg-blue-500/30 transition-all"></div>
+                                                                <div className="relative bg-white p-6 rounded-2xl shadow-2xl">
+                                                                    <img 
+                                                                        src={`data:image/png;base64,${tx.qrCode}`} 
+                                                                        alt="QR Code PIX" 
+                                                                        className="w-48 h-48"
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Instructions & Copy Button */}
+                                                            <div className="flex flex-col gap-6 max-w-sm">
+                                                                <div>
+                                                                    <h4 className="text-xl font-black italic tracking-tight text-white mb-2">Pague com PIX</h4>
+                                                                    <p className="text-white/50 text-xs leading-relaxed uppercase font-bold tracking-widest">
+                                                                        Escaneie o QR Code ao lado ou utilize o código "Copia e Cola" abaixo para concluir sua recarga.
+                                                                    </p>
+                                                                </div>
+
+                                                                <div className="space-y-3">
+                                                                    <div className="flex flex-col gap-2">
+                                                                        <span className="text-[10px] text-white/30 font-black uppercase tracking-widest">Código Copia e Cola</span>
+                                                                        <div className="flex gap-2">
+                                                                            <input 
+                                                                                type="text" 
+                                                                                readOnly 
+                                                                                value={tx.qrCodePayload}
+                                                                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white/40 font-mono focus:outline-none"
+                                                                            />
+                                                                            <button 
+                                                                                onClick={() => handleCopy(tx.qrCodePayload || '')}
+                                                                                className={`
+                                                                                    px-4 py-3 rounded-xl font-bold text-xs transition-all flex items-center gap-2
+                                                                                    ${copied ? 'bg-green-500 text-white' : 'bg-guepardo-accent hover:bg-orange-600 text-white'}
+                                                                                `}
+                                                                            >
+                                                                                {copied ? 'COPIADO!' : 'COPIAR'}
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                                                                    <Clock size={16} className="text-amber-500 animate-pulse" />
+                                                                    <span className="text-xs font-bold text-amber-500 uppercase">Aguardando confirmação do pagamento...</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </React.Fragment>
                                 ))
                             ) : (
                                 <tr>
