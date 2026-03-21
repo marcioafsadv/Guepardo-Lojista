@@ -135,39 +135,49 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                     </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="bg-guepardo-gray-800/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col justify-between hover:border-white/20 transition-colors shadow-xl">
-                    <div>
-                        <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Uso este mês</span>
-                        <div className="mt-6 flex flex-col gap-8">
-                            <div className="flex items-center justify-between group/stat">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-green-500/10 rounded-xl text-green-500 group-hover/stat:bg-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(34,197,94,0.2)] transition-all">
-                                        <TrendingUp size={22} />
-                                    </div>
-                                    <span className="text-sm font-bold text-white/80">Entradas</span>
+            {/* Quick Stats */}
+            <div className="bg-guepardo-gray-800/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 flex flex-col justify-between hover:border-white/20 transition-colors shadow-xl">
+                <div>
+                    <span className="text-white/40 text-xs font-bold uppercase tracking-widest">Uso este mês</span>
+                    <div className="mt-6 flex flex-col gap-8">
+                        <div className="flex items-center justify-between group/stat">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-green-500/10 rounded-xl text-green-500 group-hover/stat:bg-green-500/20 shadow-[0_0_15px_rgba(34,197,94,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(34,197,94,0.2)] transition-all">
+                                    <TrendingUp size={22} />
                                 </div>
-                                <span className="text-xl font-black text-green-500 tracking-tight">+ R$ 150,00</span>
+                                <span className="text-sm font-bold text-white/80">Entradas</span>
                             </div>
+                            <span className="text-xl font-black text-green-500 tracking-tight">
+                                + R$ {transactions
+                                    .filter(t => t.amount > 0 && t.status === 'CONFIRMED')
+                                    .reduce((sum, t) => sum + t.amount, 0)
+                                    .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                        </div>
 
-                            <div className="flex items-center justify-between group/stat">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-red-500/10 rounded-xl text-red-500 group-hover/stat:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(239,68,68,0.2)] transition-all">
-                                        <ArrowDownRight size={22} />
-                                    </div>
-                                    <span className="text-sm font-bold text-white/80">Saídas</span>
+                        <div className="flex items-center justify-between group/stat">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-red-500/10 rounded-xl text-red-500 group-hover/stat:bg-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.1)] group-hover/stat:shadow-[0_0_20px_rgba(239,68,68,0.2)] transition-all">
+                                    <ArrowDownRight size={22} />
                                 </div>
-                                <span className="text-xl font-black text-red-400 tracking-tight">- R$ 15,50</span>
+                                <span className="text-sm font-bold text-white/80">Saídas</span>
                             </div>
+                            <span className="text-xl font-black text-red-400 tracking-tight">
+                                - R$ {Math.abs(transactions
+                                    .filter(t => t.amount < 0 && t.status === 'CONFIRMED')
+                                    .reduce((sum, t) => sum + t.amount, 0))
+                                    .toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
                         </div>
                     </div>
-
-                    <div className="mt-8 pt-8 border-t border-white/5">
-                        <p className="text-[10px] text-white/30 uppercase font-black text-center tracking-tighter">
-                            Taxas de transação podem ser aplicadas pelo Asaas
-                        </p>
-                    </div>
                 </div>
+
+                <div className="mt-8 pt-8 border-t border-white/5">
+                    <p className="text-[10px] text-white/30 uppercase font-black text-center tracking-tighter">
+                        Dados baseados no seu extrato mensal
+                    </p>
+                </div>
+            </div>
             </div>
 
             {/* Transactions Table */}

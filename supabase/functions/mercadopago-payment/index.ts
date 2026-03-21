@@ -4,6 +4,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const MERCADOPAGO_ACCESS_TOKEN = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
 const MP_API_URL = "https://api.mercadopago.com/v1";
 
+const supabaseAdmin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+);
+
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -89,8 +94,8 @@ Deno.serve(async (req: Request) => {
             throw new Error(`MP Error: ${mpMessage}`);
         }
 
-        // 3. Register Transaction in DB
-        const { error: txError } = await supabaseClient.from("wallet_transactions").insert({
+        // 3. Register Transaction in DB (Using Admin Client to bypass RLS)
+        const { error: txError } = await supabaseAdmin.from("wallet_transactions").insert({
             store_id: store.id,
             amount: amount,
             type: 'RECHARGE',
