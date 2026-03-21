@@ -15,16 +15,22 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
+        console.log("Function invoked");
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) throw new Error("Missing Authorization header");
+
         const supabaseClient = createClient(
             Deno.env.get("SUPABASE_URL") ?? "",
             Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-            { global: { headers: { Authorization: req.headers.get("Authorization")! } } }
+            { global: { headers: { Authorization: authHeader } } }
         );
 
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (!user) throw new Error("Unauthorized");
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !user) throw new Error("Unauthorized");
 
-        const { amount, description } = await req.json();
+        const body = await req.json();
+        const { amount, description } = body;
+        console.log("Request body:", body);
 
         // 1. Get Store Data
         const { data: store, error: storeError } = await supabaseClient
@@ -33,7 +39,17 @@ Deno.serve(async (req: Request) => {
             .eq("id", user.id)
             .single();
 
-        if (storeError || !store) throw new Error("Store not found");
+        if (storeError || !store) {
+            console.error("Store error:", storeError);
+            throw new Error("Store not found");
+        }
+        console.log("Store found:", store.id, store.fantasy_name);
+
+        const idNumber = (store.cnpj || store.cpf || "").replace(/\D/g, "");
+        if (!idNumber || (idNumber.length !== 11 && idNumber.length !== 14)) {
+            throw new Error(`CPF ou CNPJ inválido ou não cadastrado (Encontrado: ${idNumber || 'nada'}). Por favor, verifique seu perfil.`);
+        }
+        const idType = idNumber.length === 14 ? "CNPJ" : "CPF";
 
         // 2. Create Mercado Pago Payment
         const paymentBody = {
@@ -42,35 +58,38 @@ Deno.serve(async (req: Request) => {
             payment_method_id: "pix",
             payer: {
                 email: user.email,
-                first_name: store.fantasy_name || store.company_name,
-                last_name: "Lojista",
+                first_name: store.fantasy_name || store.company_name || "Lojista",
+                last_name: "Guepardo",
                 identification: {
-                    type: store.cnpj ? "CNPJ" : "CPF",
-                    number: store.cnpj || store.cpf || "00000000000",
+                    type: idType,
+                    number: idNumber,
                 },
             },
             external_reference: store.id,
             notification_url: "https://eviukbluwrwcblwhkzwz.supabase.co/functions/v1/mercadopago-webhook",
         };
+        console.log("Sending to Mercado Pago (sanitized):", JSON.stringify({ ...paymentBody, payer: { ...paymentBody.payer, identification: { ...paymentBody.payer.identification, number: "XXX" } } }));
 
         const paymentResp = await fetch(`${MP_API_URL}/payments`, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+                "X-Idempotency-Key": crypto.randomUUID(),
                 "Content-Type": "application/json",
             },
             body: JSON.stringify(paymentBody),
         });
 
         const paymentData = await paymentResp.json();
+        console.log("Mercado Pago response status:", paymentResp.status);
         
-        if (paymentData.status === 400 || !paymentData.id) {
-            throw new Error(`Mercado Pago Payment Error: ${JSON.stringify(paymentData)}`);
+        if (paymentResp.status >= 400 || !paymentData.id) {
+            console.error("Mercado Pago Error Details:", paymentData);
+            const mpMessage = paymentData.message || (paymentData.cause && paymentData.cause[0] && paymentData.cause[0].description) || 'Erro desconhecido no Mercado Pago';
+            throw new Error(`MP Error: ${mpMessage}`);
         }
 
         // 3. Register Transaction in DB
-        // NOTE: We assume 'mercadopago_payment_id' column exists or will be added.
-        // If not, we fall back to a generic field if available, or just asaas_payment_id with a prefix (not recommended).
         const { error: txError } = await supabaseClient.from("wallet_transactions").insert({
             store_id: store.id,
             amount: amount,
@@ -82,8 +101,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (txError) {
-            console.error("Error saving transaction:", txError);
-            // If the column doesn't exist, we might want to know.
+            console.error("Error saving transaction to DB:", txError);
         }
 
         const point_of_interaction = paymentData.point_of_interaction || {};
@@ -100,6 +118,7 @@ Deno.serve(async (req: Request) => {
         });
 
     } catch (error: any) {
+        console.error("Caught error:", error.message);
         return new Response(JSON.stringify({ error: error.message }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
