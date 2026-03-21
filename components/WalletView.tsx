@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
+import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock, RefreshCcw } from 'lucide-react';
 import { RechargeModal } from './RechargeModal.tsx';
+import { supabase } from '../lib/supabaseClient';
 
 interface Transaction {
     id: string;
@@ -18,12 +19,63 @@ interface WalletViewProps {
 
 export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
     const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
-    const [transactions, setTransactions] = useState<Transaction[]>([
-        // Mock data for initial UI
-        { id: '1', date: '2026-03-06 14:20', amount: 50.00, type: 'RECHARGE', method: 'PIX', status: 'CONFIRMED' },
-        { id: '2', date: '2026-03-05 10:15', amount: -15.50, type: 'PAYMENT', method: 'BALANCE', status: 'CONFIRMED' },
-        { id: '3', date: '2026-03-04 18:30', amount: 100.00, type: 'RECHARGE', method: 'BOLETO', status: 'PENDING' },
-    ]);
+    const [loading, setLoading] = useState(true);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+    const fetchTransactions = async () => {
+        if (!storeId) return;
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('wallet_transactions')
+                .select('*')
+                .eq('store_id', storeId)
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (error) throw error;
+
+            if (data) {
+                setTransactions(data.map((tx: any) => ({
+                    id: tx.id,
+                    date: new Date(tx.created_at).toLocaleString('pt-BR'),
+                    amount: tx.type === 'PAYMENT' ? -tx.amount : tx.amount,
+                    type: tx.type,
+                    method: tx.payment_method,
+                    status: tx.status
+                })));
+            }
+        } catch (err) {
+            console.error('Error fetching transactions:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchTransactions();
+
+        // Realtime subscription for transaction updates
+        const channel = supabase
+            .channel(`wallet-tx-${storeId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'wallet_transactions',
+                    filter: `store_id=eq.${storeId}`
+                },
+                () => {
+                    fetchTransactions();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [storeId]);
 
     return (
         <div className="flex flex-col h-full bg-[#121212] text-white p-8 overflow-y-auto scrollbar-guepardo">
@@ -127,8 +179,17 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                         </div>
                         ÚLTIMAS MOVIMENTAÇÕES
                     </h3>
-                    <div className="text-[10px] text-white/30 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                        Exibindo últimas 20 transações
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={fetchTransactions}
+                            className="p-2 hover:bg-white/5 rounded-lg transition-colors text-white/30 hover:text-white/60"
+                            title="Atualizar transações"
+                        >
+                            <RefreshCcw size={16} className={loading ? 'animate-spin' : ''} />
+                        </button>
+                        <div className="text-[10px] text-white/30 font-black uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                            Exibindo últimas 20 transações
+                        </div>
                     </div>
                 </div>
 
@@ -144,47 +205,58 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                            {transactions.map(tx => (
-                                <tr key={tx.id} className="hover:bg-white/5 transition-colors group">
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-3 text-sm text-white/80">
-                                            <Clock size={14} className="text-white/20" />
-                                            {tx.date}
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-white uppercase tracking-tight">
-                                                {tx.type === 'RECHARGE' ? 'Recarga de Saldo' : tx.type === 'PAYMENT' ? 'Pagamento de Frete' : 'Estorno'}
+                            {transactions.length > 0 ? (
+                                transactions.map(tx => (
+                                    <tr key={tx.id} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-3 text-sm text-white/80">
+                                                <Clock size={14} className="text-white/20" />
+                                                {tx.date}
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-white uppercase tracking-tight">
+                                                    {tx.type === 'RECHARGE' ? 'Recarga de Saldo' : tx.type === 'PAYMENT' ? 'Pagamento de Frete' : 'Estorno'}
+                                                </span>
+                                                <span className="text-[10px] text-white/30 font-medium">ID: #{tx.id.toString().slice(-6).padStart(6, '0')}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-2">
+                                                {tx.method === 'PIX' && <QrCode size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.3)]" />}
+                                                {tx.method === 'CARD' && <CreditCard size={16} className="text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.3)]" />}
+                                                {tx.method === 'BALANCE' && <Wallet size={16} className="text-guepardo-accent drop-shadow-[0_0_8px_rgba(211,84,0,0.3)]" />}
+                                                <span className="text-xs font-black text-white/70 uppercase tracking-tight">{tx.method}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-8 py-5 text-center">
+                                            <span className={`
+                                                px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider
+                                                ${tx.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                                    tx.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                                                        'bg-red-500/20 text-red-400 border border-red-500/30'}
+                                            `}>
+                                                {tx.status === 'CONFIRMED' ? 'Concluído' : tx.status === 'PENDING' ? 'Pendente' : 'Falhou'}
                                             </span>
-                                            <span className="text-[10px] text-white/30 font-medium">ID: #{tx.id.padStart(6, '0')}</span>
+                                        </td>
+                                        <td className="px-8 py-5 text-right">
+                                            <span className={`text-sm font-black italic tracking-tight ${tx.amount > 0 ? 'text-green-400' : 'text-white'}`}>
+                                                {tx.amount > 0 ? '+' : ''} R$ {Math.abs(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-20 text-center">
+                                        <div className="flex flex-col items-center gap-4 text-white/20">
+                                            <History size={48} strokeWidth={1} />
+                                            <p className="font-bold uppercase tracking-widest text-xs">Nenhuma movimentação encontrada</p>
                                         </div>
-                                    </td>
-                                    <td className="px-8 py-5">
-                                        <div className="flex items-center gap-2">
-                                            {tx.method === 'PIX' && <QrCode size={16} className="text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.3)]" />}
-                                            {tx.method === 'CARD' && <CreditCard size={16} className="text-purple-400 drop-shadow-[0_0_8px_rgba(192,132,252,0.3)]" />}
-                                            {tx.method === 'BALANCE' && <Wallet size={16} className="text-guepardo-accent drop-shadow-[0_0_8px_rgba(211,84,0,0.3)]" />}
-                                            <span className="text-xs font-black text-white/70 uppercase tracking-tight">{tx.method}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-8 py-5 text-center">
-                                        <span className={`
-                                            px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider
-                                            ${tx.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                                tx.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                                                    'bg-red-500/20 text-red-400 border border-red-500/30'}
-                                        `}>
-                                            {tx.status === 'CONFIRMED' ? 'Concluído' : tx.status === 'PENDING' ? 'Pendente' : 'Falhou'}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-5 text-right">
-                                        <span className={`text-sm font-black italic tracking-tight ${tx.amount > 0 ? 'text-green-400' : 'text-white'}`}>
-                                            {tx.amount > 0 ? '+' : ''} R$ {Math.abs(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                        </span>
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>
