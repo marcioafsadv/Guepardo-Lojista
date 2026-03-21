@@ -242,6 +242,38 @@ function App() {
             }
         };
         fetchProfile();
+
+        // 2. Realtime Subscription for Store Profile changes (Balance, Status, etc)
+        const storeChannel = supabase
+            .channel(`store-updates-${session.user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'stores',
+                    filter: `id=eq.${session.user.id}`
+                },
+                (payload) => {
+                    console.log("🔄 [STORE_PROFILE] Realtime update received:", payload.new);
+                    const data = payload.new;
+                    const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
+                    setRealStoreProfile({
+                        id: data.id,
+                        name: data.fantasy_name || data.company_name,
+                        address: fullAddress,
+                        lat: data.lat || -23.257217,
+                        lng: data.lng || -47.300549,
+                        wallet_balance: data.wallet_balance || 0,
+                        status: data.status || 'fechada'
+                    });
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(storeChannel);
+        };
     }, [session?.user?.id]); // Depend on user ID for stability
 
     // Fetch System Pricing Settings from Supabase

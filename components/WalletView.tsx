@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock, RefreshCcw } from 'lucide-react';
+import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock, RefreshCcw, Check } from 'lucide-react';
 import { RechargeModal } from './RechargeModal.tsx';
 import { supabase } from '../lib/supabaseClient';
 
@@ -25,6 +25,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -78,7 +79,20 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                     table: 'wallet_transactions',
                     filter: `store_id=eq.${storeId}`
                 },
-                () => {
+                (payload) => {
+                    console.log("🔄 [WALLET_TX] Realtime update:", payload);
+                    
+                    // If a transaction was UPDATED to 'CONFIRMED', show success notification
+                    if (payload.eventType === 'UPDATE' && payload.new.status === 'CONFIRMED' && payload.old.status === 'PENDING') {
+                        setShowSuccessToast(true);
+                        setTimeout(() => setShowSuccessToast(false), 5000);
+                        
+                        // Close expanded row if it was this transaction
+                        if (expandedTxId === payload.new.id) {
+                            setExpandedTxId(null);
+                        }
+                    }
+                    
                     fetchTransactions();
                 }
             )
@@ -367,6 +381,21 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                 onClose={() => setIsRechargeModalOpen(false)}
                 storeId={storeId}
             />
+
+            {/* Success Toast Overlay */}
+            {showSuccessToast && (
+                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-8 duration-500">
+                    <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-[0_20px_50px_rgba(34,197,94,0.3)] border border-green-400/50 flex items-center gap-4 backdrop-blur-md">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <Check size={24} className="animate-bounce" />
+                        </div>
+                        <div>
+                            <p className="font-black italic text-lg tracking-tighter leading-none">PAGAMENTO CONFIRMADO!</p>
+                            <p className="text-[10px] uppercase font-bold text-white/70 tracking-widest mt-1">Seu saldo foi atualizado instantaneamente.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

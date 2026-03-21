@@ -234,11 +234,16 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                                 </div>
                             </div>
 
-                            <div className="w-full bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex gap-4 mb-8">
+                            <div className="w-full bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 flex gap-4 mb-2">
                                 <Info className="text-blue-400 shrink-0" size={20} />
                                 <p className="text-[11px] text-blue-200/70 font-medium leading-relaxed">
-                                    Após o pagamento, o saldo será atualizado automaticamente em até 2 minutos. Não é necessário enviar comprovante.
+                                    Após o pagamento, o saldo será atualizado **automaticamente** em tempo real. Não é necessário enviar comprovante.
                                 </p>
+                            </div>
+
+                            <div className="w-full py-3 flex items-center justify-center gap-2 mb-6">
+                                <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
+                                <span className="text-[10px] text-green-500/70 font-black uppercase tracking-widest">Aguardando confirmação automática...</span>
                             </div>
 
                             <button
