@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
         const transaction_data = point_of_interaction.transaction_data || {};
 
         // 3. Register Transaction in DB (Using Admin Client to bypass RLS)
-        const { error: txError } = await supabaseAdmin.from("wallet_transactions").insert({
+        const { data: txRecord, error: txError } = await supabaseAdmin.from("wallet_transactions").insert({
             store_id: store.id,
             amount: amount,
             type: 'RECHARGE',
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request) => {
             pix_qr_code: transaction_data.qr_code_base64,
             pix_copy_paste: transaction_data.qr_code,
             description: paymentBody.description
-        });
+        }).select('id').single();
 
         if (txError) {
             console.error("Error saving transaction to DB:", txError);
@@ -116,9 +116,10 @@ Deno.serve(async (req: Request) => {
 
         return new Response(JSON.stringify({
             success: true,
-            paymentId: paymentData.id,
-            qrCode: transaction_data.qr_code_base64,
-            qrCodePayload: transaction_data.qr_code,
+            payment_id: paymentData.id,
+            transaction_id: txRecord?.id,
+            pix_qr_code: transaction_data.qr_code_base64,
+            pix_copy_paste: transaction_data.qr_code,
             ticket_url: transaction_data.ticket_url
         }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
