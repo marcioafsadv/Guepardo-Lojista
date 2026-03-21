@@ -17,15 +17,15 @@ interface Transaction {
 interface WalletViewProps {
     balance: number;
     storeId: string;
+    syncId?: number;
 }
 
-export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
-    const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
+export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId = 0 }) => {
     const [loading, setLoading] = useState(true);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+    const [transactions, setTransactions] = useState<any[]>([]);
+    const [expandedTxId, setExpandedTxId] = useState<number | null>(null);
+    const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [showSuccessToast, setShowSuccessToast] = useState(false);
 
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -81,18 +81,6 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                 },
                 (payload) => {
                     console.log("🔄 [WALLET_TX] Realtime update:", payload);
-                    
-                    // If a transaction was UPDATED to 'CONFIRMED', show success notification
-                    if (payload.eventType === 'UPDATE' && payload.new.status === 'CONFIRMED' && payload.old.status === 'PENDING') {
-                        setShowSuccessToast(true);
-                        setTimeout(() => setShowSuccessToast(false), 5000);
-                        
-                        // Close expanded row if it was this transaction
-                        if (expandedTxId === payload.new.id) {
-                            setExpandedTxId(null);
-                        }
-                    }
-                    
                     fetchTransactions();
                 }
             )
@@ -135,9 +123,9 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                     <div className="relative p-10 flex flex-col justify-between h-full min-h-[260px]">
                         <div>
                             <span className="text-white/60 text-xs font-bold uppercase tracking-widest">Saldo Disponível</span>
-                            <div className="flex items-baseline gap-2 mt-2">
-                                <span className="text-2xl font-bold text-white/60">R$</span>
-                                <h1 className="text-6xl font-black tracking-tighter tabular-nums">
+                            <div key={`balance-card-${syncId}`} className={`flex items-baseline gap-2 mt-2 transition-all ${syncId > 0 ? 'animate-balance-pulse' : ''}`}>
+                                <h1 className="text-6xl font-black tracking-tighter tabular-nums drop-shadow-lg">
+                                    <span className="text-2xl opacity-50 mr-2">R$</span>
                                     {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </h1>
                             </div>
@@ -381,21 +369,6 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId }) => {
                 onClose={() => setIsRechargeModalOpen(false)}
                 storeId={storeId}
             />
-
-            {/* Success Toast Overlay */}
-            {showSuccessToast && (
-                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-top-8 duration-500">
-                    <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-[0_20px_50px_rgba(34,197,94,0.3)] border border-green-400/50 flex items-center gap-4 backdrop-blur-md">
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                            <Check size={24} className="animate-bounce" />
-                        </div>
-                        <div>
-                            <p className="font-black italic text-lg tracking-tighter leading-none">PAGAMENTO CONFIRMADO!</p>
-                            <p className="text-[10px] uppercase font-bold text-white/70 tracking-widest mt-1">Seu saldo foi atualizado instantaneamente.</p>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

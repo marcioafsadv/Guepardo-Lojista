@@ -26,7 +26,8 @@ interface DeliveryFormProps {
   existingCustomers: Customer[];
   onAddressChange: (address: string | AddressComponents) => void;
   routeStats: RouteStats | null;
-  settings: StoreSettings;
+  settings?: any;
+  balance?: number; // Added to validate before submission
   activeCouriersWithOrders?: Courier[];
   availableCouriers?: Courier[];
   allOrders?: Order[];
@@ -51,7 +52,8 @@ export const DeliveryForm = ({
   onToggleSelection,
   externalTargetId = '',
   onClearSelection,
-  onAdditionalStopsChange
+  onAdditionalStopsChange,
+  balance = 0
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
 
@@ -159,6 +161,13 @@ export const DeliveryForm = ({
 
     const fullAddress = `${street}, ${number}${complement ? ' - ' + complement : ''} - ${neighborhood}, ${cityState}`;
 
+    // --- NEW: BALANCE VALIDATION ---
+    if (balance < totalFreight) {
+      console.warn("❌ [DeliveryForm] Insufficient balance", { balance, totalFreight });
+      alert(`Saldo insuficiente!\n\nO custo desta entrega é R$ ${totalFreight.toFixed(2)}, mas você possui apenas R$ ${balance.toFixed(2)}.\n\nPor favor, faça uma recarga na aba Carteira.`);
+      return;
+    }
+
     console.log("🚀 [DeliveryForm] Calling onSubmit with payload...");
     onSubmit({
       clientName,
@@ -197,7 +206,8 @@ export const DeliveryForm = ({
         return Number((baseResult.courierFee + addStopsEarnings + (retResult?.courierFee ?? 0)).toFixed(2));
       })(),
       targetCourierId: targetCourierId || undefined,
-      additionalStops: additionalStops.length > 0 ? additionalStops : undefined
+      additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
+      storeFreight: totalFreight
     });
 
     // Reset form

@@ -7,9 +7,10 @@ interface HeaderProps {
     notificationCount?: number;
     onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
     onSelectView?: (view: any) => void;
+    syncId?: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0, onToggleStatus, onSelectView }) => {
+export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount = 0, onToggleStatus, onSelectView, syncId = 0 }) => {
     const isOpen = storeProfile.status === 'aberta';
 
     const handleToggle = () => {
@@ -33,8 +34,9 @@ export const Header: React.FC<HeaderProps> = ({ storeProfile, notificationCount 
                 
                 {/* Wallet Balance Display - RELUZENTE STYLE & CLICKABLE */}
                 <div 
+                    key={`header-balance-${syncId}`}
                     onClick={() => onSelectView?.('wallet')}
-                    className="flex items-center gap-3 px-5 py-2.5 bg-black/80 backdrop-blur-xl border-2 border-[#FF6B00] rounded-2xl group cursor-pointer hover:bg-black transition-all shadow-[0_0_20px_rgba(255,107,0,0.25)] relative overflow-hidden"
+                    className={`flex items-center gap-3 px-5 py-2.5 bg-black/80 backdrop-blur-xl border-2 border-[#FF6B00] rounded-2xl group cursor-pointer hover:bg-black transition-all shadow-[0_0_20px_rgba(255,107,0,0.25)] relative overflow-hidden ${syncId > 0 ? 'animate-balance-pulse' : ''}`}
                 >
                     {/* Glowing highlight animation */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#FF6B00]/10 to-transparent -translate-x-full group-hover:animate-shimmer" />

@@ -42,6 +42,7 @@ interface GestaoDePedidosProps {
     settings: StoreSettings;
     onToggleMapTheme: () => void;
     mapboxToken?: string;
+    balance?: number;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -74,7 +75,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onBulkAssign,
     theme,
     settings,
-    onToggleMapTheme
+    onToggleMapTheme,
+    balance = 0
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -413,9 +415,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     existingCustomers={customers}
                     onAddressChange={setDraftAddress}
                     onAdditionalStopsChange={setDraftAdditionalStops}
-                    routeStats={routeStats}
-                    settings={settings}
-                    availableCouriers={availableCouriers}
+                                routeStats={routeStats}
+                                settings={settings}
+                                balance={balance}
+                                availableCouriers={availableCouriers}
                     allOrders={orders}
                     isSelecting={isSelectingCourier}
                     onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}

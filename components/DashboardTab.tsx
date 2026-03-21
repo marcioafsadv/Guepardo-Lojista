@@ -100,7 +100,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
     const canceledOrders = filteredOrders.filter(o => o.status === OrderStatus.CANCELED);
 
     const totalSales = completedOrders.reduce((acc, curr) => acc + (curr.deliveryValue || 0), 0);
-    const totalFees = completedOrders.reduce((acc, curr) => acc + (curr.estimatedPrice || 0), 0);
+    const totalFees = completedOrders.reduce((acc, curr) => acc + (curr.storeFreight || 0), 0);
 
     // Total Revenue for growth calc context (or could stay as total sales)
     const totalRevenue = totalSales;

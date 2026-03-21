@@ -77,6 +77,7 @@ export interface Order {
   createdAt: Date;
   courier?: Courier;
   estimatedPrice: number;
+  storeFreight: number; // The actual freight cost paid by the store (base + stops + return)
   distanceKm: number;
   // New fields for Maps
   destinationLat?: number;

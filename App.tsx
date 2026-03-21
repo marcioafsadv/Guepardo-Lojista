@@ -19,7 +19,11 @@ import { WalletView } from './components/WalletView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
 import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
-import { Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, Filter, Users, Clock } from 'lucide-react';
+import { 
+    Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, 
+    Filter, Users, Clock, Check, ChevronDown, Store, LogOut, Settings,
+    Wallet, History, Plus
+} from 'lucide-react';
 import { supabase } from './lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { geocodeAddress } from './utils/geocoding';
@@ -79,6 +83,9 @@ function App() {
     const { session, loading } = useAuth();
     const [currentView, setCurrentView] = useState<AppView>('operational');
     const [orders, setOrders] = useState<Order[]>([]);
+    const [newOrders, setNewOrders] = useState<any[]>([]);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [syncId, setSyncId] = useState(0); // Trigger for pulse animation
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
     const [notification, setNotification] = useState<{ title: string, message: string } | null>(null);
     const [availableCouriers, setAvailableCouriers] = useState<Courier[]>(INITIAL_COURIERS);
@@ -155,93 +162,95 @@ function App() {
 
     const [realStoreProfile, setRealStoreProfile] = useState<StoreProfile | null>(null);
 
-    // Fetch Store Profile & Realtime Subscription
+    const fetchStoreProfile = useCallback(async () => {
+        if (!session?.user?.id) return;
+
+        // 1. Fetch Profile
+        const { data, error } = await supabase
+            .from('stores')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error) {
+            console.error("❌ [STORE_PROFILE] Error fetching store:", error);
+            setRealStoreProfile(null);
+            return;
+        }
+
+        if (data) {
+            const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
+
+            // --- COORDINATE RESOLUTION STRATEGY ---
+            // Priority 1: Coordinates saved directly in the DB (fast, accurate)
+            // Priority 2: Nominatim geocoding (fallback only when DB has no coords)
+            let lat: number = STORE_PROFILE.lat; // Default Fallback (Itu)
+            let lng: number = STORE_PROFILE.lng; // Default Fallback (Itu)
+
+            if (data.lat && data.lng && !isNaN(data.lat) && !isNaN(data.lng)) {
+                // Use coordinates from DB - fastest and most accurate
+                lat = data.lat;
+                lng = data.lng;
+                console.log("✅ [STORE_PROFILE] Using DB coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
+            } else {
+                // Fallback: Geocode via Nominatim using CEP+address for precision
+                const cep = data.address?.zip_code || data.address?.cep || '';
+                const geoQuery = cep
+                    ? `${cep}, Brazil`
+                    : `${data.address?.street}, ${data.address?.number}, ${data.address?.city}, ${data.address?.state}, Brazil`;
+
+                console.log("📍 [GEOCODING-OSM] No DB coords, geocoding:", geoQuery);
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geoQuery)}&limit=1`);
+                    const result = await response.json();
+
+                    if (result && result.length > 0) {
+                        const parsedLat = parseFloat(result[0].lat);
+                        const parsedLng = parseFloat(result[0].lon);
+
+                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+                            lat = parsedLat;
+                            lng = parsedLng;
+                            console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
+
+                            // Save to DB for future use (avoid repeated geocoding)
+                            await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
+                            console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
+                        }
+                    } else {
+                        console.warn("⚠️ [GEOCODING-OSM] Could not geocode address, using default Itu coordinates");
+                    }
+                } catch (geoError) {
+                    console.error("❌ [GEOCODING-OSM] Error:", geoError);
+                }
+            }
+
+            console.log("📍 [STORE_PROFILE] Setting store coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
+
+            // Final safety check before setting state
+            const finalLat = (typeof lat === 'number' && !isNaN(lat) && lat !== 0) ? lat : -23.257217;
+            const finalLng = (typeof lng === 'number' && !isNaN(lng) && lng !== 0) ? lng : -47.300549;
+
+            setRealStoreProfile({
+                id: data.id,
+                name: data.fantasy_name || data.company_name,
+                address: fullAddress,
+                lat: finalLat,
+                lng: finalLng,
+                wallet_balance: data.wallet_balance || 0,
+                status: data.status || 'fechada'
+            });
+        } else {
+            console.warn("⚠️ [STORE_PROFILE] User logged in but no store record found for ID:", session.user.id);
+            setRealStoreProfile(null);
+        }
+    }, [session?.user?.id]);
+
     // Fetch Store Profile & Realtime Subscription
     useEffect(() => {
         if (!session?.user) return;
 
-        // 1. Fetch Profile
-        const fetchProfile = async () => {
-            const { data, error } = await supabase
-                .from('stores')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-            if (error) {
-                console.error("❌ [STORE_PROFILE] Error fetching store:", error);
-                setRealStoreProfile(null);
-                return;
-            }
-
-            if (data) {
-                const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
-
-                // --- COORDINATE RESOLUTION STRATEGY ---
-                // Priority 1: Coordinates saved directly in the DB (fast, accurate)
-                // Priority 2: Nominatim geocoding (fallback only when DB has no coords)
-                let lat: number = STORE_PROFILE.lat; // Default Fallback (Itu)
-                let lng: number = STORE_PROFILE.lng; // Default Fallback (Itu)
-
-                if (data.lat && data.lng && !isNaN(data.lat) && !isNaN(data.lng)) {
-                    // Use coordinates from DB - fastest and most accurate
-                    lat = data.lat;
-                    lng = data.lng;
-                    console.log("✅ [STORE_PROFILE] Using DB coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
-                } else {
-                    // Fallback: Geocode via Nominatim using CEP+address for precision
-                    const cep = data.address?.zip_code || data.address?.cep || '';
-                    const geoQuery = cep
-                        ? `${cep}, Brazil`
-                        : `${data.address?.street}, ${data.address?.number}, ${data.address?.city}, ${data.address?.state}, Brazil`;
-
-                    console.log("📍 [GEOCODING-OSM] No DB coords, geocoding:", geoQuery);
-                    try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geoQuery)}&limit=1`);
-                        const result = await response.json();
-
-                        if (result && result.length > 0) {
-                            const parsedLat = parseFloat(result[0].lat);
-                            const parsedLng = parseFloat(result[0].lon);
-
-                            if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                                lat = parsedLat;
-                                lng = parsedLng;
-                                console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
-
-                                // Save to DB for future use (avoid repeated geocoding)
-                                await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
-                                console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
-                            }
-                        } else {
-                            console.warn("⚠️ [GEOCODING-OSM] Could not geocode address, using default Itu coordinates");
-                        }
-                    } catch (geoError) {
-                        console.error("❌ [GEOCODING-OSM] Error:", geoError);
-                    }
-                }
-
-                console.log("📍 [STORE_PROFILE] Setting store coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
-
-                // Final safety check before setting state
-                const finalLat = (typeof lat === 'number' && !isNaN(lat) && lat !== 0) ? lat : -23.257217;
-                const finalLng = (typeof lng === 'number' && !isNaN(lng) && lng !== 0) ? lng : -47.300549;
-
-                setRealStoreProfile({
-                    id: data.id,
-                    name: data.fantasy_name || data.company_name,
-                    address: fullAddress,
-                    lat: finalLat,
-                    lng: finalLng,
-                    wallet_balance: data.wallet_balance || 0,
-                    status: data.status || 'fechada'
-                });
-            } else {
-                console.warn("⚠️ [STORE_PROFILE] User logged in but no store record found for ID:", session.user.id);
-                setRealStoreProfile(null);
-            }
-        };
-        fetchProfile();
+        fetchStoreProfile();
 
         // 2. Realtime Subscription for Store Profile changes (Balance, Status, etc)
         const storeChannel = supabase
@@ -255,26 +264,47 @@ function App() {
                     filter: `id=eq.${session.user.id}`
                 },
                 (payload) => {
-                    console.log("🔄 [STORE_PROFILE] Realtime update received:", payload.new);
-                    const data = payload.new;
-                    const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
-                    setRealStoreProfile({
-                        id: data.id,
-                        name: data.fantasy_name || data.company_name,
-                        address: fullAddress,
-                        lat: data.lat || -23.257217,
-                        lng: data.lng || -47.300549,
-                        wallet_balance: data.wallet_balance || 0,
-                        status: data.status || 'fechada'
-                    });
+                    console.log("🔄 [STORE_PROFILE] Realtime update matches:", payload.new);
+                    fetchStoreProfile(); // Use a dedicated fetcher to ensure we get full address etc
+                }
+            )
+            .subscribe();
+
+        // 3. Realtime Subscription for Wallet Transactions (to trigger global feedback)
+        const walletChannel = supabase
+            .channel(`global-wallet-sync-${session.user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'wallet_transactions',
+                    filter: `store_id=eq.${session.user.id}`
+                },
+                (payload) => {
+                    console.log("💰 [WALLET_SYNC] Transaction update detected:", payload.new.status);
+                    
+                    // If confirmed, refresh balance + show toast
+                    if (payload.new.status === 'CONFIRMED' && payload.old.status === 'PENDING') {
+                        console.log("🎯 [WALLET_SYNC] Payment confirmed! Refreshing data...");
+                        fetchStoreProfile();
+                        setShowSuccessToast(true);
+                        setSyncId(prev => prev + 1); // Trigger pulse animations
+                        setTimeout(() => setShowSuccessToast(false), 5000);
+
+                        // Also play a subtle success sound if possible
+                        const audio = new Audio('/sounds/success.mp3');
+                        audio.play().catch(() => {});
+                    }
                 }
             )
             .subscribe();
 
         return () => {
             supabase.removeChannel(storeChannel);
+            supabase.removeChannel(walletChannel);
         };
-    }, [session?.user?.id]); // Depend on user ID for stability
+    }, [session?.user?.id, fetchStoreProfile]);
 
     // Fetch System Pricing Settings from Supabase
     useEffect(() => {
@@ -563,6 +593,7 @@ function App() {
                         status: parsedStatus,
                         createdAt: new Date(d.created_at),
                         estimatedPrice: Number(d.earnings) || 0,
+                        storeFreight: Number(items.storeFreight) || 0,
                         distanceKm: 1.2,
                         events: synthesizeTimeline(d),
                         pickupCode: d.collection_code,
@@ -971,7 +1002,8 @@ function App() {
                         addressCity: stop.addressCity,
                         addressCep: stop.addressCep,
                         changeFor: stop.changeFor,
-                        stopNumber: index + 1
+                        stopNumber: index + 1,
+                        storeFreight: index === 0 ? data.storeFreight : 0 // Store total in the first stop for batch aggregation
                     },
                     earnings: stopEarnings,
                     delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length
@@ -985,6 +1017,63 @@ function App() {
                 .select();
 
             if (insertError) throw insertError;
+
+            // --- NEW: WALLET DEBIT LOGIC ---
+            const totalFreightToDebit = data.storeFreight || 0;
+            if (totalFreightToDebit > 0) {
+                console.log("💰 [App] Debiting wallet:", totalFreightToDebit);
+                
+                // 1. Log Transaction
+                const { error: txError } = await supabase.from('wallet_transactions').insert({
+                    store_id: session.user.id,
+                    amount: totalFreightToDebit,
+                    type: 'PAYMENT', // Using PAYMENT to match WalletView expectations
+                    status: 'CONFIRMED',
+                    description: payloads.length > 1 
+                        ? `Entrega Lote #${payloads[0].items.displayId} (${payloads.length} paradas)`
+                        : `Entrega #${payloads[0].items.displayId}`,
+                    payment_method: 'WALLET'
+                });
+
+                if (txError) {
+                    console.error("❌ [App] Error logging wallet transaction:", txError);
+                }
+
+                // 2. Update Balance
+                const { error: balanceError } = await supabase.rpc('decrement_wallet_balance', {
+                    row_id: session.user.id,
+                    amount: totalFreightToDebit
+                });
+
+                if (balanceError) {
+                    console.error("❌ [App] Error updating store balance via RPC:", balanceError);
+                    
+                    // Fallback to direct update if RPC fails
+                    console.log("🔄 [App] Attempting direct balance update fallback...");
+                    const { data: currentStore, error: fetchError } = await supabase
+                        .from('stores')
+                        .select('wallet_balance')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (!fetchError && currentStore) {
+                        const newBalance = (currentStore.wallet_balance || 0) - totalFreightToDebit;
+                        const { error: updateError } = await supabase.from('stores')
+                            .update({ wallet_balance: newBalance })
+                            .eq('id', session.user.id);
+                            
+                        if (updateError) console.error("❌ [App] Fallback update failed:", updateError);
+                        else console.log("✅ [App] Direct balance update successful:", newBalance);
+                    } else {
+                        console.error("❌ [App] Could not fetch current balance for fallback:", fetchError);
+                    }
+                } else {
+                    console.log("✅ [App] Balance updated successfully via RPC");
+                }
+
+                // Trigger local refresh (Pulse animation)
+                setSyncId(prev => prev + 1);
+            }
 
             // Update local state
             const mappedOrders: Order[] = (createdDataList || []).map(createdData => {
@@ -1007,6 +1096,7 @@ function App() {
                     status: OrderStatus.PENDING,
                     createdAt: new Date(createdData.created_at),
                     estimatedPrice: createdData.earnings || 15.0,
+                    storeFreight: Number(createdData.items?.storeFreight) || 0,
                     distanceKm: createdData.delivery_distance || 1.2,
                     events: [{
                         status: OrderStatus.PENDING,
@@ -1645,7 +1735,13 @@ function App() {
             <main className="flex-1 flex flex-col h-full overflow-hidden relative">
 
                 {/* GLOBAL HEADER */}
-                <Header storeProfile={realStoreProfile || STORE_PROFILE} notificationCount={2} onToggleStatus={toggleStoreStatus} onSelectView={setCurrentView} />
+                <Header 
+                    storeProfile={realStoreProfile || STORE_PROFILE} 
+                    notificationCount={2} 
+                    onToggleStatus={toggleStoreStatus} 
+                    onSelectView={setCurrentView}
+                    syncId={syncId}
+                />
 
                 <div className="flex-1 overflow-hidden relative flex flex-col">
 
@@ -1698,6 +1794,7 @@ function App() {
                             theme={settings.mapTheme}
                             settings={settings}
                             onToggleMapTheme={toggleMapTheme}
+                            balance={realStoreProfile?.wallet_balance || 0}
                         />
                     )}
 
@@ -1714,6 +1811,7 @@ function App() {
                         <WalletView
                             balance={realStoreProfile?.wallet_balance || 0}
                             storeId={realStoreProfile?.id || ''}
+                            syncId={syncId}
                         />
                     )}
 
@@ -1745,6 +1843,20 @@ function App() {
             />
 
             {/* Client History Modal removed here or kept if needed */}
+            {/* GLOBAL SUCCESS TOAST (Centered at Top) */}
+            {showSuccessToast && (
+                <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[300] animate-in fade-in slide-in-from-top-8 duration-500 pointer-events-none">
+                    <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-[0_20px_50px_rgba(34,197,94,0.3)] border border-green-400/50 flex items-center gap-4 backdrop-blur-md">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <Check size={24} className="animate-bounce" />
+                        </div>
+                        <div>
+                            <p className="font-black italic text-lg tracking-tighter leading-none">PAGAMENTO CONFIRMADO!</p>
+                            <p className="text-[10px] uppercase font-bold text-white/70 tracking-widest mt-1">Seu saldo foi atualizado instantaneamente.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

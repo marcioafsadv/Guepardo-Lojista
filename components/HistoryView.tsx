@@ -102,7 +102,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
     }, [orders, statusCategory, selectedStatus, searchTerm, startDate, endDate]);
 
     // Financial calculations
-    const transactionVolume = filteredOrders.reduce((acc, order) => acc + (Number(order.estimatedPrice) || 0), 0);
+    const totalSales = filteredOrders.reduce((acc, curr) => acc + (curr.deliveryValue || 0), 0);
+    const totalFees = filteredOrders.reduce((acc, curr) => acc + (curr.storeFreight || 0), 0);
 
     const handlePrint = () => {
         window.print();
@@ -126,8 +127,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                 order.clientName,
                 order.destination,
                 order.status,
-                (Number(order.estimatedPrice) || 0).toFixed(2),
-                (Number(order.deliveryValue) || 0).toFixed(2)
+                (Number(order.deliveryValue) || 0).toFixed(2),
+                (Number(order.storeFreight) || 0).toFixed(2)
             ]);
         });
 
@@ -324,7 +325,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                 <div className="flex flex-col min-w-[100px]">
                                     <span className="text-[10px] font-black text-green-400/60 uppercase tracking-widest mb-1">Valor Total</span>
                                     <span className="text-lg font-black italic text-white tracking-tighter">
-                                        R$ {(Number(order.estimatedPrice) || 0).toFixed(2)}
+                                        R$ {(Number(order.storeFreight) || 0).toFixed(2)}
                                     </span>
                                 </div>
 
@@ -390,7 +391,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                 <div className="flex flex-col gap-2 relative z-10">
                                     <span className="text-[10px] font-black text-white/50 uppercase tracking-[0.2em]">Volume de Transação</span>
                                     <h3 className="text-5xl font-black italic text-white tracking-tighter drop-shadow-lg">
-                                        R$ {transactionVolume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        R$ {totalFees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </h3>
                                     <div className="flex items-center gap-2 mt-2">
                                         <TrendingUp size={12} className="text-white/80" />
@@ -462,7 +463,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                                 itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
                                                 labelStyle={{ display: 'none' }}
                                             />
-                                            <Area type="monotone" dataKey="estimatedPrice" name="Volume" stroke="#FF6B00" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
+                                            <Area type="monotone" dataKey="storeFreight" name="Volume" stroke="#FF6B00" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
                                             <Area type="monotone" dataKey="deliveryValue" name="Taxa" stroke="#FFF" strokeWidth={2} fill="transparent" />
                                         </AreaChart>
                                     </ResponsiveContainer>
@@ -536,12 +537,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                     </div>
                 </div>
                 
-                <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total de Taxas Logísticas</span>
-                    <span className="text-3xl font-black italic text-guepardo-accent drop-shadow-[0_0_15px_rgba(211,84,0,0.5)]">
-                        R$ {transactionVolume.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                </div>
+                <div className="flex flex-col">
+                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Custo Total</span>
+                <span className="text-xl font-black italic text-guepardo-accent drop-shadow-glow">
+                    R$ {totalFees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+            </div>
             </div>
 
             <ChatMultilateralModal 

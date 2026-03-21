@@ -193,6 +193,16 @@
       filter: drop-shadow(0 0 15px rgba(204, 255, 0, 0.6));
       z-index: 900 !important;
     }
+
+    /* Pulse Highlight for Balance Sync */
+    @keyframes pulse-sync {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); filter: brightness(1.3) drop-shadow(0 0 15px rgba(255,107,0,0.8)); }
+      100% { transform: scale(1); }
+    }
+    .animate-balance-pulse {
+      animation: pulse-sync 1s ease-in-out 3;
+    }
   </style>
 
 
