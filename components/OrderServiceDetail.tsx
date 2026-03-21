@@ -133,7 +133,7 @@ const OrderContent: React.FC<{
                         </div>
                         <div className={`flex items-center gap-2 font-black text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {getPaymentIcon(order.paymentMethod)}
-                            <span>{order.paymentMethod}</span>
+                            <span>{order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}</span>
                         </div>
                     </div>
 
@@ -357,9 +357,15 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
 
     const getStatusLabel = (status: OrderStatus) => {
         switch (status) {
-            case OrderStatus.IN_TRANSIT: return 'Em Trânsito';
-            case OrderStatus.DELIVERED: return 'Entregue';
             case OrderStatus.PENDING: return 'Pendente';
+            case OrderStatus.ACCEPTED: return 'Aceito';
+            case OrderStatus.TO_STORE: return 'A caminho da loja';
+            case OrderStatus.ARRIVED_AT_STORE: return 'Na loja';
+            case OrderStatus.READY_FOR_PICKUP: return 'Pronto para coleta';
+            case OrderStatus.IN_TRANSIT: return 'Em rota';
+            case OrderStatus.RETURNING: return 'Retornando';
+            case OrderStatus.DELIVERED: return 'Finalizado';
+            case OrderStatus.CANCELED: return 'Cancelado';
             default: return 'Processando';
         }
     };

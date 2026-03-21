@@ -450,7 +450,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                             </div>
                             <span className="text-xs font-black text-white uppercase tracking-widest">Pilotos Ativos</span>
                         </div>
-                        <span className="text-sm font-black italic text-guepardo-accent uppercase">{availableCouriers.length} ON</span>
+                        <span className="text-sm font-black italic text-guepardo-accent uppercase">{availableCouriers.length} ATIVOS</span>
                     </div>
 
                     <div className="space-y-3 pb-20 flex-1 overflow-y-auto scrollbar-guepardo">

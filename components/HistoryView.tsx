@@ -49,6 +49,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         setEndDate(formatLocal(end));
     };
 
+    const getStatusLabel = (status: OrderStatus) => {
+        switch (status) {
+            case OrderStatus.PENDING: return 'Pendente';
+            case OrderStatus.ACCEPTED: return 'Aceito';
+            case OrderStatus.TO_STORE: return 'A caminho da loja';
+            case OrderStatus.ARRIVED_AT_STORE: return 'Na loja';
+            case OrderStatus.READY_FOR_PICKUP: return 'Pronto para coleta';
+            case OrderStatus.IN_TRANSIT: return 'Em rota';
+            case OrderStatus.RETURNING: return 'Retornando';
+            case OrderStatus.DELIVERED: return 'Finalizado';
+            case OrderStatus.CANCELED: return 'Cancelado';
+            default: return status;
+        }
+    };
+
     const filteredOrders = useMemo(() => {
         return orders.filter(o => {
             // Category Filter
@@ -270,7 +285,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                             order.status === OrderStatus.CANCELED ? 'bg-red-500/10 text-red-400 border-red-500/20' :
                                             'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                         }`}>
-                                            {order.status === OrderStatus.DELIVERED ? 'Finalizado' : order.status}
+                                            {getStatusLabel(order.status)}
                                         </span>
                                         <span className="text-[10px] text-white/40 font-bold flex items-center gap-1">
                                             <Clock size={10} /> {new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
