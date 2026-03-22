@@ -148,6 +148,7 @@ export interface StoreProfile {
   lat: number;
   lng: number;
   wallet_balance?: number;
+  onboarding_status?: 'pending' | 'approved' | 'rejected';
   status?: string;
 }
 

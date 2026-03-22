@@ -17,6 +17,7 @@ import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { WalletView } from './components/WalletView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
+import AwaitingApproval from './components/AwaitingApproval';
 import { useAuth } from './contexts/AuthContext';
 import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
 import { 
@@ -238,7 +239,8 @@ function App() {
                 lat: finalLat,
                 lng: finalLng,
                 wallet_balance: data.wallet_balance || 0,
-                status: data.status || 'fechada'
+                status: data.status || 'fechada',
+                onboarding_status: data.onboarding_status || 'pending'
             });
         } else {
             console.warn("⚠️ [STORE_PROFILE] User logged in but no store record found for ID:", session.user.id);
@@ -1699,26 +1701,25 @@ function App() {
         return <TrackingPage />;
     }
 
-    // 2. Loading State
-    if (showSplash) {
-        return <SplashScreen />;
-    }
+    // --- 1. RENDER LOADING/SPLASH ---
+    if (loading || showSplash) return <SplashScreen />;
 
-    if (loading) {
-        return <div className="h-screen w-full flex items-center justify-center bg-gray-900 text-white">Carregando...</div>;
-    }
+    // --- 2. RENDER REGISTRATION WIZARD (NOT LOGGED IN) ---
+    if (!session) return <WizardForm />;
 
-    // 3. Unauthenticated State (Wizard)
-    if (!session) {
+    // --- 3. RENDER AWAITING APPROVAL (IF NOT APPROVED) ---
+    if (realStoreProfile && realStoreProfile.onboarding_status !== 'approved') {
         return (
-            <div className="w-full h-full flex justify-center items-center bg-transparent">
-                <div className="w-full max-w-[480px] h-full relative overflow-hidden shadow-[0_0_120px_rgba(0,0,0,0.95)] bg-transparent">
-                    <WizardForm />
-                </div>
-            </div>
+            <AwaitingApproval 
+                onLogout={() => supabase.auth.signOut()} 
+                storeName={realStoreProfile.name}
+                status={realStoreProfile.onboarding_status}
+                // onboarding_notes can be added to state if needed, but for now focus on flow
+            />
         );
     }
 
+    // --- 4. RENDER OPERATIONAL DASHBOARD (APPROVED) ---
     return (
         <div className="h-full w-full flex bg-transparent font-sans overflow-hidden">
 

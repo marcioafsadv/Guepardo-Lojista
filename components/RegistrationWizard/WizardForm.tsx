@@ -78,6 +78,7 @@ const WizardForm: React.FC = () => {
                         fantasy_name: nomeFantasia,
                         phone: telefone,
                         tipo_pessoa: formData.tipoPessoa,
+                        onboarding_status: 'pending',
                         address: {
                             zip_code: cep,
                             street: rua,
