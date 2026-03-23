@@ -43,6 +43,7 @@ interface GestaoDePedidosProps {
     onToggleMapTheme: () => void;
     mapboxToken?: string;
     balance?: number;
+    onSelectView?: (view: any) => void;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -76,7 +77,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     theme,
     settings,
     onToggleMapTheme,
-    balance = 0
+    balance = 0,
+    onSelectView
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -422,8 +424,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     allOrders={orders}
                     isSelecting={isSelectingCourier}
                     onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
-                    externalTargetId={targetCourierId}
+                        externalTargetId={targetCourierId}
                         onClearSelection={() => setTargetCourierId('')}
+                        onNavigateToWallet={() => onSelectView?.('wallet')}
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}

@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
+import { BalanceAlertModal } from './BalanceAlertModal';
 import { classifyClient } from '../utils/clientClassifier';
 import {
   calculateFreight,
@@ -36,6 +37,7 @@ interface DeliveryFormProps {
   externalTargetId?: string;
   onClearSelection?: () => void;
   onAdditionalStopsChange?: (stops: any[]) => void;
+  onNavigateToWallet?: () => void;
 }
 
 export const DeliveryForm = ({
@@ -53,9 +55,11 @@ export const DeliveryForm = ({
   externalTargetId = '',
   onClearSelection,
   onAdditionalStopsChange,
+  onNavigateToWallet,
   balance = 0
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
+  const [showBalanceAlert, setShowBalanceAlert] = useState(false);
 
   // Client & Payment
   const [clientName, setClientName] = useState('');
@@ -164,7 +168,7 @@ export const DeliveryForm = ({
     // --- NEW: BALANCE VALIDATION ---
     if (balance < totalFreight) {
       console.warn("❌ [DeliveryForm] Insufficient balance", { balance, totalFreight });
-      alert(`Saldo insuficiente!\n\nO custo desta entrega é R$ ${totalFreight.toFixed(2)}, mas você possui apenas R$ ${balance.toFixed(2)}.\n\nPor favor, faça uma recarga na aba Carteira.`);
+      setShowBalanceAlert(true);
       return;
     }
 
@@ -1101,7 +1105,18 @@ export const DeliveryForm = ({
             )}
           </button>
         </div>
-      </div > {/* end collapsible */}
-    </div >
+
+        <BalanceAlertModal 
+          isOpen={showBalanceAlert}
+          onClose={() => setShowBalanceAlert(false)}
+          onRecharge={() => {
+            setShowBalanceAlert(false);
+            onNavigateToWallet?.();
+          }}
+          requiredAmount={totalFreight}
+          currentBalance={balance}
+        />
+      </div> {/* end collapsible */}
+    </div>
   );
 };

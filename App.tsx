@@ -1809,6 +1809,7 @@ function App() {
                             settings={settings}
                             onToggleMapTheme={toggleMapTheme}
                             balance={realStoreProfile?.wallet_balance || 0}
+                            onSelectView={setCurrentView}
                         />
                     )}
 
