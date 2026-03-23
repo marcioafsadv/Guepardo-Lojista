@@ -8,7 +8,7 @@ import {
     Clock, MapPin, Navigation, User, Phone, Package, CheckCircle2, AlertTriangle, 
     MoreVertical, Navigation2, Crosshair, Layers, MessageSquare, Share2, HelpCircle, 
     Zap, Activity, Target, Search, X, ChevronUp, ChevronDown, List, Layers as LayersIcon,
-    Sun, Moon
+    Sun, Moon, Plus, Minus
 } from 'lucide-react';
 
 // --- STYLES & CONSTANTS ---
@@ -33,15 +33,17 @@ const createCustomIcon = (html: string, color: string) => L.divIcon({
     className: 'courier-icon-transition'
 });
 
-const storeIcon = L.divIcon({
+const getStoreIcon = (logoUrl?: string) => L.divIcon({
     html: `
     <div class="relative group cursor-pointer transition-all duration-300">
       <div class="absolute -inset-3 bg-orange-500/30 rounded-full blur-xl animate-pulse"></div>
       <div class="relative w-10 h-10 flex items-center justify-center bg-black/80 backdrop-blur-3xl border-2 border-orange-500 rounded-full shadow-[0_0_15px_rgba(211,84,0,0.5)] overflow-hidden group-hover:scale-110 transition-all">
+        ${logoUrl ? `<img src="${logoUrl}" class="w-full h-full object-cover" />` : `
         <svg viewBox="0 0 24 24" width="20" height="20" stroke="#FF6B00" stroke-width="2.5" fill="none" class="drop-shadow-glow">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
+        `}
       </div>
     </div>`,
     className: 'custom-leaflet-marker',
@@ -163,6 +165,35 @@ const GlassControl = ({ children, className }: { children: React.ReactNode, clas
         {children}
     </div>
 );
+
+const ZoomButtons = () => {
+    const map = useMap();
+    return (
+        <GlassControl className="p-1 flex flex-col gap-1">
+            <button 
+                onClick={() => {
+                    map.zoomIn();
+                    console.log("🔍 [MAP] Zoom In");
+                }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all text-shadow-glow"
+                title="Aumentar Zoom"
+            >
+                <Plus size={20} strokeWidth={3} />
+            </button>
+            <div className="h-[1px] bg-white/5 mx-2"></div>
+            <button 
+                onClick={() => {
+                    map.zoomOut();
+                    console.log("🔍 [MAP] Zoom Out");
+                }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all text-shadow-glow"
+                title="Diminuir Zoom"
+            >
+                <Minus size={20} strokeWidth={3} />
+            </button>
+        </GlassControl>
+    );
+};
 
 // --- MAIN COMPONENT ---
 interface LeafletMapProps {
@@ -368,7 +399,6 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     </>
                 )}
 
-                <ZoomControl position="bottomleft" />
                 <MapController 
                     activeOrder={activeOrder} 
                     orders={orders} 
@@ -379,7 +409,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 />
 
                 {/* 1. STORE MARKER (Home Base) */}
-                <Marker position={storeCoords} icon={storeIcon}>
+                <Marker position={storeCoords} icon={getStoreIcon(storeProfile.logo_url)}>
                     <Popup className="premium-popup">
                         <div className="p-2">
                              <h4 className="font-black text-orange-600 uppercase tracking-widest text-xs mb-1">Base Guepardo</h4>
@@ -548,6 +578,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                                 <Crosshair size={18} />
                             </button>
                          </GlassControl>
+
+                         <ZoomButtons />
                     </div>
                 </div>
 

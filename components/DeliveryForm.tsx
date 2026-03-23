@@ -914,9 +914,9 @@ export const DeliveryForm = ({
             type="button"
             onClick={addStop}
             disabled={additionalStops.length >= 4}
-            className="w-full py-3 border-2 border-dashed border-white/10 rounded-[1.5rem] text-xs font-black text-white/30 hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4"
+            className="w-full py-3 border-2 border-dashed border-white/10 rounded-[1.5rem] text-xs font-black text-white hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4 text-shadow-glow"
           >
-            <MapPin size={16} className="group-hover:animate-bounce" />
+            <MapPin size={16} className="group-hover:animate-bounce text-white group-hover:text-guepardo-accent transition-colors" />
             Adicionar Outra Parada (+)
           </button>
           <div className="space-y-3">
