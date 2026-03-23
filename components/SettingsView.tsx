@@ -1,22 +1,70 @@
-import React, { useState } from 'react';
-import { StoreSettings } from '../types';
+import React, { useState, useEffect } from 'react';
+import { StoreSettings, StoreProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers } from 'lucide-react';
+import { geocodeAddress } from '../utils/geocoding';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2 } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
     onSave: (newSettings: StoreSettings) => void;
+    storeProfile: StoreProfile | null;
+    onUpdateProfile: (updates: any) => Promise<{ success: boolean; error?: string }>;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, storeProfile, onUpdateProfile }) => {
     const { signOut } = useAuth();
     // Local state for form handling before save
     const [localSettings, setLocalSettings] = useState<StoreSettings>(settings);
     const [hasChanges, setHasChanges] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isGeocoding, setIsGeocoding] = useState(false);
+
+    // Profile state
+    const [profileData, setProfileData] = useState({
+        name: storeProfile?.name || '',
+        street: '',
+        number: '',
+        neighborhood: '',
+        city: '',
+        state: '',
+        cep: ''
+    });
+
+    // Initialize address from storeProfile string or fetch from DB if needed
+    // But since storeProfile.address is concatenated, it's better to fetch structured if we want to edit.
+    // However, for this task, let's assume we allow editing the name first and maybe address geocoding.
+    
+    // Better: let's add a separate section for the address if we have it in structured format.
+    // We'll use a useEffect to sync profileData when storeProfile loads.
+    React.useEffect(() => {
+        if (storeProfile) {
+            // We need to fetch the structured address since storeProfile only has the concatenated string
+            const fetchStructuredAddress = async () => {
+                const { data } = await supabase.from('stores').select('address, fantasy_name').eq('id', storeProfile.id).single();
+                if (data) {
+                    setProfileData({
+                        name: data.fantasy_name || storeProfile.name,
+                        street: data.address?.street || '',
+                        number: data.address?.number || '',
+                        neighborhood: data.address?.district || data.address?.neighborhood || '',
+                        city: data.address?.city || '',
+                        state: data.address?.state || '',
+                        cep: data.address?.zip_code || data.address?.cep || ''
+                    });
+                }
+            };
+            fetchStructuredAddress();
+        }
+    }, [storeProfile?.id]);
 
     const handleChange = (key: keyof StoreSettings, value: any) => {
         setLocalSettings(prev => ({ ...prev, [key]: value }));
+        setHasChanges(true);
+    };
+
+    const handleProfileChange = (key: string, value: any) => {
+        setProfileData(prev => ({ ...prev, [key]: value }));
         setHasChanges(true);
     };
 
@@ -33,10 +81,67 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
         setHasChanges(true);
     };
 
-    const handleSave = () => {
-        onSave(localSettings);
-        setHasChanges(false);
-        // Could trigger a toast here via parent
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            // 1. Save UI Settings
+            onSave(localSettings);
+
+            // 2. Save Profile Data if changed
+            if (storeProfile) {
+                const updates: any = {
+                    fantasy_name: profileData.name,
+                    address: {
+                        street: profileData.street,
+                        number: profileData.number,
+                        district: profileData.neighborhood,
+                        city: profileData.city,
+                        state: profileData.state,
+                        zip_code: profileData.cep
+                    }
+                };
+                
+                // Optional: Trigger geocoding if address changed? 
+                // Let's do it if the user wants or just always for safety if address is modified.
+                // For now, let's just save the text fields.
+                
+                await onUpdateProfile(updates);
+            }
+
+            setHasChanges(false);
+        } catch (error) {
+            console.error("Error saving settings:", error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleRecalculateLocation = async () => {
+        if (!storeProfile) return;
+        setIsGeocoding(true);
+        try {
+            const coords = await geocodeAddress({
+                street: profileData.street,
+                number: profileData.number,
+                neighborhood: profileData.neighborhood,
+                city: profileData.city,
+                cep: profileData.cep
+            });
+
+            if (coords) {
+                await onUpdateProfile({
+                    lat: coords.lat,
+                    lng: coords.lng
+                });
+                alert("📍 Localização atualizada com sucesso no mapa!");
+            } else {
+                alert("⚠️ Não foi possível encontrar este endereço no mapa. Verifique os dados.");
+            }
+        } catch (error) {
+            console.error("Geocoding error:", error);
+        } finally {
+            setIsGeocoding(false);
+        }
     };
 
     return (
@@ -49,18 +154,111 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                 </div>
                 <button
                     onClick={handleSave}
-                    disabled={!hasChanges}
-                    className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${hasChanges
+                    disabled={!hasChanges || isSaving}
+                    className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${hasChanges && !isSaving
                         ? 'bg-guepardo-accent text-guepardo-gray-900 hover:brightness-110 shadow-lg shadow-guepardo-accent/20'
                         : 'bg-gray-200 dark:bg-guepardo-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
                 >
-                    <Save size={20} />
-                    Salvar Alterações
+                    {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                 </button>
             </div>
 
             <div className="p-8 max-w-4xl mx-auto w-full space-y-8 pb-32">
+
+                {/* 0. DADOS DA EMPRESA */}
+                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                    <h3 className="text-lg font-bold text-guepardo-accent mb-6 flex items-center gap-2">
+                        <Building2 size={20} /> Dados da Empresa
+                    </h3>
+                    
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Nome Fantasia</label>
+                            <input
+                                type="text"
+                                value={profileData.name}
+                                onChange={(e) => handleProfileChange('name', e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                placeholder="Nome da sua loja"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">CEP</label>
+                                <input
+                                    type="text"
+                                    value={profileData.cep}
+                                    onChange={(e) => handleProfileChange('cep', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                />
+                            </div>
+                            <div className="md:col-span-3">
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Logradouro</label>
+                                <input
+                                    type="text"
+                                    value={profileData.street}
+                                    onChange={(e) => handleProfileChange('street', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Número</label>
+                                <input
+                                    type="text"
+                                    value={profileData.number}
+                                    onChange={(e) => handleProfileChange('number', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Bairro</label>
+                                <input
+                                    type="text"
+                                    value={profileData.neighborhood}
+                                    onChange={(e) => handleProfileChange('neighborhood', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                />
+                            </div>
+                            <div className="md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Cidade</label>
+                                <input
+                                    type="text"
+                                    value={profileData.city}
+                                    onChange={(e) => handleProfileChange('city', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">UF</label>
+                                <input
+                                    type="text"
+                                    value={profileData.state}
+                                    onChange={(e) => handleProfileChange('state', e.target.value)}
+                                    maxLength={2}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300 uppercase"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-100 dark:border-guepardo-gray-700">
+                            <button
+                                onClick={handleRecalculateLocation}
+                                disabled={isGeocoding}
+                                className="flex items-center gap-2 text-sm font-bold text-guepardo-accent hover:text-white transition-colors disabled:opacity-50"
+                            >
+                                {isGeocoding ? <Loader2 size={16} className="animate-spin" /> : <Navigation2 size={16} />}
+                                {isGeocoding ? 'Recalculando Localização...' : 'Recalcular Localização no Mapa'}
+                            </button>
+                            <p className="text-[10px] text-gray-500 mt-2 italic">Dica: Use esta opção se o marcador da sua loja estiver no local incorreto após o cadastro.</p>
+                        </div>
+                    </div>
+                </section>
 
                 {/* 1. PERFIL & OPERAÇÃO */}
                 <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">

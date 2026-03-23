@@ -194,35 +194,26 @@ function App() {
                 lng = data.lng;
                 console.log("✅ [STORE_PROFILE] Using DB coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
             } else {
-                // Fallback: Geocode via Nominatim using CEP+address for precision
-                const cep = data.address?.zip_code || data.address?.cep || '';
-                const geoQuery = cep
-                    ? `${cep}, Brazil`
-                    : `${data.address?.street}, ${data.address?.number}, ${data.address?.city}, ${data.address?.state}, Brazil`;
+                // Fallback: Geocode via Mapbox/Nominatim using our utility
+                console.log("📍 [GEOCODING] No DB coords, geocoding address...");
+                const coords = await geocodeAddress({
+                    street: data.address?.street,
+                    number: data.address?.number,
+                    neighborhood: data.address?.district || data.address?.neighborhood,
+                    city: data.address?.city,
+                    cep: data.address?.zip_code || data.address?.cep
+                });
 
-                console.log("📍 [GEOCODING-OSM] No DB coords, geocoding:", geoQuery);
-                try {
-                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(geoQuery)}&limit=1`);
-                    const result = await response.json();
+                if (coords) {
+                    lat = coords.lat;
+                    lng = coords.lng;
+                    console.log("📍 [GEOCODING] Found coordinates:", lat, lng);
 
-                    if (result && result.length > 0) {
-                        const parsedLat = parseFloat(result[0].lat);
-                        const parsedLng = parseFloat(result[0].lon);
-
-                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                            lat = parsedLat;
-                            lng = parsedLng;
-                            console.log("📍 [GEOCODING-OSM] Found coordinates:", lat, lng);
-
-                            // Save to DB for future use (avoid repeated geocoding)
-                            await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
-                            console.log("💾 [GEOCODING-OSM] Coordinates saved to DB");
-                        }
-                    } else {
-                        console.warn("⚠️ [GEOCODING-OSM] Could not geocode address, using default Itu coordinates");
-                    }
-                } catch (geoError) {
-                    console.error("❌ [GEOCODING-OSM] Error:", geoError);
+                    // Save to DB for future use (avoid repeated geocoding)
+                    await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
+                    console.log("💾 [GEOCODING] Coordinates saved to DB");
+                } else {
+                    console.warn("⚠️ [GEOCODING] Could not geocode address, using default Itu coordinates");
                 }
             }
 
@@ -746,6 +737,27 @@ function App() {
             console.error('❌ [STORE_STATUS] Exception updating store status:', err);
             // Revert on error
             setRealStoreProfile(prev => prev ? { ...prev, status: currentStatus } : null);
+        }
+    };
+
+    const handleUpdateStoreProfile = async (updates: any) => {
+        if (!session?.user?.id) return;
+        
+        try {
+            console.log("💾 [STORE_PROFILE] Updating profile with:", updates);
+            const { error } = await supabase
+                .from('stores')
+                .update(updates)
+                .eq('id', session.user.id);
+
+            if (error) throw error;
+            
+            // Refresh local profile
+            await fetchStoreProfile();
+            return { success: true };
+        } catch (err: any) {
+            console.error("❌ [STORE_PROFILE] Error updating profile:", err);
+            return { success: false, error: err.message };
         }
     };
 
@@ -1821,6 +1833,8 @@ function App() {
                         <SettingsView
                             settings={settings}
                             onSave={setSettings}
+                            storeProfile={realStoreProfile}
+                            onUpdateProfile={handleUpdateStoreProfile}
                         />
                     )}
                 </div>

@@ -7,6 +7,7 @@ import Step3Access from './Step3Access';
 import WelcomeScreen from './WelcomeScreen';
 import { ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { geocodeAddress } from '../../utils/geocoding';
 
 const WizardForm: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0); // Start at Welcome Screen
@@ -96,7 +97,17 @@ const WizardForm: React.FC = () => {
                     uploadFile(formData.fachadaLoja, 'fachada')
                 ]);
 
-                // 2. Insert Store Data linked to User ID
+                // 2. Geocode Address for Map Positioning
+                console.log("📍 [REGISTRATION] Geocoding store address:", { rua, numero, bairro, cidade, cep });
+                const coords = await geocodeAddress({
+                    street: rua,
+                    number: numero,
+                    neighborhood: bairro,
+                    city: cidade,
+                    cep: cep
+                });
+
+                // 3. Insert Store Data linked to User ID
                 const { error: storeError } = await supabase
                     .from('stores')
                     .insert({
@@ -111,6 +122,8 @@ const WizardForm: React.FC = () => {
                         document_url: docUrl,
                         contract_url: contractUrl,
                         location_photo_url: locationUrl,
+                        lat: coords?.lat || null,
+                        lng: coords?.lng || null,
                         address: {
                             zip_code: cep,
                             street: rua,
