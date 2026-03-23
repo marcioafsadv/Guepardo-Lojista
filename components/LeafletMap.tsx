@@ -166,8 +166,16 @@ const GlassControl = ({ children, className }: { children: React.ReactNode, clas
     </div>
 );
 
-const ZoomButtons = () => {
+const MapSubscriber = ({ setMap }: { setMap: (map: L.Map) => void }) => {
     const map = useMap();
+    useEffect(() => {
+        setMap(map);
+    }, [map, setMap]);
+    return null;
+};
+
+const ZoomButtons = ({ map }: { map: L.Map | null }) => {
+    if (!map) return null;
     return (
         <GlassControl className="p-1 flex flex-col gap-1">
             <button 
@@ -228,6 +236,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     const [isManualFocus, setIsManualFocus] = useState(false);
     const [mapTheme, setMapTheme] = useState<'dark' | 'standard' | 'satellite'>('standard');
     const [activePanel, setActivePanel] = useState<'info' | 'share' | 'chat' | 'help' | null>(null);
+    const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
     const isDarkMode = theme === 'dark' || mapTheme === 'dark';
 
@@ -408,6 +417,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     isManualFocus={isManualFocus}
                 />
 
+                <MapSubscriber setMap={setMapInstance} />
+
                 {/* 1. STORE MARKER (Home Base) */}
                 <Marker position={storeCoords} icon={getStoreIcon(storeProfile.logo_url)}>
                     <Popup className="premium-popup">
@@ -579,7 +590,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                             </button>
                          </GlassControl>
 
-                         <ZoomButtons />
+                         <ZoomButtons map={mapInstance} />
                     </div>
                 </div>
 
