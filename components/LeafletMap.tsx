@@ -600,34 +600,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         {/* Fleet Monitoring removido a pedido do usuário */}
                      </div>
 
-                     {/* BOTTOM RIGHT: UTILITY TOOLS */}
+                     {/* BOTTOM RIGHT: UTILITY TOOLS - Removed as requested */}
                      <div className="flex flex-col gap-2">
-                          <GlassControl className="p-1 flex flex-col gap-1 translate-y-2 group-hover/map:translate-y-0 opacity-0 group-hover/map:opacity-100 transition-all duration-500 delay-100">
-                               <button 
-                                    onClick={() => setActivePanel('share')}
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
-                                >
-                                   <Share2 size={18} />
-                               </button>
-                               <button 
-                                    onClick={() => setActivePanel('chat')}
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
-                                >
-                                   <MessageSquare size={18} />
-                               </button>
-                               <button 
-                                    onClick={() => setActivePanel('info')}
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
-                                >
-                                   <Zap size={18} />
-                               </button>
-                               <button 
-                                    onClick={() => setActivePanel('help')}
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 transition-all"
-                                >
-                                   <HelpCircle size={18} />
-                               </button>
-                          </GlassControl>
                      </div>
                 </div>
             </MapOverlay>
