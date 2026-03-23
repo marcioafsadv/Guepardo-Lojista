@@ -4,6 +4,10 @@ export interface Step1Data {
     razaoSocial: string;
     nomeFantasia: string;
     telefone: string;
+    logo?: File;
+    rgSocio?: File;
+    contratoSocial?: File;
+    fachadaLoja?: File;
 }
 
 export interface Step2Data {

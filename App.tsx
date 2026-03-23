@@ -238,6 +238,7 @@ function App() {
                 address: fullAddress,
                 lat: finalLat,
                 lng: finalLng,
+                logo_url: data.logo_url,
                 wallet_balance: data.wallet_balance || 0,
                 status: data.status || 'fechada',
                 onboarding_status: data.onboarding_status || 'pending'

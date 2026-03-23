@@ -68,6 +68,34 @@ const WizardForm: React.FC = () => {
             if (authError) throw authError;
 
             if (authData.user) {
+                const uploadFile = async (file: File | undefined, namePrefix: string) => {
+                    if (!file) return null;
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${authData.user!.id}/${namePrefix}_${Date.now()}.${fileExt}`;
+                    
+                    const { data: uploadData, error: uploadError } = await supabase.storage
+                        .from('logos')
+                        .upload(fileName, file);
+                    
+                    if (uploadError) {
+                        console.error(`Error uploading ${namePrefix}:`, uploadError);
+                        return null;
+                    }
+                    
+                    const { data: { publicUrl } } = supabase.storage
+                        .from('logos')
+                        .getPublicUrl(fileName);
+                    return publicUrl;
+                };
+
+                // Concurrent uploads for better performance
+                const [logoUrl, docUrl, contractUrl, locationUrl] = await Promise.all([
+                    uploadFile(formData.logo, 'logo'),
+                    uploadFile(formData.rgSocio, 'rg_socio'),
+                    uploadFile(formData.contratoSocial, 'contrato'),
+                    uploadFile(formData.fachadaLoja, 'fachada')
+                ]);
+
                 // 2. Insert Store Data linked to User ID
                 const { error: storeError } = await supabase
                     .from('stores')
@@ -79,6 +107,10 @@ const WizardForm: React.FC = () => {
                         phone: telefone,
                         tipo_pessoa: formData.tipoPessoa,
                         onboarding_status: 'pending',
+                        logo_url: logoUrl,
+                        document_url: docUrl,
+                        contract_url: contractUrl,
+                        location_photo_url: locationUrl,
                         address: {
                             zip_code: cep,
                             street: rua,

@@ -110,7 +110,15 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
         >
             {/* Status Avatar/Icon */}
             <div className={`shrink-0 rounded-full transition-all duration-500 overflow-hidden flex items-center justify-center ${isExpanded ? 'w-10 h-10' : 'w-12 h-12'} ${isOpen ? 'bg-green-500/10 border-2 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-red-500/10 border-2 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.3)]'}`}>
-                <Store size={isExpanded ? 20 : 24} className={isOpen ? 'text-green-500 animate-pulse-slow' : 'text-red-500'} />
+                {storeProfile.logo_url ? (
+                  <img 
+                    src={storeProfile.logo_url} 
+                    alt={storeProfile.name} 
+                    className={`w-full h-full object-cover ${isOpen ? 'animate-pulse-slow' : ''}`}
+                  />
+                ) : (
+                  <Store size={isExpanded ? 20 : 24} className={isOpen ? 'text-green-500 animate-pulse-slow' : 'text-red-500'} />
+                )}
                 {!isExpanded && (
                   <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-black animate-pulse ${isOpen ? 'bg-green-500 shadow-[0_0_8px_#22C55E]' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`}></div>
                 )}

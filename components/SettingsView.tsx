@@ -310,13 +310,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) 
                             <p className="text-gray-500 dark:text-gray-400 text-sm">Entre em contato com nosso suporte técnico especializado.</p>
                         </div>
                         <a
-                            href="https://wa.me/5511987499545"
+                            href="https://wa.me/5511951977684"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-green-600/20 whitespace-nowrap"
                         >
                             <MessageCircle size={20} />
-                            WhatsApp (11) 98749-9545
+                            WhatsApp (11) 95197-7684
                         </a>
                     </div>
                 </section>

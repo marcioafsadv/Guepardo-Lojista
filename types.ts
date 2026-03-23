@@ -150,6 +150,10 @@ export interface StoreProfile {
   wallet_balance?: number;
   onboarding_status?: 'pending' | 'approved' | 'rejected';
   status?: string;
+  logo_url?: string;
+  document_url?: string;
+  contract_url?: string;
+  location_photo_url?: string;
 }
 
 export interface RouteStats {
