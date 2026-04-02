@@ -18,6 +18,23 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
     const [pixData, setPixData] = useState<{ qrCode: string; qrCodeBase64: string; paymentId: string } | null>(null);
     const [txId, setTxId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<'AUTOMATED' | 'MANUAL'>('AUTOMATED');
+    const [manualPixConfig, setManualPixConfig] = useState<{ pix_key?: string, bank_name?: string, receiver_name?: string } | null>(null);
+
+    useEffect(() => {
+        const fetchConfig = async () => {
+            const { data } = await supabase
+                .from('guepardo_system_settings')
+                .select('value')
+                .eq('key', 'manual_pix_config')
+                .single();
+            
+            if (data && data.value) {
+                setManualPixConfig(data.value);
+            }
+        };
+        fetchConfig();
+    }, []);
 
     // Subscribe to transaction status changes once txId is set
     useEffect(() => {
@@ -193,24 +210,96 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
 
                     {step === 'SELECT_METHOD' && (
                         <div className="space-y-6">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block">Método de pagamento</label>
-
-                            <div className="space-y-3">
-                                <button
-                                    onClick={() => setMethod('PIX')}
-                                    className={`w-full p-6 rounded-2xl border flex items-center justify-between transition-all ${method === 'PIX' ? 'bg-guepardo-accent/10 border-guepardo-accent' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                            <div className="flex p-1 bg-white/5 rounded-2xl border border-white/5 mb-4">
+                                <button 
+                                    onClick={() => setActiveTab('AUTOMATED')}
+                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'AUTOMATED' ? 'bg-white/10 text-white' : 'text-white/30'}`}
                                 >
-                                    <div className="flex items-center gap-5">
-                                        <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
-                                            <QrCode size={28} />
+                                    Automático
+                                </button>
+                                <button 
+                                    onClick={() => setActiveTab('MANUAL')}
+                                    className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeTab === 'MANUAL' ? 'bg-guepardo-accent/20 text-guepardo-accent' : 'text-white/30'}`}
+                                >
+                                    Manual (Grátis)
+                                </button>
+                            </div>
+
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block">
+                                {activeTab === 'AUTOMATED' ? 'Pagar com Asaas' : 'Transferência Direta'}
+                            </label>
+
+                            {activeTab === 'AUTOMATED' ? (
+                                <div className="space-y-3 animate-in fade-in duration-300">
+                                    <button
+                                        onClick={() => setMethod('PIX')}
+                                        className={`w-full p-6 rounded-2xl border flex items-center justify-between transition-all ${method === 'PIX' ? 'bg-guepardo-accent/10 border-guepardo-accent' : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10'}`}
+                                    >
+                                        <div className="flex items-center gap-5">
+                                            <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
+                                                <QrCode size={28} />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="font-black italic text-lg text-white leading-none">PIX ASASS</p>
+                                                <p className="text-[10px] uppercase font-bold text-white/30 mt-1">Instantâneo (Taxa R$ 1,99)</p>
+                                            </div>
                                         </div>
-                                        <div className="text-left">
-                                            <p className="font-black italic text-lg text-white leading-none">PIX</p>
-                                            <p className="text-[10px] uppercase font-bold text-white/30 mt-1">Instantâneo e sem taxas</p>
+                                        {method === 'PIX' && <Check className="text-guepardo-accent" strokeWidth={4} />}
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="space-y-4 animate-in slide-in-from-right duration-300">
+                                    <div className="p-6 bg-guepardo-accent/5 border border-guepardo-accent/10 rounded-3xl space-y-4">
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-[9px] font-black text-white/30 uppercase tracking-widest">Chave PIX (Admin)</span>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm font-black text-white">{manualPixConfig?.pix_key || 'Cargando...'}</span>
+                                                {manualPixConfig?.pix_key && (
+                                                    <button 
+                                                        onClick={() => { navigator.clipboard.writeText(manualPixConfig.pix_key!); alert('Chave Copiada!'); }}
+                                                        className="p-2 text-guepardo-accent hover:text-white transition-colors"
+                                                    >
+                                                        <Copy size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                                            <div className="flex flex-col">
+                                                <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Banco</span>
+                                                <span className="text-[11px] font-black text-white italic">{manualPixConfig?.bank_name || '...'}</span>
+                                            </div>
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-[8px] font-black text-white/30 uppercase tracking-widest">Favorecido</span>
+                                                <span className="text-[11px] font-black text-white">{manualPixConfig?.receiver_name || '...'}</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    {method === 'PIX' && <Check className="text-guepardo-accent" strokeWidth={4} />}
-                                </button>
+                                    <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex gap-3 italic">
+                                        <Info size={16} className="text-blue-400 shrink-0" />
+                                        <p className="text-[10px] text-blue-200/60 leading-relaxed font-bold">
+                                            Realize a transferência e envie o comprovante ao suporte para liberação do saldo. Esta opção é 100% gratuita.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-6 space-y-4">
+                                {activeTab === 'AUTOMATED' ? (
+                                    <button
+                                        onClick={handleGeneratePayment}
+                                        className="w-full bg-[#E26D21] hover:bg-[#F37E32] text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95"
+                                    >
+                                        GERAR PIX R$ {amount.toFixed(2)}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleClose}
+                                        className="w-full bg-white/5 hover:bg-white/10 text-white/50 py-6 rounded-2xl font-black italic text-xl border border-white/5 transition-all"
+                                    >
+                                        FECHAR APÓS PAGAR
+                                    </button>
+                                )}
 
                                 <button
                                     disabled
