@@ -78,22 +78,22 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setStep('PROCESSING');
 
         try {
-            const { data, error: invokeError } = await supabase.functions.invoke('mercadopago-payment', {
-                body: { amount, method: 'PIX', description: 'Recarga de Saldo - Guepardo' }
+            const { data, error: invokeError } = await supabase.functions.invoke('asaas-create-charge', {
+                body: { storeId, amount, description: 'Recarga de Saldo - Guepardo' }
             });
 
             if (invokeError) throw invokeError;
 
             if (data?.success) {
                 setPixData({
-                    qrCode: data.pix_copy_paste,
-                    qrCodeBase64: data.pix_qr_code,
-                    paymentId: data.payment_id
+                    qrCode: data.pixCode,
+                    qrCodeBase64: data.pixImage,
+                    paymentId: data.paymentId
                 });
-                setTxId(data.transaction_id);
+                setTxId(data.transactionId);
                 setStep('SHOW_PIX');
             } else {
-                throw new Error(data?.message || "Erro ao gerar QR Code Mercado Pago");
+                throw new Error(data?.message || data?.error || "Erro ao gerar QR Code Asaas");
             }
         } catch (err: any) {
             console.error("Erro no pagamento:", err);
@@ -246,7 +246,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                         <div className="py-24 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 border-8 border-guepardo-accent/20 border-t-guepardo-accent rounded-full animate-spin mb-8"></div>
                             <h4 className="text-2xl font-black italic tracking-tighter mb-2 text-white">GERANDO COBRANÇA</h4>
-                            <p className="text-white/30 text-xs font-bold uppercase tracking-widest">Comunicando com Mercado Pago...</p>
+                            <p className="text-white/30 text-xs font-bold uppercase tracking-widest">Comunicando com Asaas...</p>
                         </div>
                     )}
 

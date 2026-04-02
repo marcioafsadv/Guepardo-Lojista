@@ -106,7 +106,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
                 <div className="flex items-center gap-4">
                     <div className="px-4 py-2 bg-white/5 border border-white/10 rounded-full flex items-center gap-2">
                         <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span>
-                        <span className="text-[10px] font-bold text-white/70 uppercase">Pagamentos via Mercado Pago</span>
+                        <span className="text-[10px] font-bold text-white/70 uppercase">Pagamentos via Asaas</span>
                     </div>
                 </div>
             </div>
