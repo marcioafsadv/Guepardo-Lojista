@@ -178,7 +178,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                 type: 'RECHARGE',
                 status: 'PENDING',
                 payment_method: 'MANUAL',
-                description: 'Recarga Manual (Solicitada via Dashboard)'
+                description: 'Recarga Manual Informada pelo Lojista'
             });
 
             if (insertError) throw insertError;
@@ -186,7 +186,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
             setStep('SUCCESS');
             setTimeout(() => handleClose(), 5000);
         } catch (err: any) {
-            setError("Erro ao registrar: " + err.message);
+            setError("Erro ao registrar: " + (err.message || "Tente novamente mais tarde."));
         } finally {
             setLoading(false);
         }
