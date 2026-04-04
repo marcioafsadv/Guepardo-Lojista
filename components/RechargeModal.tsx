@@ -305,6 +305,12 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                             )}
 
                             <div className="pt-6 space-y-3">
+                                {error && (
+                                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex gap-3 animate-shake">
+                                        <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                                        <p className="text-[10px] text-red-200 font-bold uppercase tracking-tight">{error}</p>
+                                    </div>
+                                )}
                                 {activeTab === 'AUTOMATED' ? (
                                     <button onClick={() => handleGeneratePayment()} className="w-full bg-guepardo-accent hover:bg-guepardo-accent-hover text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95 uppercase">{method === 'PIX' ? 'Gerar PIX' : 'Dados do Cartão'}</button>
                                 ) : (
