@@ -172,12 +172,8 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setLoading(true);
         setError(null);
         try {
-            const { data, error: invokeError } = await supabase.functions.invoke('asaas-create-charge', {
-                body: { 
-                    storeId, 
-                    amount, 
-                    billingType: 'MANUAL' 
-                }
+            const { data, error: invokeError } = await supabase.functions.invoke('process-manual-recharge', {
+                body: { storeId, amount }
             });
 
             if (invokeError) throw invokeError;
