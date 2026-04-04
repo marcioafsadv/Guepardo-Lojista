@@ -172,20 +172,21 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setLoading(true);
         setError(null);
         try {
-            const { error: insertError } = await supabase.from('wallet_transactions').insert({
-                store_id: storeId,
-                amount,
-                type: 'RECHARGE',
-                status: 'PENDING',
-                payment_method: 'MANUAL',
-                description: 'Recarga Manual Informada pelo Lojista'
+            const { data, error: invokeError } = await supabase.functions.invoke('asaas-create-charge', {
+                body: { 
+                    storeId, 
+                    amount, 
+                    billingType: 'MANUAL' 
+                }
             });
 
-            if (insertError) throw insertError;
+            if (invokeError) throw invokeError;
+            if (data && !data.success) throw new Error(data.error || "Erro ao registrar recarga manual");
 
             setStep('SUCCESS');
             setTimeout(() => handleClose(), 5000);
         } catch (err: any) {
+            console.error("Erro ao informar recarga manual:", err);
             setError("Erro ao registrar: " + (err.message || "Tente novamente mais tarde."));
         } finally {
             setLoading(false);
