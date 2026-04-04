@@ -28,6 +28,7 @@ export const OrderHubAlert: React.FC<OrderHubAlertProps> = ({ storeId, onViewOrd
             addressCity: latestOrder.address_city || latestOrder.addressCity || '',
             addressCep: latestOrder.address_cep || latestOrder.addressCep || '',
             deliveryValue: latestOrder.total_value || latestOrder.deliveryValue || 0,
+            storeFreight: latestOrder.store_freight || latestOrder.storeFreight || 0,
             status: latestOrder.status as OrderStatus,
             createdAt: new Date(latestOrder.created_at || latestOrder.createdAt),
             paymentMethod: latestOrder.payment_method || latestOrder.paymentMethod || 'PIX',
