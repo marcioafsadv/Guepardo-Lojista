@@ -180,8 +180,12 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                 }
             });
 
-            if (invokeError) throw invokeError;
-            if (data && !data.success) throw new Error(data.error || "Erro ao registrar recarga manual");
+            // No caso de erro 4xx/5xx, o Supabase pode retornar o erro no campo invokeError
+            // Mas o corpo da resposta (JSON) pode estar em 'data'
+            if (invokeError || (data && data.success === false)) {
+                const finalError = data?.error || invokeError?.message || "Erro desconhecido";
+                throw new Error(finalError);
+            }
 
             setStep('SUCCESS');
             setTimeout(() => handleClose(), 5000);
