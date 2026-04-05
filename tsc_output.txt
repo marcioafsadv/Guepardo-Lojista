@@ -1,0 +1,1 @@
+components/OrderHubAlert.tsx(20,15): error TS2741: Property 'storeFreight' is missing in type '{ id: any; display_id: any; clientName: any; destination: any; addressStreet: any; addressNumber: any; addressNeighborhood: any; addressCity: any; addressCep: any; deliveryValue: any; status: OrderStatus; ... 6 more ...; events: any; }' but required in type 'Order'.
