@@ -50,10 +50,8 @@ const INITIAL_CUSTOMERS: Customer[] = [];
 const INITIAL_COURIERS: Courier[] = [];
 
 const SOUNDS = {
-    default: 'https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3', // Simple Bell
-    roar: 'https://assets.mixkit.co/active_storage/sfx/2868/2868-preview.mp3', // Lion Roar
-    siren: 'https://assets.mixkit.co/active_storage/sfx/249/249-preview.mp3', // Sci-Fi Siren
-    cheetah: '/sounds/lion-roar.mp3',
+    default: '/sounds/rugido-guepardo.mp3', // Rugido do Guepardo (Principal)
+    cheetah: '/sounds/rugido-guepardo.mp3',
     symphony: '/sounds/symphony.mp3',
     guitar: '/sounds/guitar-notification.mp3',
     beep: '/sounds/beep-notification.mp3'
@@ -105,7 +103,7 @@ function App() {
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
         theme: 'dark',
         mapTheme: 'light',
-        alertSound: 'cheetah'
+        alertSound: 'cheetah' // Rugido do Guepardo (Principal)
     });
 
     // View Specific States (Search/Filters)
