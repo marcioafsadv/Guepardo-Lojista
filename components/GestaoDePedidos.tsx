@@ -473,6 +473,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 }}
                                 onValidateClick={handleOpenValidation}
                                 onConfirmReturn={onConfirmReturn}
+                                onMarkAsReady={onMarkAsReady}
                                 routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
                             />
                         ))}

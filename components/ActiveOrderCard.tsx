@@ -13,6 +13,7 @@ interface ActiveOrderCardProps {
   onTrackClick?: (order: Order) => void;
   onValidateClick?: (order: Order) => void;
   onConfirmReturn?: (orderId: string) => void;
+  onMarkAsReady?: (orderId: string) => void;
   routeStats?: any;
 }
 
@@ -31,12 +32,13 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
 const BASE_STEPS = [
   { status: OrderStatus.PENDING, label: 'Chamando' },
   { status: OrderStatus.ACCEPTED, label: 'Aceito' },
+  { status: OrderStatus.READY_FOR_PICKUP, label: 'Pronto' },
   { status: OrderStatus.IN_TRANSIT, label: 'A Caminho' },
   { status: OrderStatus.DELIVERED, label: 'Entregue' }
 ];
 
 export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ 
-  order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, routeStats
+  order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, onMarkAsReady, routeStats
 }) => {
   const [secondsWaiting, setSecondsWaiting] = useState(0);
 
@@ -66,6 +68,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       return [
         { status: OrderStatus.PENDING, label: 'Chamando' },
         { status: OrderStatus.ACCEPTED, label: 'Coleta' },
+        { status: OrderStatus.READY_FOR_PICKUP, label: 'Pronto' },
         { status: OrderStatus.IN_TRANSIT, label: 'Entrega' },
         { status: OrderStatus.RETURNING, label: 'Retorno' },
         { status: OrderStatus.DELIVERED, label: 'Fim' }
@@ -274,9 +277,18 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           </div>
 
           <div className="flex gap-3 mt-6">
+            {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onMarkAsReady?.(order.id); }}
+                className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-glow animate-in zoom-in duration-300"
+              >
+                <CheckCircle2 size={14} strokeWidth={3} />
+                Pronto
+              </button>
+            )}
             <button 
               onClick={(e) => { e.stopPropagation(); }}
-              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-black/40 border border-white/5 text-white hover:bg-white/5 transition-all text-xs font-black uppercase tracking-wider shadow-2xl"
+              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-black/40 border border-white/5 text-white hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-wider shadow-2xl"
             >
               <Phone size={14} strokeWidth={3} />
               Ligar
