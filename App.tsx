@@ -423,15 +423,19 @@ function App() {
         switch (status.toLowerCase()) {
             case 'pending': return OrderStatus.PENDING;
             case 'accepted': return OrderStatus.ACCEPTED;
+            case 'to_store': return OrderStatus.ACCEPTED;          // Courier heading to store → show as accepted
             case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
+            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE; // Validating code → still at store for Lojista
             case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP;
             case 'in_transit': return OrderStatus.IN_TRANSIT;
-            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT;
+            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT; // Still in transit until confirmed delivered
             case 'completed': return OrderStatus.DELIVERED;
             case 'canceled':
             case 'cancelled': return OrderStatus.CANCELED;
             case 'returning': return OrderStatus.RETURNING;
-            default: return OrderStatus.PENDING;
+            default:
+                console.warn(`⚠️ [STATUS_MAP] Unknown DB status: '${status}'. Keeping current status.`);
+                return OrderStatus.ACCEPTED; // Safe fallback: assume active courier, not pending
         }
     }, []);
 
@@ -619,8 +623,24 @@ function App() {
                 // We MUST update even if status is same to get fresh courier coordinates
                 // during active deliveries (IN_TRANSIT, RETURNING, etc.)
 
-                // Regression checking logic (Ready for pickup vs Arrived)
-                if (existingOrder.status === OrderStatus.READY_FOR_PICKUP && mappedStatus === OrderStatus.ARRIVED_AT_STORE) continue;
+                // Regression protection: do NOT allow backward status transitions
+                // Define the status progression order
+                const STATUS_ORDER = [
+                    OrderStatus.PENDING,
+                    OrderStatus.ACCEPTED,
+                    OrderStatus.ARRIVED_AT_STORE,
+                    OrderStatus.READY_FOR_PICKUP,
+                    OrderStatus.IN_TRANSIT,
+                    OrderStatus.RETURNING,
+                    OrderStatus.DELIVERED,
+                ];
+                const currentRank = STATUS_ORDER.indexOf(existingOrder.status);
+                const newRank = STATUS_ORDER.indexOf(mappedStatus);
+                // If the new status is a regression, skip this update
+                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED) {
+                    console.warn(`⚠️ [SYNC] Skipping backwards status update for order ${delivery.id.slice(-4)}: ${existingOrder.status} → ${mappedStatus}`);
+                    continue;
+                }
 
                 let courierData: Courier | null = null;
                 if (delivery.driver_id) {
