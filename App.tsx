@@ -1263,8 +1263,7 @@ function App() {
                 .from('deliveries')
                 .update({
                     status: 'ready_for_pickup',
-                    updated_at: new Date().toISOString(),
-                    ready_at_time: new Date().toISOString()
+                    updated_at: new Date().toISOString()
                 })
                 .in('id', orderIds);
 
