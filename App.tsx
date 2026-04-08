@@ -998,9 +998,15 @@ function App() {
 
                 // Earnings Calculation: 100% for first, variable share for others
                 const distMeters = (data.calculatedDistance || 1.2) * 1000;
-                const stopEarnings = index === 0 
+                let stopEarnings = (index === 0 && !targetCourierId) 
                     ? calculateFreight(distMeters).courierFee 
                     : calculateFreightBatching(distMeters).courierFee;
+                    
+                if (stop.isReturnRequired) {
+                    stopEarnings += calculateReturnFee(distMeters).courierFee;
+                }
+                
+                stopEarnings = Number(stopEarnings.toFixed(2));
 
                 // Fallback to random nearby if geocoding fails, but log it
                 const finalLat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
@@ -1185,9 +1191,14 @@ function App() {
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
                 const distMeters = (order.distanceKm || 1.2) * 1000;
-                const newEarnings = i === 0 
+                let newEarnings = i === 0 
                     ? calculateFreight(distMeters).courierFee 
                     : calculateFreightBatching(distMeters).courierFee;
+
+                if (order.isReturnRequired) {
+                    newEarnings += calculateReturnFee(distMeters).courierFee;
+                }
+                newEarnings = Number(newEarnings.toFixed(2));
 
                 const { error } = await supabase
                     .from('deliveries')
