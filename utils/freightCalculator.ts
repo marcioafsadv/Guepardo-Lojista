@@ -31,6 +31,15 @@ export const COURIER_BASE_FIXED = 7.00;
 /** Tarifa por metro rodado — bruta (R$/metro) = 1,32 / 1000 */
 export const FREIGHT_RATE_PER_METER = 0.00132;
 
+/** Taxa base para batching (R$) */
+export const FREIGHT_BASE_BATCHING = 3.00;
+
+/** Parcela fixa da taxa de batching que vai ao App (R$) */
+export const APP_BATCH_FIXED = 0.50;
+
+/** Parcela fixa da taxa de batching que vai ao Entregador (R$) */
+export const COURIER_BATCH_FIXED = 2.50;
+
 /** Taxa base para retorno — 50% da taxa principal */
 export const RETURN_BASE_FEE = 4.00;
 
@@ -102,19 +111,20 @@ export const calculateFreight = (distanceMeters: number): FreightResult => {
 /**
  * Calcula o frete de uma **Parada Adicional** (multi-stop / batching).
  *
- * Sem taxa fixa — cobrar apenas R$ 1,32/km sobre a distância adicional.
- * Split integralmente variável: 12,5% App | 87,5% Entregador.
+ * Taxa fixa R$ 3,00 + R$ 1,32/km sobre a distância adicional.
  *
  * @param additionalDistanceMeters - Metros percorridos somente neste trecho adicional
  */
 export const calculateFreightBatching = (additionalDistanceMeters: number): FreightResult => {
-    const storeFee = round2(additionalDistanceMeters * FREIGHT_RATE_PER_METER);
-    const { courierPart, appPart } = splitVariable(storeFee);
-
+    const variableFee = additionalDistanceMeters * FREIGHT_RATE_PER_METER;
+    const storeFee = round2(FREIGHT_BASE_BATCHING + variableFee);
+    
+    const { courierPart, appPart } = splitVariable(variableFee);
+    
     return {
         storeFee,
-        courierFee: courierPart,
-        centralProfit: appPart,
+        courierFee: round2(COURIER_BATCH_FIXED + courierPart),
+        centralProfit: round2(APP_BATCH_FIXED + appPart),
     };
 };
 

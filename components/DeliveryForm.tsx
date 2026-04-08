@@ -9,6 +9,7 @@ import {
   calculateFreightBatching,
   calculateReturnFee,
   FREIGHT_BASE_SIMPLE,
+  FREIGHT_BASE_BATCHING,
   FREIGHT_RATE_PER_METER,
 } from '../utils/freightCalculator';
 
@@ -393,11 +394,17 @@ export const DeliveryForm = ({
   const distanceMeters = routeStats?.distanceValue ?? 0;
 
   // ── Cálculo do frete base ─────────────────────────────────────────────
-  // Batching: quando um entregador já está em rota e recebe 2º pedido.
-  // A distância adicional é a mesma retornada pela API para a nova parada.
-  const baseFreightResult = targetCourierId
-    ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,44/km
-    : calculateFreight(distanceMeters);           // Base R$9,00 + R$1,44/km
+  // Se o entregador já tem pedidos ativos, cobramos taxa de Batching (reduzida).
+  // Se ele está livre ou não foi selecionado (Chamada Geral), cobramos taxa Simples.
+  const isBatching = targetCourierId && allOrders.some(o => 
+    o.courier?.id === targetCourierId && 
+    o.status !== OrderStatus.DELIVERED && 
+    o.status !== OrderStatus.CANCELED
+  );
+
+  const baseFreightResult = isBatching
+    ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
+    : calculateFreight(distanceMeters);           // Base R$8,00 + R$1,32/km
 
   const baseFreight = baseFreightResult.storeFee;
   const baseCourierEarnings = baseFreightResult.courierFee;
@@ -1027,13 +1034,11 @@ export const DeliveryForm = ({
           <div className="bg-black/40 rounded-[1.5rem] border border-[#8B3A0F]/20 p-5 space-y-3 mt-4 relative overflow-hidden group/estimate">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover/estimate:bg-white/10 transition-colors"></div>
 
-            {/* Taxa de saída — apenas no pedido simples (batching não tem base fixa) */}
-            {!targetCourierId && (
-              <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
-                <span>Taxa de saída:</span>
-                <span className="text-white/40">R$ {FREIGHT_BASE_SIMPLE.toFixed(2)}</span>
-              </div>
-            )}
+            {/* Taxa de saída */}
+            <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
+              <span>Taxa de saída ({isBatching ? 'Batching' : 'Simples'}):</span>
+              <span className="text-white/40">R$ {(isBatching ? FREIGHT_BASE_BATCHING : FREIGHT_BASE_SIMPLE).toFixed(2)}</span>
+            </div>
 
             {/* Custo por distância */}
             {distanceMeters > 0 && (
