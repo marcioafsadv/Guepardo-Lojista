@@ -113,7 +113,7 @@ const OrderContent: React.FC<{
                             <Banknote size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
                             <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor do Pedido</span>
                         </div>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {Number(order.deliveryValue || 0).toFixed(2)}</span>
+                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
 
                     {/* FRETE */}
@@ -122,7 +122,7 @@ const OrderContent: React.FC<{
                             <Truck size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
                             <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor do Frete</span>
                         </div>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>R$ {Number(order.estimatedPrice || 0).toFixed(2)}</span>
+                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.estimatedPrice) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
 
                     {/* PAGAMENTO */}
