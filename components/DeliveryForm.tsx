@@ -197,10 +197,8 @@ export const DeliveryForm = ({
           ? calculateFreightBatching(dm)
           : calculateFreight(dm);
         
-        // 2. Additional Stops: (meters * 0.00132 * 0.875) per stop
-        const addStopsEarnings = additionalStops.length > 0
-          ? additionalStops.length * calculateFreightBatching(dm).courierFee
-          : 0;
+        // 2. Additional Stops: O custo da distância já está embutido no 'dm' (distância total da rota)
+        const addStopsEarnings = 0;
 
         // 3. Optional Return: (meters * 0.00132 * 0.875)
         const retResult = (isReturnRequired && (settings?.returnFeeActive ?? true))
@@ -414,13 +412,10 @@ export const DeliveryForm = ({
   const returnCourierEarnings = returnFeeResult?.courierFee ?? 0;
 
   // ── Total previsto (estimativa) ───────────────────────────────────────
-  // Paradas adicionais: cada uma aplica a taxa de batching sobre a mesma distância base
-  const additionalStopsFee = additionalStops.length > 0
-    ? additionalStops.reduce(
-      (sum) => sum + calculateFreightBatching(distanceMeters).storeFee,
-      0
-    )
-    : 0;
+  // Paradas adicionais: A distância exata da rota otimizada já engloba todos os pontos. 
+  // Sem taxa fixa por parada extra.
+  const additionalStopsFee = 0;
+  
   const totalFreight = baseFreight + returnFee + additionalStopsFee;
 
   // Calculate change needed

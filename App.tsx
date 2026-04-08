@@ -996,17 +996,19 @@ function App() {
                 const phoneDigits = stop.clientPhone.replace(/\D/g, '');
                 const phoneSuffix = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "6060";
 
-                // Earnings Calculation: 100% for first, variable share for others
+                // Earnings Calculation: Distribute total route earnings proportionally across all stops
                 const distMeters = (data.calculatedDistance || 1.2) * 1000;
-                let stopEarnings = (index === 0 && !targetCourierId) 
-                    ? calculateFreight(distMeters).courierFee 
-                    : calculateFreightBatching(distMeters).courierFee;
+                
+                let totalBatchEarnings = targetCourierId 
+                    ? calculateFreightBatching(distMeters).courierFee 
+                    : calculateFreight(distMeters).courierFee;
                     
-                if (stop.isReturnRequired) {
-                    stopEarnings += calculateReturnFee(distMeters).courierFee;
+                if (data.isReturnRequired) {
+                    totalBatchEarnings += calculateReturnFee(distMeters).courierFee;
                 }
                 
-                stopEarnings = Number(stopEarnings.toFixed(2));
+                // Divide the total earning equally among all stops in the batch
+                let stopEarnings = Number((totalBatchEarnings / stopsToProcess.length).toFixed(2));
 
                 // Fallback to random nearby if geocoding fails, but log it
                 const finalLat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
