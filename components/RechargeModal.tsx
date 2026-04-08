@@ -234,7 +234,9 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                                 <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 block mb-4">Escolha um valor</label>
                                 <div className="grid grid-cols-2 gap-4">
                                     {quickAmounts.map(v => (
-                                        <button key={v} onClick={() => setAmount(v)} className={`py-5 rounded-2xl font-black italic text-xl transition-all border ${amount === v ? 'bg-guepardo-accent border-guepardo-accent text-white shadow-[0_12px_40px_rgba(244,115,22,0.3)] scale-[1.02]' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}>R$ {v},00</button>
+                                        <button key={v} onClick={() => setAmount(v)} className={`py-5 rounded-2xl font-black italic text-xl transition-all border ${amount === v ? 'bg-guepardo-accent border-guepardo-accent text-white shadow-[0_12px_40px_rgba(244,115,22,0.3)] scale-[1.02]' : 'bg-white/5 border-white/10 text-white/40 hover:border-white/20'}`}>
+                                            {v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -344,9 +346,9 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                                     </div>
                                 </div>
                                 <div className="bg-black/40 border border-white/5 p-5 rounded-2xl space-y-3">
-                                    <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase"><span>Recarga</span><span className="text-white">R$ {amount.toFixed(2)}</span></div>
-                                    <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase"><span>Taxas</span><span className="text-red-400">+ R$ {(calculateCreditCardTotal(amount) - amount).toFixed(2)}</span></div>
-                                    <div className="pt-2 border-t border-white/5 flex justify-between items-center"><span className="text-xs font-black text-white italic uppercase">Total</span><span className="text-2xl font-black text-guepardo-accent">R$ {calculateCreditCardTotal(amount).toFixed(2)}</span></div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase"><span>Recarga</span><span className="text-white">{amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase"><span>Taxas</span><span className="text-red-400">+ {(calculateCreditCardTotal(amount) - amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                                    <div className="pt-2 border-t border-white/5 flex justify-between items-center"><span className="text-xs font-black text-white italic uppercase">Total</span><span className="text-2xl font-black text-guepardo-accent">{calculateCreditCardTotal(amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
                                 </div>
                                 <button onClick={() => handleGeneratePayment('CREDIT_CARD')} disabled={loading} className="w-full bg-guepardo-accent hover:bg-guepardo-accent-hover text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3">
                                     {loading ? <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <>PAGAR AGORA <Check size={24} /></>}

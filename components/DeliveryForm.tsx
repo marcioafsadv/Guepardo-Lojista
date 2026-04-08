@@ -1037,7 +1037,7 @@ export const DeliveryForm = ({
             {/* Taxa de saída */}
             <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
               <span>Taxa de saída ({isBatching ? 'Batching' : 'Simples'}):</span>
-              <span className="text-white/40">R$ {(isBatching ? FREIGHT_BASE_BATCHING : FREIGHT_BASE_SIMPLE).toFixed(2)}</span>
+              <span className="text-white/40">{(isBatching ? FREIGHT_BASE_BATCHING : FREIGHT_BASE_SIMPLE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
             </div>
 
             {/* Custo por distância */}
@@ -1045,10 +1045,10 @@ export const DeliveryForm = ({
               <div className="flex justify-between items-center text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] animate-in fade-in relative z-10">
                 <span className="flex items-center gap-2">
                   <MapPin size={12} className="text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
-                  {routeStats?.distanceText ?? `${(distanceMeters / 1000).toFixed(2)} km`}
+                  {routeStats?.distanceText ?? `${(distanceMeters / 1000).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} km`}
                   {routeStats?.durationText ? ` (${routeStats.durationText})` : ''}
                 </span>
-                <span className="font-italic tracking-tighter text-blue-300">+ R$ {(distanceMeters * FREIGHT_RATE_PER_METER).toFixed(2)}</span>
+                <span className="font-italic tracking-tighter text-blue-300">+ {(distanceMeters * FREIGHT_RATE_PER_METER).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
               </div>
             )}
 
@@ -1059,14 +1059,14 @@ export const DeliveryForm = ({
                   <ArrowLeftRight size={12} className="text-guepardo-accent shadow-[0_0_10px_rgba(211,84,0,0.5)]" />
                   Retorno (KM):
                 </span>
-                <span className="font-italic tracking-tighter">+ R$ {(returnFee || 0).toFixed(2)}</span>
+                <span className="font-italic tracking-tighter">+ {(returnFee || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
               </div>
             )}
 
             <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-2 relative z-10">
               <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total ao Cliente</span>
               <span className="text-3xl font-black italic text-white tracking-tighter text-shadow-glow">
-                {street && number ? `R$ ${(totalFreight || 0).toFixed(2)}` : 'R$ ****'}
+                {street && number ? (totalFreight || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ ****'}
               </span>
             </div>
           </div>

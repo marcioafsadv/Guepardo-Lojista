@@ -326,13 +326,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                     <div className="flex flex-col min-w-[80px]">
                                         <span className="text-[9px] font-black text-green-400/60 uppercase tracking-widest mb-0.5">Pedido</span>
                                         <span className="text-base font-black italic text-white tracking-tighter">
-                                            R$ {(Number(order.deliveryValue) || 0).toFixed(2)}
+                                            {(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
                                     <div className="flex flex-col min-w-[80px]">
                                         <span className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-0.5">Entrega</span>
                                         <span className="text-base font-black italic text-white tracking-tighter">
-                                            R$ {(Number(order.storeFreight) || 0).toFixed(2)}
+                                            {(Number(order.storeFreight) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
                                 </div>
@@ -464,12 +464,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                                 axisLine={false} 
                                                 tickLine={false} 
                                                 tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9, fontWeight: 'bold' }}
-                                                tickFormatter={(val) => `R$ ${val}`}
+                                                tickFormatter={(val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             />
                                             <RechartsTooltip 
                                                 contentStyle={{ backgroundColor: '#1A0900', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem' }}
                                                 itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
                                                 labelStyle={{ display: 'none' }}
+                                                formatter={(val: number) => [val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), '']}
                                             />
                                             <Area type="monotone" dataKey="storeFreight" name="Volume" stroke="#FF6B00" strokeWidth={3} fillOpacity={1} fill="url(#colorVolume)" />
                                             <Area type="monotone" dataKey="deliveryValue" name="Taxa" stroke="#FFF" strokeWidth={2} fill="transparent" />
@@ -515,12 +516,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                                 axisLine={false} 
                                                 tickLine={false} 
                                                 tick={{ fill: 'rgba(255,255,255,0.2)', fontSize: 9, fontWeight: 'bold' }}
-                                                tickFormatter={(val) => `R$ ${val}`}
+                                                tickFormatter={(val) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                             />
                                             <RechartsTooltip 
                                                 contentStyle={{ backgroundColor: '#1A0900', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem' }}
                                                 itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
                                                 labelStyle={{ display: 'none' }}
+                                                formatter={(val: number) => [val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), 'Faturamento']}
                                             />
                                             <Bar dataKey="volume" name="Faturamento" radius={[8, 8, 0, 0]} fill="#FF6B00" />
                                         </BarChart>
