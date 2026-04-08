@@ -239,21 +239,6 @@ const OrderContent: React.FC<{
                         ) : (
                             <div className={`pl-8 text-sm italic ${isDark ? 'text-white/20' : 'text-gray-400'}`}>Aguardando movimentação...</div>
                         )}
-                        {/* Creation Event (Always exists) */}
-                        <div className="relative pl-8">
-                            <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 ${isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200'}`}></div>
-                            <div className="flex flex-col">
-                                <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/30' : 'text-gray-400'}`}>
-                                    {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span className={`text-sm font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                    Pedido Criado
-                                </span>
-                                <span className={`text-xs mt-1 italic ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                                    Entrada no sistema Guepardo
-                                </span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
