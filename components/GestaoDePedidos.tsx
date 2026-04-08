@@ -146,7 +146,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             const coords: [number, number][] = [[storeProfile.lat, storeProfile.lng], [destCoords.lat, destCoords.lng]];
             
             for (const stop of draftAdditionalStops) {
-                const stopAddr = `${stop.addressStreet}, ${stop.addressNumber}, ${stop.addressNeighborhood}, ${stop.addressCity}`;
+                if (!stop.addressStreet) continue; // Skip empty stops to avoid random geocoding
+                const stopAddr = `${stop.addressStreet}, ${stop.addressNumber}, ${stop.addressNeighborhood}, ${stop.addressCity || 'Itu/SP'}`;
                 const stopCoords = await geocodeAddress(stopAddr, { lat: storeProfile.lat, lng: storeProfile.lng });
                 if (stopCoords) {
                     coords.push([stopCoords.lat, stopCoords.lng]);
