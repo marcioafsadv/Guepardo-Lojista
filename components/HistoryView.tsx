@@ -144,7 +144,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
     const handleExportExcel = () => {
         const wb = XLSX.utils.book_new();
         const wsData = [
-            ["ID", "Data", "Hora", "Cliente", "Telefone", "Endereço", "Status", "Valor Total", "Taxa de Entrega", "Pagamento"],
+            ["ID", "Data", "Hora", "Cliente", "Telefone", "Endereço", "Status", "Valor Pedido", "Taxa de Entrega", "Pagamento"],
             ...filteredOrders.map(order => [
                 order.id,
                 new Date(order.createdAt).toLocaleDateString(),
@@ -153,8 +153,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                 order.clientPhone || '',
                 order.destination,
                 order.status,
-                order.estimatedPrice || 0,
                 order.deliveryValue || 0,
+                order.storeFreight || 0,
                 order.paymentMethod
             ])
         ];
@@ -322,11 +322,19 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col min-w-[100px]">
-                                    <span className="text-[10px] font-black text-green-400/60 uppercase tracking-widest mb-1">Valor Total</span>
-                                    <span className="text-lg font-black italic text-white tracking-tighter">
-                                        R$ {(Number(order.storeFreight) || 0).toFixed(2)}
-                                    </span>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex flex-col min-w-[80px]">
+                                        <span className="text-[9px] font-black text-green-400/60 uppercase tracking-widest mb-0.5">Pedido</span>
+                                        <span className="text-base font-black italic text-white tracking-tighter">
+                                            R$ {(Number(order.deliveryValue) || 0).toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col min-w-[80px]">
+                                        <span className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-0.5">Entrega</span>
+                                        <span className="text-base font-black italic text-white tracking-tighter">
+                                            R$ {(Number(order.storeFreight) || 0).toFixed(2)}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="w-px h-12 bg-white/5 hidden lg:block"></div>
@@ -537,12 +545,20 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                     </div>
                 </div>
                 
-                <div className="flex flex-col">
-                <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Custo Total</span>
-                <span className="text-xl font-black italic text-guepardo-accent drop-shadow-glow">
-                    R$ {totalFees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-            </div>
+                <div className="flex items-center gap-8">
+                    <div className="flex flex-col text-right">
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Volume de Vendas (Produtos)</span>
+                        <span className="text-xl font-black italic text-white tracking-tighter">
+                            R$ {totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Custo Total (Frete)</span>
+                        <span className="text-xl font-black italic text-guepardo-accent drop-shadow-glow">
+                            R$ {totalFees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </div>
             </div>
 
             <ChatMultilateralModal 
