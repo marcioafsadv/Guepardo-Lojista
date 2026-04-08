@@ -99,6 +99,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [isSelectingCourier, setIsSelectingCourier] = useState(false);
     const [targetCourierId, setTargetCourierId] = useState<string>('');
     const [isFormCollapsed, setIsFormCollapsed] = useState(false);
+    const [enrichedDraftStops, setEnrichedDraftStops] = useState<any[]>([]);
 
     // Bulk Actions State
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -110,15 +111,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         }
     }, [activeOrder?.id]);
 
-    /* 
-    // REMOVED: User wants to keep details visible during route tracking
-    useEffect(() => {
-        if (activeOrder && (activeOrder.status === OrderStatus.TO_STORE || activeOrder.status === OrderStatus.IN_TRANSIT)) {
-            setShowDetailDrawer(false);
-        }
-    }, [activeOrder?.status]);
-    */
-
     const handleCloseDrawer = () => {
         setShowDetailDrawer(false);
         setTimeout(() => setActiveOrder(null), 300);
@@ -128,6 +120,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     useEffect(() => {
         if (!draftAddress) {
             setRouteStats(null);
+            setEnrichedDraftStops([]);
             return;
         }
 
@@ -145,14 +138,18 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             // 2. Geocode Additional Stops (if any)
             const coords: [number, number][] = [[storeProfile.lat, storeProfile.lng], [destCoords.lat, destCoords.lng]];
             
-            for (const stop of draftAdditionalStops) {
+            const geocodedStops = [...draftAdditionalStops];
+            for (let i = 0; i < geocodedStops.length; i++) {
+                const stop = geocodedStops[i];
                 if (!stop.addressStreet) continue; // Skip empty stops to avoid random geocoding
                 const stopAddr = `${stop.addressStreet}, ${stop.addressNumber}, ${stop.addressNeighborhood}, ${stop.addressCity || 'Itu/SP'}`;
                 const stopCoords = await geocodeAddress(stopAddr, { lat: storeProfile.lat, lng: storeProfile.lng });
                 if (stopCoords) {
                     coords.push([stopCoords.lat, stopCoords.lng]);
+                    geocodedStops[i] = { ...stop, lat: stopCoords.lat, lng: stopCoords.lng };
                 }
             }
+            setEnrichedDraftStops(geocodedStops);
 
             // 3. Calculate Route
             const stats = await calculateRoute(coords);
@@ -171,7 +168,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         };
 
         computeRoute();
-    }, [draftAddress, draftAdditionalStops.length, storeProfile.lat, storeProfile.lng]);
+    }, [draftAddress, draftAdditionalStops, storeProfile.lat, storeProfile.lng]);
 
     // --- ACTIVE ORDER TRACKING (ROAD-SNAPPED) ---
     useEffect(() => {
@@ -400,7 +397,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     onCourierClick={handleCourierSelect}
                     theme={theme}
                     draftAddress={draftAddress}
-                    draftAdditionalStops={draftAdditionalStops}
+                    draftAdditionalStops={enrichedDraftStops}
                     draftRouteStats={routeStats}
                     activeRouteStats={activeRouteStats}
                     onCardClick={handleOrderSelect}

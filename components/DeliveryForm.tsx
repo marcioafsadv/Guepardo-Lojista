@@ -258,11 +258,14 @@ export const DeliveryForm = ({
     setAdditionalStops(additionalStops.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
-  // BROADCAST ADDITIONAL STOPS FOR MAP VISIBILITY
+  // BROADCAST ADDITIONAL STOPS FOR MAP VISIBILITY (Debounced)
   useEffect(() => {
-    if (onAdditionalStopsChange) {
-      onAdditionalStopsChange(additionalStops);
-    }
+    const timer = setTimeout(() => {
+      if (onAdditionalStopsChange) {
+        onAdditionalStopsChange(additionalStops);
+      }
+    }, 600); // 0.6 second debounce matches main address logic
+    return () => clearTimeout(timer);
   }, [additionalStops, onAdditionalStopsChange]);
 
 
