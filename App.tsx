@@ -1048,7 +1048,9 @@ function App() {
                         storeFreight: index === 0 ? data.storeFreight : 0 // Store total in the first stop for batch aggregation
                     },
                     earnings: stopEarnings,
-                    delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length
+                    delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length,
+                    payment_method: stop.paymentMethod,
+                    delivery_value: stop.deliveryValue
                 };
             });
 
