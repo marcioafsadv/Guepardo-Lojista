@@ -69,18 +69,33 @@ const destinationMarkerIcon = L.divIcon({
     iconAnchor: [20, 20]
 });
 
-const createStopMarker = (num: number, label: string, color: string) => L.divIcon({
-    html: `
-    <div style="display: flex; flex-direction: column; align-items: center; position: relative;">
-      <div style="padding: 4px 10px; background: rgba(123, 63, 0, 0.9); backdrop-filter: blur(8px); border: 2px solid #CCFF00; color: white; font-size: 10px; font-weight: 900; border-radius: 12px; margin-bottom: 6px; white-space: nowrap; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 4px 15px rgba(0,0,0,0.5), 0 0 10px rgba(204, 255, 0, 0.3);">
-        ${num}. ${label}
-      </div>
-      <div style="width: 12px; height: 12px; background: #7B3F00; border: 2px solid #CCFF00; border-radius: 50%; box-shadow: 0 0 8px #CCFF00;"></div>
-    </div>`,
-    className: 'stop-marker',
-    iconSize: [40, 30],
-    iconAnchor: [20, 30]
-});
+const createStopMarker = (num: number, label: string, color: string) => {
+    const isPrimary = num === 1;
+    const pinColor = isPrimary ? '#FF6B00' : '#CCFF00';
+    const labelText = `PARADA ${num}${label && label !== 'Cliente' && label !== 'Destino Princ.' ? ' - ' + label : ''}`;
+
+    return L.divIcon({
+        html: `
+        <div style="display: flex; flex-direction: column; align-items: center; position: relative; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));">
+          <!-- Label -->
+          <div style="padding: 5px 12px; background: rgba(20, 10, 0, 0.9); backdrop-filter: blur(10px); border: 2.5px solid ${pinColor}; color: white; font-size: 11px; font-weight: 900; border-radius: 14px; margin-bottom: 4px; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 15px ${pinColor}44;">
+            ${labelText}
+          </div>
+          
+          <!-- Pin (Alfinete) -->
+          <div style="position: relative; width: 30px; height: 38px;">
+            <svg viewBox="0 0 24 24" width="30" height="38" fill="${pinColor}" stroke="black" stroke-width="0.5" style="filter: drop-shadow(0 0 5px ${pinColor}aa);">
+              <path d="M12 0C7.58 0 4 3.58 4 8c0 5.25 7 13 8 16 1-3 8-10.75 8-16 0-4.42-3.58-8-8-8zm0 11c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"/>
+            </svg>
+            <!-- Center Dot -->
+            <div style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 6px; height: 6px; background: white; border-radius: 50%; box-shadow: 0 0 5px white;"></div>
+          </div>
+        </div>`,
+        className: 'stop-marker-pin',
+        iconSize: [120, 60],
+        iconAnchor: [60, 56]
+    });
+};
 
 const createCourierIcon = (courier: Courier, status: OrderStatus | 'IDLE') => {
     const isMoving = status === OrderStatus.IN_TRANSIT || status === OrderStatus.TO_STORE || status === OrderStatus.RETURNING;
@@ -212,6 +227,7 @@ interface LeafletMapProps {
     onCourierClick?: (courierId: string) => void;
     theme?: string;
     draftAddress?: any;
+    draftAddressCoords?: { lat: number; lng: number } | null;
     draftAdditionalStops?: any[];
     draftRouteStats?: RouteStats | null;
     activeRouteStats?: RouteStats | null;
@@ -231,7 +247,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     draftRouteStats,
     activeRouteStats,
     onCardClick,
-    mapboxToken
+    mapboxToken,
+    draftAddressCoords
 }) => {
     const [isManualFocus, setIsManualFocus] = useState(false);
     const [mapTheme, setMapTheme] = useState<'dark' | 'standard' | 'satellite'>('standard');
@@ -248,6 +265,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
     // Draft Coordinates parsing
     const destinationCoords = useMemo(() => {
+        if (draftAddressCoords) return [draftAddressCoords.lat, draftAddressCoords.lng] as [number, number];
         if (!draftAddress) return null;
         if (typeof draftAddress === 'object' && draftAddress.lat && draftAddress.lng) {
             return [draftAddress.lat, draftAddress.lng] as [number, number];
@@ -257,7 +275,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             return draftRouteStats.geometry[draftRouteStats.geometry.length - 1];
         }
         return null;
-    }, [draftAddress, draftRouteStats?.geometry]);
+    }, [draftAddress, draftRouteStats?.geometry, draftAddressCoords]);
 
     const draftAddressName = useMemo(() => {
         if (typeof draftAddress === 'object' && draftAddress.name) return draftAddress.name;

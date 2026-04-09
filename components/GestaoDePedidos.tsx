@@ -88,6 +88,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
     // --- VISUAL ROUTE FEEDBACK STATE ---
     const [draftAddress, setDraftAddress] = useState<string | AddressComponents>('');
+    const [draftAddressCoords, setDraftAddressCoords] = useState<{lat: number, lng: number} | null>(null);
     const [routeStats, setRouteStats] = useState<RouteStats | null>(null);
     const [activeRouteStats, setActiveRouteStats] = useState<RouteStats | null>(null);
     const [draftAdditionalStops, setDraftAdditionalStops] = useState<any[]>([]);
@@ -132,8 +133,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             if (!destCoords) {
                 console.warn("⚠️ [GestaoDePedidos] Could not geocode main address");
                 setRouteStats(null);
+                setDraftAddressCoords(null);
                 return;
             }
+            setDraftAddressCoords(destCoords);
 
             // 2. Geocode Additional Stops (if any)
             const coords: [number, number][] = [[storeProfile.lat, storeProfile.lng], [destCoords.lat, destCoords.lng]];
@@ -397,6 +400,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     onCourierClick={handleCourierSelect}
                     theme={theme}
                     draftAddress={draftAddress}
+                    draftAddressCoords={draftAddressCoords}
                     draftAdditionalStops={enrichedDraftStops}
                     draftRouteStats={routeStats}
                     activeRouteStats={activeRouteStats}
