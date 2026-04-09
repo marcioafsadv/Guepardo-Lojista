@@ -1351,7 +1351,7 @@ function App() {
         if (!orderToUpdate) return;
 
         const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
-            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status === OrderStatus.RETURNING).map(o => o.id)
+            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId)).map(o => o.id)
             : [orderId];
 
         setOrders(prev => prev.map(o => {
