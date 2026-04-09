@@ -324,85 +324,77 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     }, [orders, searchTerm]);
 
     const groupedOrders = useMemo(() => {
-        const groups = new Map<string, Order[]>();
-        const pendingBatches = new Map<string, Order[]>();
-        const pendingSingle: Order[] = [];
+        const batchGroups = new Map<string, Order[]>();
+        const courierOnlyGroups = new Map<string, Order[]>();
+        const individualOrders: Order[] = [];
 
         activeOrders.forEach(order => {
-            if (order.status === OrderStatus.PENDING || !order.courier) {
-                if (order.batch_id) {
-                    if (!pendingBatches.has(order.batch_id)) {
-                        pendingBatches.set(order.batch_id, []);
-                    }
-                    pendingBatches.get(order.batch_id)!.push(order);
-                } else {
-                    pendingSingle.push(order);
+            if (order.batch_id) {
+                if (!batchGroups.has(order.batch_id)) {
+                    batchGroups.set(order.batch_id, []);
                 }
-            } else {
+                batchGroups.get(order.batch_id)!.push(order);
+            } else if (order.courier) {
                 const driverId = order.courier.id;
-                if (!groups.has(driverId)) {
-                    groups.set(driverId, []);
+                if (!courierOnlyGroups.has(driverId)) {
+                    courierOnlyGroups.set(driverId, []);
                 }
-                groups.get(driverId)!.push(order);
+                courierOnlyGroups.get(driverId)!.push(order);
+            } else {
+                individualOrders.push(order);
             }
         });
 
-        const pendingGrouped: Order[] = Array.from(pendingBatches.values()).map(batch => {
+        const processedBatches: Order[] = Array.from(batchGroups.values()).map(batch => {
             const mainOrder = batch.find(o => o.stopNumber === 1) || batch[0];
-            // Always mark as batch if batch_id exists — even with 1 remaining stop
-            // so LeafletMap can use batchOrders for marker expansion
-            if (!mainOrder.batch_id || batch.length === 1) {
-                // Single order or no batch: return as-is with correct destination
-                return {
-                    ...batch[0],
-                    isBatch: batch[0].batch_id ? true : false,
-                    batchOrders: batch[0].batch_id ? batch : undefined
-                };
-            }
+            const totalValue = batch.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
+            
+            // Determine consolidated status
+            const statuses = batch.map(o => o.status);
+            let batchStatus = OrderStatus.PENDING;
+            if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
+            else if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
+            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
+            else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+
             return {
                 ...mainOrder,
                 isBatch: true,
                 batchOrders: batch,
-                clientName: `${batch.length} Pedidos (Lote)`,
-                destination: `${batch.length} destinos no roteiro`
+                status: batchStatus,
+                clientName: batch.length > 1 ? `${batch.length} Pedidos (Lote)` : mainOrder.clientName,
+                destination: batch.length > 1 ? `${batch.length} destinos no roteiro` : mainOrder.destination,
+                deliveryValue: totalValue
             };
         });
 
-        const courierGrouped: Order[] = Array.from(groups.values()).map(batch => {
-            const mainOrder = batch[0];
-            const statuses = batch.map(o => o.status);
-            let batchStatus = OrderStatus.DELIVERED;
+        const processedCourierGroups: Order[] = Array.from(courierOnlyGroups.values()).map(group => {
+            const mainOrder = group[0];
+            const totalValue = group.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
             
-            if (statuses.includes(OrderStatus.PENDING)) batchStatus = OrderStatus.PENDING;
-            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
-            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
-            else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
-            else if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
-            else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
-
-            // Always mark as isBatch if batch_id exists, even with 1 remaining stop.
-            // This ensures LeafletMap can expand batchOrders to find correct destination coords.
-            const hasBatchId = batch.some(o => !!o.batch_id);
-            const label = batch.length > 1
-                ? `${batch.length} Pedidos - Rota ${mainOrder.courier?.name || ''}`
-                : batch[0].clientName;
-            const destLabel = batch.length > 1
-                ? `${batch.length} destinos na rota`
-                : batch[0].destination;
+            const statuses = group.map(o => o.status);
+            let groupStatus = OrderStatus.ACCEPTED;
+            if (statuses.includes(OrderStatus.RETURNING)) groupStatus = OrderStatus.RETURNING;
+            else if (statuses.includes(OrderStatus.IN_TRANSIT)) groupStatus = OrderStatus.IN_TRANSIT;
+            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) groupStatus = OrderStatus.READY_FOR_PICKUP;
+            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) groupStatus = OrderStatus.ARRIVED_AT_STORE;
 
             return {
                 ...mainOrder,
-                isBatch: hasBatchId,
-                batchOrders: hasBatchId ? batch : undefined,
-                status: batchStatus, 
-                clientName: label,
-                destination: destLabel
+                batchOrders: group.length > 1 ? group : undefined,
+                status: groupStatus,
+                clientName: group.length > 1 ? `${group.length} Pedidos - ${mainOrder.courier?.name}` : mainOrder.clientName,
+                destination: group.length > 1 ? `${group.length} destinos na rota` : mainOrder.destination,
+                deliveryValue: totalValue
             };
         });
 
-        return [...pendingSingle, ...pendingGrouped, ...courierGrouped].sort((a, b) => {
-            if ((a.status === OrderStatus.READY_FOR_PICKUP || a.status === OrderStatus.RETURNING) && (b.status !== OrderStatus.READY_FOR_PICKUP && b.status !== OrderStatus.RETURNING)) return -1;
-            if ((b.status === OrderStatus.READY_FOR_PICKUP || b.status === OrderStatus.RETURNING) && (a.status !== OrderStatus.READY_FOR_PICKUP && a.status !== OrderStatus.RETURNING)) return 1;
+        return [...individualOrders, ...processedBatches, ...processedCourierGroups].sort((a, b) => {
+            // Prioritize READY and RETURNING
+            const aPrio = (a.status === OrderStatus.READY_FOR_PICKUP || a.status === OrderStatus.RETURNING) ? 0 : 1;
+            const bPrio = (b.status === OrderStatus.READY_FOR_PICKUP || b.status === OrderStatus.RETURNING) ? 0 : 1;
+            if (aPrio !== bPrio) return aPrio - bPrio;
             return b.createdAt.getTime() - a.createdAt.getTime();
         });
     }, [activeOrders]);
