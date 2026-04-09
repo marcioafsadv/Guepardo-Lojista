@@ -259,6 +259,11 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         return null;
     }, [draftAddress, draftRouteStats?.geometry]);
 
+    const draftAddressName = useMemo(() => {
+        if (typeof draftAddress === 'object' && draftAddress.name) return draftAddress.name;
+        return 'Destino Princ.';
+    }, [draftAddress]);
+
     const draftStopCoords = useMemo(() => {
         const coordsMap: Record<string, [number, number]> = {};
         draftAdditionalStops.forEach(stop => {
@@ -529,11 +534,11 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                             pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8 }}
                         />
                         {destinationCoords && (
-                             <Marker position={destinationCoords} icon={destinationMarkerIcon}>
+                             <Marker position={destinationCoords} icon={createStopMarker(1, draftAddressName, COLORS.orange)}>
                                 <Popup>
-                                    <div className="text-xs">
-                                        <p className="font-bold text-orange-600">Destino Principal</p>
-                                        <p className="text-gray-500">Parada #1</p>
+                                    <div className="text-xs font-black">
+                                        <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
+                                        <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #1</p>
                                     </div>
                                 </Popup>
                              </Marker>

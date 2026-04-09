@@ -165,6 +165,7 @@ export interface RouteStats {
 }
 
 export interface AddressComponents {
+  name?: string;
   street: string;
   number?: string;
   neighborhood?: string;

@@ -275,6 +275,7 @@ export const DeliveryForm = ({
       if (street) {
         // We now send structured data for better geocoding precision
         onAddressChange({
+          name: clientName,
           street,
           number: number || undefined,
           neighborhood,
@@ -721,7 +722,7 @@ export const DeliveryForm = ({
                     <Trash2 size={16} />
                   </button>
 
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">Parada #{index + 1}</p>
+                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">PARADA #{index + 2}</p>
 
                   {/* NOME DO CLIENTE */}
                   <div className="relative group/input">
