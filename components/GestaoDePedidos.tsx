@@ -349,14 +349,15 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             const mainOrder = batch.find(o => o.stopNumber === 1) || batch[0];
             const totalValue = batch.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
             
-            // Determine consolidated status
+            // Determine consolidated status - PRIORITY: IN_TRANSIT > STORE_READY > RETURNING
             const statuses = batch.map(o => o.status);
             let batchStatus = OrderStatus.PENDING;
-            if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
-            else if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+            
+            if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
             else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
             else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
             else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+            else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
 
             return {
                 ...mainOrder,
@@ -375,10 +376,11 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             
             const statuses = group.map(o => o.status);
             let groupStatus = OrderStatus.ACCEPTED;
-            if (statuses.includes(OrderStatus.RETURNING)) groupStatus = OrderStatus.RETURNING;
-            else if (statuses.includes(OrderStatus.IN_TRANSIT)) groupStatus = OrderStatus.IN_TRANSIT;
+
+            if (statuses.includes(OrderStatus.IN_TRANSIT)) groupStatus = OrderStatus.IN_TRANSIT;
             else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) groupStatus = OrderStatus.READY_FOR_PICKUP;
             else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) groupStatus = OrderStatus.ARRIVED_AT_STORE;
+            else if (statuses.includes(OrderStatus.RETURNING)) groupStatus = OrderStatus.RETURNING;
 
             return {
                 ...mainOrder,
