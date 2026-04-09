@@ -140,9 +140,22 @@ const MapController = ({
 
         // 1. Focus active order + courier
         if (activeOrder && activeOrder.courier) {
-            const points = [[storeLat, storeLng], [activeOrder.courier.lat, activeOrder.courier.lng]];
-            if (activeOrder.destinationLat && activeOrder.destinationLng) {
-                points.push([activeOrder.destinationLat, activeOrder.destinationLng]);
+            const points: [number, number][] = [[storeLat, storeLng], [activeOrder.courier.lat, activeOrder.courier.lng]];
+            // Include all batch stop destinations for proper fitting
+            if (activeOrder.isBatch && activeOrder.batchOrders && activeOrder.batchOrders.length > 0) {
+                activeOrder.batchOrders.forEach(stop => {
+                    // Skip stops already delivered or canceled to focus on remaining ones
+                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                    if (stop.destinationLat && stop.destinationLng) {
+                        points.push([stop.destinationLat, stop.destinationLng]);
+                    }
+                });
+            } else if (activeOrder.destinationLat && activeOrder.destinationLng) {
+                // For single orders, they shouldn't even be the active focus if delivered, 
+                // but we filter just in case.
+                if (activeOrder.status !== OrderStatus.DELIVERED && activeOrder.status !== OrderStatus.CANCELED) {
+                    points.push([activeOrder.destinationLat, activeOrder.destinationLng]);
+                }
             }
             map.fitBounds(L.latLngBounds(points as L.LatLngExpression[]), { padding: [50, 50], animate: true });
         } 
@@ -152,9 +165,18 @@ const MapController = ({
         }
         // 3. Overview of all orders
         else if (orders.length > 0) {
-            const points = [[storeLat, storeLng]];
+            const points: [number, number][] = [[storeLat, storeLng]];
             orders.forEach(o => {
-                if (o.destinationLat && o.destinationLng) points.push([o.destinationLat, o.destinationLng]);
+                if (o.isBatch && o.batchOrders && o.batchOrders.length > 0) {
+                    o.batchOrders.forEach(stop => {
+                        if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                        if (stop.destinationLat && stop.destinationLng) points.push([stop.destinationLat, stop.destinationLng]);
+                    });
+                } else if (o.destinationLat && o.destinationLng) {
+                    if (o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED) {
+                        points.push([o.destinationLat, o.destinationLng]);
+                    }
+                }
                 if (o.courier) points.push([o.courier.lat, o.courier.lng]);
             });
             map.fitBounds(L.latLngBounds(points as L.LatLngExpression[]), { padding: [100, 100], animate: true });
@@ -233,6 +255,7 @@ interface LeafletMapProps {
     activeRouteStats?: RouteStats | null;
     onCardClick?: (order: Order) => void;
     mapboxToken?: string;
+    showDrafts?: boolean;
 }
 
 export const LeafletMap: React.FC<LeafletMapProps> = ({ 
@@ -248,7 +271,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     activeRouteStats,
     onCardClick,
     mapboxToken,
-    draftAddressCoords
+    draftAddressCoords,
+    showDrafts = true
 }) => {
     const [isManualFocus, setIsManualFocus] = useState(false);
     const [mapTheme, setMapTheme] = useState<'dark' | 'standard' | 'satellite'>('standard');
@@ -335,10 +359,22 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 path.push(storeCoords);
             }
 
-            // Add all stop destinations
+            // Add all stop destinations — expand batchOrders if present
             sorted.forEach(o => {
-                if (o.destinationLat && o.destinationLng) {
-                    path.push([o.destinationLat, o.destinationLng]);
+                if (o.isBatch && o.batchOrders && o.batchOrders.length > 0) {
+                    // Expand batch stops sorted by stopNumber, skip delivered/canceled
+                    const batchStops = [...o.batchOrders]
+                        .sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0))
+                        .filter(stop => stop.status !== OrderStatus.DELIVERED && stop.status !== OrderStatus.CANCELED);
+                    batchStops.forEach(stop => {
+                        if (stop.destinationLat && stop.destinationLng) {
+                            path.push([stop.destinationLat, stop.destinationLng]);
+                        }
+                    });
+                } else {
+                    if (o.destinationLat && o.destinationLng) {
+                        path.push([o.destinationLat, o.destinationLng]);
+                    }
                 }
             });
 
@@ -360,20 +396,43 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
         return routes;
     }, [orders, storeCoords]);
 
-    // Consolidate markers for better iteration
+    // Consolidate markers for better iteration.
+    // For batch orders, expand batchOrders into individual stop markers.
+    // Filter out DELIVERED and CANCELED stops so map stays clean.
     const orderMarkers = useMemo(() => {
         const markers: any[] = [];
         orders.forEach(o => {
-            if (o.destinationLat && o.destinationLng) {
-                markers.push({
-                    id: o.id,
-                    position: [o.destinationLat, o.destinationLng],
-                    name: o.clientName,
-                    stopNumber: o.stopNumber,
-                    status: o.status,
-                    courier_id: o.courier?.id,
-                    batch_id: o.batch_id
+            if (o.isBatch && o.batchOrders && o.batchOrders.length > 0) {
+                // Expand each stop of the batch individually
+                o.batchOrders.forEach(stop => {
+                    // Skip stops already delivered or canceled
+                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                    if (stop.destinationLat && stop.destinationLng) {
+                        markers.push({
+                            id: stop.id,
+                            position: [stop.destinationLat, stop.destinationLng],
+                            name: stop.clientName,
+                            stopNumber: stop.stopNumber || 1,
+                            status: stop.status,
+                            courier_id: o.courier?.id,
+                            batch_id: o.batch_id
+                        });
+                    }
                 });
+            } else {
+                // Single order: skip if delivered or canceled
+                if (o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED) return;
+                if (o.destinationLat && o.destinationLng) {
+                    markers.push({
+                        id: o.id,
+                        position: [o.destinationLat, o.destinationLng],
+                        name: o.clientName,
+                        stopNumber: o.stopNumber || 1,
+                        status: o.status,
+                        courier_id: o.courier?.id,
+                        batch_id: o.batch_id
+                    });
+                }
             }
         });
         return markers;
@@ -551,34 +610,38 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                             positions={routePolyline}
                             pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8 }}
                         />
-                        {destinationCoords && (
-                             <Marker position={destinationCoords} icon={createStopMarker(1, draftAddressName, COLORS.orange)}>
-                                <Popup>
-                                    <div className="text-xs font-black">
-                                        <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
-                                        <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #1</p>
-                                    </div>
-                                </Popup>
-                             </Marker>
+                        {showDrafts && (
+                            <>
+                                {destinationCoords && (
+                                     <Marker position={destinationCoords} icon={createStopMarker(1, draftAddressName, COLORS.orange)}>
+                                        <Popup>
+                                            <div className="text-xs font-black">
+                                                <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
+                                                <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #1 (Rascunho)</p>
+                                            </div>
+                                        </Popup>
+                                     </Marker>
+                                )}
+                                {/* Additional Draft Stops */}
+                                {draftAdditionalStops.map((stop, idx) => {
+                                    if (!stop.lat || !stop.lng) return null;
+                                    return (
+                                        <Marker 
+                                            key={`draft-${stop.id}`}
+                                            position={[stop.lat, stop.lng]} 
+                                            icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
+                                        >
+                                            <Popup>
+                                                <div className="text-xs">
+                                                    <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
+                                                    <p className="text-gray-500">Parada #{idx + 2} (Rascunho)</p>
+                                                </div>
+                                            </Popup>
+                                        </Marker>
+                                    );
+                                })}
+                            </>
                         )}
-                        {/* Additional Draft Stops */}
-                        {draftAdditionalStops.map((stop, idx) => {
-                            if (!stop.lat || !stop.lng) return null;
-                            return (
-                                <Marker 
-                                    key={`draft-${stop.id}`}
-                                    position={[stop.lat, stop.lng]} 
-                                    icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
-                                >
-                                    <Popup>
-                                        <div className="text-xs">
-                                            <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
-                                            <p className="text-gray-500">Parada #{idx + 2}</p>
-                                        </div>
-                                    </Popup>
-                                </Marker>
-                            );
-                        })}
                     </>
                 )}
             </MapContainer>

@@ -272,6 +272,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const handleNewOrderSubmit = (data: any) => {
         onNewOrder(data);
         setDraftAddress('');
+        setDraftAddressCoords(null);
         setRouteStats(null);
         setDraftAdditionalStops([]);
         setTargetCourierId('');
@@ -347,8 +348,17 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         });
 
         const pendingGrouped: Order[] = Array.from(pendingBatches.values()).map(batch => {
-            if (batch.length === 1) return batch[0];
             const mainOrder = batch.find(o => o.stopNumber === 1) || batch[0];
+            // Always mark as batch if batch_id exists — even with 1 remaining stop
+            // so LeafletMap can use batchOrders for marker expansion
+            if (!mainOrder.batch_id || batch.length === 1) {
+                // Single order or no batch: return as-is with correct destination
+                return {
+                    ...batch[0],
+                    isBatch: batch[0].batch_id ? true : false,
+                    batchOrders: batch[0].batch_id ? batch : undefined
+                };
+            }
             return {
                 ...mainOrder,
                 isBatch: true,
@@ -359,7 +369,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         });
 
         const courierGrouped: Order[] = Array.from(groups.values()).map(batch => {
-            if (batch.length === 1) return batch[0];
             const mainOrder = batch[0];
             const statuses = batch.map(o => o.status);
             let batchStatus = OrderStatus.DELIVERED;
@@ -371,13 +380,23 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             else if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
             else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
 
+            // Always mark as isBatch if batch_id exists, even with 1 remaining stop.
+            // This ensures LeafletMap can expand batchOrders to find correct destination coords.
+            const hasBatchId = batch.some(o => !!o.batch_id);
+            const label = batch.length > 1
+                ? `${batch.length} Pedidos - Rota ${mainOrder.courier?.name || ''}`
+                : batch[0].clientName;
+            const destLabel = batch.length > 1
+                ? `${batch.length} destinos na rota`
+                : batch[0].destination;
+
             return {
                 ...mainOrder,
-                isBatch: true,
-                batchOrders: batch,
+                isBatch: hasBatchId,
+                batchOrders: hasBatchId ? batch : undefined,
                 status: batchStatus, 
-                clientName: `${batch.length} Pedidos - Rota ${mainOrder.courier?.name || ''}`,
-                destination: `${batch.length} destinos na rota`
+                clientName: label,
+                destination: destLabel
             };
         });
 
@@ -403,9 +422,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     draftAddressCoords={draftAddressCoords}
                     draftAdditionalStops={enrichedDraftStops}
                     draftRouteStats={routeStats}
-                    activeRouteStats={activeRouteStats}
                     onCardClick={handleOrderSelect}
                     mapboxToken={mapboxToken}
+                    showDrafts={!isFormCollapsed && !!draftAddress}
                 />
             </div>
 
