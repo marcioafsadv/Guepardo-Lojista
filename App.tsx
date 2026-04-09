@@ -600,7 +600,7 @@ function App() {
                         requestSource: items.requestSource || 'SITE',
                         isBatch: items.isBatch,
                         batch_id: d.batch_id,
-                        stopNumber: items.stopNumber,
+                        stopNumber: d.stop_number || items.stopNumber,
                         courier: courierData
                     };
                 }));
@@ -1030,6 +1030,7 @@ function App() {
                     status: 'pending',
                     driver_id: targetCourierId || null,
                     batch_id: batchId,
+                    stop_number: index + 1,
                     items: {
                         displayId: Math.floor(1000 + Math.random() * 9000),
                         paymentMethod: stop.paymentMethod,
@@ -1209,6 +1210,7 @@ function App() {
                         batch_id: batchId,
                         collection_code: existingPickupCode,
                         earnings: newEarnings,
+                        stop_number: i + 1,
                         items: {
                             ...order, // Keep existing items
                             stopNumber: i + 1,
@@ -1242,8 +1244,8 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
-            ? orderToUpdate.batchOrders.map(o => o.id)
+        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
+            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).map(o => o.id)
             : [orderId];
 
         // Optimistic update for all involved orders
@@ -1293,8 +1295,8 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
-            ? orderToUpdate.batchOrders.map(o => o.id)
+        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
+            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).map(o => o.id)
             : [orderId];
 
         setOrders(prev => prev.map(o => {
@@ -1346,10 +1348,8 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = orderToUpdate.isBatch && orderToUpdate.batchOrders
-            ? orderToUpdate.batchOrders
-                .filter(o => o.status === OrderStatus.RETURNING) // CRITICAL: Only finalize those actually returning
-                .map(o => o.id)
+        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
+            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status === OrderStatus.RETURNING).map(o => o.id)
             : [orderId];
 
         setOrders(prev => prev.map(o => {
