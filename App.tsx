@@ -80,18 +80,24 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3
 
 function App() {
     const { session, loading } = useAuth();
+    // --- APP STATE ---
     const [currentView, setCurrentView] = useState<AppView>('operational');
     const [orders, setOrders] = useState<Order[]>([]);
     const [newOrders, setNewOrders] = useState<any[]>([]);
     const [showSuccessToast, setShowSuccessToast] = useState(false);
-    const [syncId, setSyncId] = useState(0); // Trigger for pulse animation
+    const [syncId, setSyncId] = useState(0); 
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
     const [notification, setNotification] = useState<{ title: string, message: string } | null>(null);
     const [availableCouriers, setAvailableCouriers] = useState<Courier[]>(INITIAL_COURIERS);
     const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
     const [showSplash, setShowSplash] = useState(true);
-
-    // Initial Store Settings
+    const [realStoreProfile, setRealStoreProfile] = useState<StoreProfile | null>(null);
+    const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
+    const [clientSearch, setClientSearch] = useState('');
+    const [historyFilter, setHistoryFilter] = useState('all');
+    const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+    const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
+    const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
     const [settings, setSettings] = useState<StoreSettings>({
         openTime: "08:00",
         closeTime: "22:00",
@@ -103,156 +109,145 @@ function App() {
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
         theme: 'dark',
         mapTheme: 'light',
-        alertSound: 'cheetah' // Rugido do Guepardo (Principal)
+        alertSound: 'cheetah'
     });
 
-    // View Specific States (Search/Filters)
-    const [clientSearch, setClientSearch] = useState('');
-    const [historyFilter, setHistoryFilter] = useState('all'); // all, pending, completed
-
-    // CRM / Customer State
-    const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-
-    // Modal State
-    const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
-    const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
-
-    // Polling approach since Realtime is not reliably working for state synchronization
-    const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
-
-    // Refs for Simulation (To access fresh state in timeouts/intervals)
+    // --- REFS ---
     const ordersRef = useRef<Order[]>([]);
-    const couriersRef = useRef<Courier[]>(availableCouriers);
+    const couriersRef = useRef<Courier[]>([]);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const storeProfileRef = useRef<StoreProfile | null>(null);
 
     // Keep Refs synced
-    useEffect(() => {
-        ordersRef.current = orders;
-    }, [orders]);
+    useEffect(() => { ordersRef.current = orders; }, [orders]);
+    useEffect(() => { couriersRef.current = availableCouriers; }, [availableCouriers]);
+    useEffect(() => { if (realStoreProfile) storeProfileRef.current = realStoreProfile; }, [realStoreProfile]);
 
     useEffect(() => {
-        couriersRef.current = availableCouriers;
-    }, [availableCouriers]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowSplash(false);
-        }, 3000);
+        const timer = setTimeout(() => setShowSplash(false), 3000);
         return () => clearTimeout(timer);
     }, []);
 
-    const storeProfileRef = useRef(STORE_PROFILE);
-    useEffect(() => { if (realStoreProfile) storeProfileRef.current = realStoreProfile; }, [realStoreProfile]);
+    // --- UTILITIES & MAPPERS ---
+    const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
+        switch (status.toLowerCase()) {
+            case 'pending': return OrderStatus.PENDING;
+            case 'accepted': return OrderStatus.ACCEPTED;
+            case 'to_store': return OrderStatus.ACCEPTED;
+            case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
+            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE;
+            case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP;
+            case 'in_transit': return OrderStatus.IN_TRANSIT;
+            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT;
+            case 'completed': return OrderStatus.DELIVERED;
+            case 'canceled':
+            case 'cancelled': return OrderStatus.CANCELED;
+            case 'returning': return OrderStatus.RETURNING;
+            default:
+                console.warn(`⚠️ [STATUS_MAP] Unknown DB status: '${status}'.`);
+                return OrderStatus.ACCEPTED;
+        }
+    }, []);
+
+    const getStatusLabel = useCallback((status: OrderStatus) => {
+        switch (status) {
+            case OrderStatus.PENDING: return "Pendente";
+            case OrderStatus.ACCEPTED: return "Aceito";
+            case OrderStatus.ARRIVED_AT_STORE: return "Na Loja";
+            case OrderStatus.READY_FOR_PICKUP: return "Pronto";
+            case OrderStatus.IN_TRANSIT: return "Em Rota";
+            case OrderStatus.DELIVERED: return "Concluído";
+            case OrderStatus.RETURNING: return "Retornando";
+            case OrderStatus.CANCELED: return "Cancelado";
+            default: return "Atualização";
+        }
+    }, []);
 
     const playAlert = useCallback(() => {
-
         if (audioRef.current) {
             audioRef.current.play().catch(e => console.warn('Could not play sound:', e));
         }
     }, []);
 
-    useEffect(() => {
-        const soundUrl = SOUNDS[settings.alertSound as keyof typeof SOUNDS] || SOUNDS.default;
-        audioRef.current = new Audio(soundUrl);
-    }, [settings.alertSound]);
+    const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
+        const events: OrderEvent[] = [];
+        const baseTime = new Date(delivery.created_at);
+        events.push({ status: OrderStatus.PENDING, label: "Pedido Criado", timestamp: baseTime, description: "Aguardando entregadores" });
+        if (['accepted', 'arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({ status: OrderStatus.ACCEPTED, label: "Aceito", timestamp: delivery.accepted_at ? new Date(delivery.accepted_at) : new Date(baseTime.getTime() + 2 * 60000), description: "Entregador aceitou o pedido" });
+        }
+        if (['arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({ status: OrderStatus.ARRIVED_AT_STORE, label: "Na Loja", timestamp: delivery.arrived_at_pickup_time ? new Date(delivery.arrived_at_pickup_time) : new Date(baseTime.getTime() + 5 * 60000), description: "Guepardo chegou no local" });
+        }
+        if (['ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({ status: OrderStatus.READY_FOR_PICKUP, label: "Pronto p/ Coleta", timestamp: delivery.ready_at_time ? new Date(delivery.ready_at_time) : new Date(baseTime.getTime() + 10 * 60000), description: "Lojista marcou como pronto" });
+        }
+        if (['in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
+            events.push({ status: OrderStatus.IN_TRANSIT, label: "Coletado", timestamp: delivery.pickup_time ? new Date(delivery.pickup_time) : new Date(baseTime.getTime() + 15 * 60000), description: "Em rota de entrega" });
+        }
+        if (delivery.status === 'completed') {
+            events.push({ status: OrderStatus.DELIVERED, label: "Entregue", timestamp: delivery.completed_at ? new Date(delivery.completed_at) : new Date(baseTime.getTime() + 30 * 60000), description: "Pedido finalizado" });
+        }
+        if (delivery.status === 'cancelled') {
+            events.push({ status: OrderStatus.CANCELED, label: "Cancelado", timestamp: delivery.updated_at ? new Date(delivery.updated_at) : new Date(), description: "Pedido interrompido" });
+        }
+        return events;
+    }, []);
 
-
-    // --- MANUAL ROUTING (TRACKING PAGE) ---
-    // Since we don't have react-router-dom, we check URL manually
-    // --- MANUAL ROUTING (TRACKING PAGE) ---
-    // Moved to bottom to prevent Hook errors
-
-    // --- DEFAULT: REGISTRATION WIZARD (SIMULATING NOT LOGGED IN) ---
-    // To allow access to dashboard, we would need a login state.
-    // For now, based on user request, we default to the Wizard.
-    // We can add a temporary override or just simple state if needed,
-    // but the request was "iniciar já na tela de cadastro".
-
-    // Check if we are in "dashboard mode" hash or something, otherwise show wizard
-    // Let's use a temporary state override if the user manually navigates in previous valid sessions, but here
-    // we force it.
-
-    // --- AUTH CHECKS ---
-    // Moved to bottom to prevent Hook errors
-
-    const [realStoreProfile, setRealStoreProfile] = useState<StoreProfile | null>(null);
+    const processDeliveryRecord = useCallback(async (d: any): Promise<Order> => {
+        const items = d.items as any || {};
+        const parsedStatus = mapSupabaseStatusToLocal(d.status);
+        let courierData: Courier | undefined = undefined;
+        if (d.driver_id) {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
+            if (profile) {
+                const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
+                courierData = {
+                    id: profile.id, name: profile.full_name || 'Entregador',
+                    vehiclePlate: v?.plate || '---', vehicleModel: v?.model || '---',
+                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
+                    phone: profile.phone || '', lat: profile.current_lat || 0, lng: profile.current_lng || 0
+                };
+            }
+        }
+        return {
+            id: d.id, display_id: items.displayId || d.id.slice(-4), clientName: d.customer_name,
+            destination: d.customer_address, addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
+            addressNumber: items.addressNumber || d.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
+            addressNeighborhood: items.addressNeighborhood || '', addressComplement: items.addressComplement || '',
+            addressCity: items.addressCity || 'Itu', addressCep: items.addressCep || '00000-000',
+            deliveryValue: Number(items.deliveryValue) || 0, paymentMethod: items.paymentMethod || 'PIX',
+            changeFor: items.changeFor ? Number(items.changeFor) : null, status: parsedStatus,
+            createdAt: new Date(d.created_at), estimatedPrice: Number(d.earnings) || 0,
+            storeFreight: Number(items.storeFreight) || 0, distanceKm: 1.2, events: synthesizeTimeline(d),
+            pickupCode: d.collection_code, isReturnRequired: items.isReturnRequired,
+            destinationLat: items.destinationLat, destinationLng: items.destinationLng,
+            clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
+            requestSource: items.requestSource || 'SITE', isBatch: items.isBatch, batch_id: d.batch_id,
+            stopNumber: d.stop_number || items.stopNumber, courier: courierData
+        };
+    }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
     const fetchStoreProfile = useCallback(async () => {
         if (!session?.user?.id) return;
-
-        // 1. Fetch Profile
-        const { data, error } = await supabase
-            .from('stores')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-        if (error) {
-            console.error("❌ [STORE_PROFILE] Error fetching store:", error);
-            setRealStoreProfile(null);
-            return;
-        }
-
+        const { data, error } = await supabase.from('stores').select('*').eq('id', session.user.id).single();
+        if (error) { setRealStoreProfile(null); return; }
         if (data) {
             const fullAddress = `${data.address?.street}, ${data.address?.number} - ${data.address?.city}`;
-
-            // --- COORDINATE RESOLUTION STRATEGY ---
-            // Priority 1: Coordinates saved directly in the DB (fast, accurate)
-            // Priority 2: Nominatim geocoding (fallback only when DB has no coords)
-            let lat: number = STORE_PROFILE.lat; // Default Fallback (Itu)
-            let lng: number = STORE_PROFILE.lng; // Default Fallback (Itu)
-
-            if (data.lat && data.lng && !isNaN(data.lat) && !isNaN(data.lng)) {
-                // Use coordinates from DB - fastest and most accurate
-                lat = data.lat;
-                lng = data.lng;
-                console.log("✅ [STORE_PROFILE] Using DB coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
-            } else {
-                // Fallback: Geocode via Mapbox/Nominatim using our utility
-                console.log("📍 [GEOCODING] No DB coords, geocoding address...");
-                const coords = await geocodeAddress({
-                    street: data.address?.street,
-                    number: data.address?.number,
-                    neighborhood: data.address?.district || data.address?.neighborhood,
-                    city: data.address?.city,
-                    cep: data.address?.zip_code || data.address?.cep
-                });
-
-                if (coords) {
-                    lat = coords.lat;
-                    lng = coords.lng;
-                    console.log("📍 [GEOCODING] Found coordinates:", lat, lng);
-
-                    // Save to DB for future use (avoid repeated geocoding)
-                    await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id);
-                    console.log("💾 [GEOCODING] Coordinates saved to DB");
-                } else {
-                    console.warn("⚠️ [GEOCODING] Could not geocode address, using default Itu coordinates");
-                }
+            let lat = data.lat || STORE_PROFILE.lat;
+            let lng = data.lng || STORE_PROFILE.lng;
+            if (!data.lat || !data.lng) {
+                const coords = await geocodeAddress({ street: data.address?.street, number: data.address?.number, city: data.address?.city });
+                if (coords) { lat = coords.lat; lng = coords.lng; await supabase.from('stores').update({ lat, lng }).eq('id', session.user.id); }
             }
-
-            console.log("📍 [STORE_PROFILE] Setting store coordinates:", lat, lng, "for:", data.fantasy_name || data.company_name);
-
-            // Final safety check before setting state
-            const finalLat = (typeof lat === 'number' && !isNaN(lat) && lat !== 0) ? lat : -23.257217;
-            const finalLng = (typeof lng === 'number' && !isNaN(lng) && lng !== 0) ? lng : -47.300549;
-
             setRealStoreProfile({
-                id: data.id,
-                name: data.fantasy_name || data.company_name,
-                address: fullAddress,
-                lat: finalLat,
-                lng: finalLng,
-                logo_url: data.logo_url,
-                wallet_balance: data.wallet_balance || 0,
-                status: data.status || 'fechada',
-                onboarding_status: data.onboarding_status || 'pending'
+                id: data.id, name: data.fantasy_name || data.company_name, address: fullAddress,
+                lat, lng, logo_url: data.logo_url, wallet_balance: data.wallet_balance || 0,
+                status: data.status || 'fechada', onboarding_status: data.onboarding_status || 'pending'
             });
-        } else {
-            console.warn("⚠️ [STORE_PROFILE] User logged in but no store record found for ID:", session.user.id);
-            setRealStoreProfile(null);
         }
     }, [session?.user?.id]);
+
 
     // Fetch Store Profile & Realtime Subscription
     useEffect(() => {
@@ -602,27 +597,14 @@ function App() {
     const pollData = useCallback(async () => {
         if (!session?.user) return;
         try {
-            let query = supabase
-                .from('deliveries')
-                .select('*')
-                .eq('store_id', session.user.id)
-                .order('created_at', { ascending: false });
-
-            if (lastResetDate) {
-                query = query.gt('created_at', lastResetDate);
-            }
-
+            let query = supabase.from('deliveries').select('*').eq('store_id', session.user.id).order('created_at', { ascending: false });
+            if (lastResetDate) query = query.gt('created_at', lastResetDate);
             const { data: deliveries, error } = await query;
             if (error || !deliveries) return;
-
-            // 1. Handle NEW Orders
             const currentOrders = ordersRef.current;
             const newDeliveries = deliveries.filter(d => !currentOrders.some(o => o.id === d.id));
-
             if (newDeliveries.length > 0) {
-                console.log(`📥 [SYNC] Found ${newDeliveries.length} new orders via poll`);
                 const newOrdersList: Order[] = await Promise.all(newDeliveries.map(processDeliveryRecord));
-
                 setOrders(prev => {
                     const existingIds = new Set(prev.map(o => o.id));
                     const filteredNew = newOrdersList.filter(o => !existingIds.has(o.id));
@@ -630,49 +612,20 @@ function App() {
                     return [...filteredNew, ...prev].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
                 });
             }
-
-            // 2. Update existing orders status & courier locations
             for (const delivery of deliveries) {
                 const existingOrder = ordersRef.current.find(o => o.id === delivery.id);
                 if (!existingOrder) continue;
-
                 const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
-                
-                // Regression protection
-                const STATUS_ORDER = [
-                    OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE,
-                    OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING,
-                    OrderStatus.DELIVERED, OrderStatus.CANCELED,
-                ];
+                const STATUS_ORDER = [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING, OrderStatus.DELIVERED, OrderStatus.CANCELED];
                 const currentRank = STATUS_ORDER.indexOf(existingOrder.status);
                 const newRank = STATUS_ORDER.indexOf(mappedStatus);
-                
-                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED && mappedStatus !== OrderStatus.DELIVERED) {
-                    continue;
-                }
-
-                // Check for arriving at store alert
-                if (existingOrder.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
-                    playAlert();
-                }
-
-                setOrders(prev => prev.map(o => {
-                    if (o.id === delivery.id) {
-                        return {
-                            ...o,
-                            status: mappedStatus,
-                            pickupCode: delivery.collection_code || o.pickupCode,
-                            batch_id: delivery.batch_id || o.batch_id,
-                            events: synthesizeTimeline(delivery)
-                        };
-                    }
-                    return o;
-                }));
+                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED && mappedStatus !== OrderStatus.DELIVERED) continue;
+                if (existingOrder.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) playAlert();
+                setOrders(prev => prev.map(o => o.id === delivery.id ? { ...o, status: mappedStatus, pickupCode: delivery.collection_code || o.pickupCode, batch_id: delivery.batch_id || o.batch_id, events: synthesizeTimeline(delivery) } : o));
             }
-        } catch (err) {
-            console.error('❌ Polling error:', err);
-        }
+        } catch (err) { console.error('❌ Polling error:', err); }
     }, [session?.user, lastResetDate, processDeliveryRecord, playAlert, synthesizeTimeline, mapSupabaseStatusToLocal]);
+
 
 
     // --- REALTIME SYNCHRONIZATION ---
