@@ -144,8 +144,7 @@ const MapController = ({
             // Include all batch stop destinations for proper fitting
             if (activeOrder.isBatch && activeOrder.batchOrders && activeOrder.batchOrders.length > 0) {
                 activeOrder.batchOrders.forEach(stop => {
-                    // Skip stops already delivered or canceled to focus on remaining ones
-                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED || stop.status === OrderStatus.RETURNING) return;
                     if (stop.destinationLat && stop.destinationLng) {
                         points.push([stop.destinationLat, stop.destinationLng]);
                     }
@@ -169,11 +168,11 @@ const MapController = ({
             orders.forEach(o => {
                 if (o.isBatch && o.batchOrders && o.batchOrders.length > 0) {
                     o.batchOrders.forEach(stop => {
-                        if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                        if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED || stop.status === OrderStatus.RETURNING) return;
                         if (stop.destinationLat && stop.destinationLng) points.push([stop.destinationLat, stop.destinationLng]);
                     });
                 } else if (o.destinationLat && o.destinationLng) {
-                    if (o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED) {
+                    if (o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED && o.status !== OrderStatus.RETURNING) {
                         points.push([o.destinationLat, o.destinationLng]);
                     }
                 }
@@ -365,7 +364,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     // Expand batch stops sorted by stopNumber, skip delivered/canceled
                     const batchStops = [...o.batchOrders]
                         .sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0))
-                        .filter(stop => stop.status !== OrderStatus.DELIVERED && stop.status !== OrderStatus.CANCELED);
+                        .filter(stop => stop.status !== OrderStatus.DELIVERED && stop.status !== OrderStatus.CANCELED && stop.status !== OrderStatus.RETURNING);
                     batchStops.forEach(stop => {
                         if (stop.destinationLat && stop.destinationLng) {
                             path.push([stop.destinationLat, stop.destinationLng]);
@@ -405,8 +404,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             if (o.isBatch && o.batchOrders && o.batchOrders.length > 0) {
                 // Expand each stop of the batch individually
                 o.batchOrders.forEach(stop => {
-                    // Skip stops already delivered or canceled
-                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED) return;
+                    // Skip stops already delivered, canceled or returning
+                    if (stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED || stop.status === OrderStatus.RETURNING) return;
                     if (stop.destinationLat && stop.destinationLng) {
                         markers.push({
                             id: stop.id,
@@ -420,8 +419,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     }
                 });
             } else {
-                // Single order: skip if delivered or canceled
-                if (o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED) return;
+                // Single order: skip if delivered, canceled or returning
+                if (o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED || o.status === OrderStatus.RETURNING) return;
                 if (o.destinationLat && o.destinationLng) {
                     markers.push({
                         id: o.id,

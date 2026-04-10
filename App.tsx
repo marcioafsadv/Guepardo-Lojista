@@ -631,13 +631,14 @@ function App() {
                     OrderStatus.ARRIVED_AT_STORE,
                     OrderStatus.READY_FOR_PICKUP,
                     OrderStatus.IN_TRANSIT,
-                    OrderStatus.RETURNING,
-                    OrderStatus.DELIVERED,
+                    OrderStatus.RETURNING, // First returning...
+                    OrderStatus.DELIVERED, // ...then finally delivered (completed)
+                    OrderStatus.CANCELED,
                 ];
                 const currentRank = STATUS_ORDER.indexOf(existingOrder.status);
                 const newRank = STATUS_ORDER.indexOf(mappedStatus);
-                // If the new status is a regression, skip this update
-                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED) {
+                // Regression protection: allow forward moves or special transitions (like CANCELED or finishing a return)
+                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED && mappedStatus !== OrderStatus.DELIVERED) {
                     console.warn(`⚠️ [SYNC] Skipping backwards status update for order ${delivery.id.slice(-4)}: ${existingOrder.status} → ${mappedStatus}`);
                     continue;
                 }
