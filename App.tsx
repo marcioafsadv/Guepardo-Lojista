@@ -133,19 +133,19 @@ function App() {
         switch (status.toLowerCase()) {
             case 'pending': return OrderStatus.PENDING;
             case 'accepted': return OrderStatus.ACCEPTED;
-            case 'to_store': return OrderStatus.ACCEPTED;
+            case 'to_store': return OrderStatus.ACCEPTED;          // Courier heading to store → show as accepted
             case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
-            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE;
+            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE; // Validating code → still at store for Lojista
             case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP;
             case 'in_transit': return OrderStatus.IN_TRANSIT;
-            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT;
+            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT; // Still in transit until confirmed delivered
             case 'completed': return OrderStatus.DELIVERED;
             case 'canceled':
             case 'cancelled': return OrderStatus.CANCELED;
             case 'returning': return OrderStatus.RETURNING;
             default:
-                console.warn(`⚠️ [STATUS_MAP] Unknown DB status: '${status}'.`);
-                return OrderStatus.ACCEPTED;
+                console.warn(`⚠️ [STATUS_MAP] Unknown DB status: '${status}'. Keeping current status.`);
+                return OrderStatus.ACCEPTED; // Safe fallback: assume active courier, not pending
         }
     }, []);
 
@@ -172,59 +172,130 @@ function App() {
     const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
         const events: OrderEvent[] = [];
         const baseTime = new Date(delivery.created_at);
-        events.push({ status: OrderStatus.PENDING, label: "Pedido Criado", timestamp: baseTime, description: "Aguardando entregadores" });
+
+        // 1. Pedido Criado (Always exists)
+        events.push({
+            status: OrderStatus.PENDING,
+            label: "Pedido Criado",
+            timestamp: baseTime,
+            description: "Aguardando entregadores"
+        });
+
+        // 2. Aceito
         if (['accepted', 'arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({ status: OrderStatus.ACCEPTED, label: "Aceito", timestamp: delivery.accepted_at ? new Date(delivery.accepted_at) : new Date(baseTime.getTime() + 2 * 60000), description: "Entregador aceitou o pedido" });
+            events.push({
+                status: OrderStatus.ACCEPTED,
+                label: "Aceito",
+                timestamp: delivery.accepted_at ? new Date(delivery.accepted_at) : new Date(baseTime.getTime() + 2 * 60000),
+                description: "Entregador aceitou o pedido"
+            });
         }
+
+        // 3. Na Loja (arrived_pickup)
         if (['arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({ status: OrderStatus.ARRIVED_AT_STORE, label: "Na Loja", timestamp: delivery.arrived_at_pickup_time ? new Date(delivery.arrived_at_pickup_time) : new Date(baseTime.getTime() + 5 * 60000), description: "Guepardo chegou no local" });
+            events.push({
+                status: OrderStatus.ARRIVED_AT_STORE,
+                label: "Na Loja",
+                timestamp: delivery.arrived_at_pickup_time ? new Date(delivery.arrived_at_pickup_time) : new Date(baseTime.getTime() + 5 * 60000),
+                description: "Guepardo chegou no local"
+            });
         }
+
+        // 4. Pronto p/ Coleta (ready_for_pickup)
         if (['ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({ status: OrderStatus.READY_FOR_PICKUP, label: "Pronto p/ Coleta", timestamp: delivery.ready_at_time ? new Date(delivery.ready_at_time) : new Date(baseTime.getTime() + 10 * 60000), description: "Lojista marcou como pronto" });
+            events.push({
+                status: OrderStatus.READY_FOR_PICKUP,
+                label: "Pronto p/ Coleta",
+                timestamp: delivery.ready_at_time ? new Date(delivery.ready_at_time) : new Date(baseTime.getTime() + 10 * 60000),
+                description: "Lojista marcou como pronto"
+            });
         }
+
+        // 5. Coletado (in_transit)
         if (['in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({ status: OrderStatus.IN_TRANSIT, label: "Coletado", timestamp: delivery.pickup_time ? new Date(delivery.pickup_time) : new Date(baseTime.getTime() + 15 * 60000), description: "Em rota de entrega" });
+            events.push({
+                status: OrderStatus.IN_TRANSIT,
+                label: "Coletado",
+                timestamp: delivery.pickup_time ? new Date(delivery.pickup_time) : new Date(baseTime.getTime() + 15 * 60000),
+                description: "Em rota de entrega"
+            });
         }
+
+        // 6. Entregue (completed)
         if (delivery.status === 'completed') {
-            events.push({ status: OrderStatus.DELIVERED, label: "Entregue", timestamp: delivery.completed_at ? new Date(delivery.completed_at) : new Date(baseTime.getTime() + 30 * 60000), description: "Pedido finalizado" });
+            events.push({
+                status: OrderStatus.DELIVERED,
+                label: "Entregue",
+                timestamp: delivery.completed_at ? new Date(delivery.completed_at) : new Date(baseTime.getTime() + 30 * 60000),
+                description: "Pedido finalizado"
+            });
         }
+
+        // 7. Cancelado
         if (delivery.status === 'cancelled') {
-            events.push({ status: OrderStatus.CANCELED, label: "Cancelado", timestamp: delivery.updated_at ? new Date(delivery.updated_at) : new Date(), description: "Pedido interrompido" });
+            events.push({
+                status: OrderStatus.CANCELED,
+                label: "Cancelado",
+                timestamp: delivery.updated_at ? new Date(delivery.updated_at) : new Date(),
+                description: "Pedido interrompido"
+            });
         }
+
         return events;
     }, []);
 
     const processDeliveryRecord = useCallback(async (d: any): Promise<Order> => {
         const items = d.items as any || {};
         const parsedStatus = mapSupabaseStatusToLocal(d.status);
+
         let courierData: Courier | undefined = undefined;
         if (d.driver_id) {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
             if (profile) {
                 const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
                 courierData = {
-                    id: profile.id, name: profile.full_name || 'Entregador',
-                    vehiclePlate: v?.plate || '---', vehicleModel: v?.model || '---',
+                    id: profile.id,
+                    name: profile.full_name || 'Entregador',
+                    vehiclePlate: v?.plate || '---',
+                    vehicleModel: v?.model || '---',
                     photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
-                    phone: profile.phone || '', lat: profile.current_lat || 0, lng: profile.current_lng || 0
+                    phone: profile.phone || '',
+                    lat: profile.current_lat || 0,
+                    lng: profile.current_lng || 0
                 };
             }
         }
+
         return {
-            id: d.id, display_id: items.displayId || d.id.slice(-4), clientName: d.customer_name,
-            destination: d.customer_address, addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
+            id: d.id,
+            display_id: items.displayId || d.id.slice(-4),
+            clientName: d.customer_name,
+            destination: d.customer_address,
+            addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
             addressNumber: items.addressNumber || d.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
-            addressNeighborhood: items.addressNeighborhood || '', addressComplement: items.addressComplement || '',
-            addressCity: items.addressCity || 'Itu', addressCep: items.addressCep || '00000-000',
-            deliveryValue: Number(items.deliveryValue) || 0, paymentMethod: items.paymentMethod || 'PIX',
-            changeFor: items.changeFor ? Number(items.changeFor) : null, status: parsedStatus,
-            createdAt: new Date(d.created_at), estimatedPrice: Number(d.earnings) || 0,
-            storeFreight: Number(items.storeFreight) || 0, distanceKm: 1.2, events: synthesizeTimeline(d),
-            pickupCode: d.collection_code, isReturnRequired: items.isReturnRequired,
-            destinationLat: items.destinationLat, destinationLng: items.destinationLng,
+            addressNeighborhood: items.addressNeighborhood || '',
+            addressComplement: items.addressComplement || '',
+            addressCity: items.addressCity || 'Itu',
+            addressCep: items.addressCep || '00000-000',
+            deliveryValue: Number(items.deliveryValue) || 0,
+            paymentMethod: items.paymentMethod || 'PIX',
+            changeFor: items.changeFor ? Number(items.changeFor) : null,
+            status: parsedStatus,
+            createdAt: new Date(d.created_at),
+            estimatedPrice: Number(d.earnings) || 0,
+            storeFreight: Number(items.storeFreight) || 0,
+            distanceKm: 1.2,
+            events: synthesizeTimeline(d),
+            pickupCode: d.collection_code,
+            isReturnRequired: items.isReturnRequired,
+            destinationLat: items.destinationLat,
+            destinationLng: items.destinationLng,
             clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
-            requestSource: items.requestSource || 'SITE', isBatch: items.isBatch, batch_id: d.batch_id,
-            stopNumber: d.stop_number || items.stopNumber, courier: courierData
+            requestSource: items.requestSource || 'SITE',
+            isBatch: items.isBatch,
+            batch_id: d.batch_id,
+            stopNumber: d.stop_number || items.stopNumber,
+            courier: courierData
         };
     }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
@@ -429,170 +500,7 @@ function App() {
         };
     }, [fetchCouriers]);
 
-    // Polling logic refactored for stability
-    const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
-        switch (status.toLowerCase()) {
-            case 'pending': return OrderStatus.PENDING;
-            case 'accepted': return OrderStatus.ACCEPTED;
-            case 'to_store': return OrderStatus.ACCEPTED;          // Courier heading to store → show as accepted
-            case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
-            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE; // Validating code → still at store for Lojista
-            case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP;
-            case 'in_transit': return OrderStatus.IN_TRANSIT;
-            case 'arrived_at_customer': return OrderStatus.IN_TRANSIT; // Still in transit until confirmed delivered
-            case 'completed': return OrderStatus.DELIVERED;
-            case 'canceled':
-            case 'cancelled': return OrderStatus.CANCELED;
-            case 'returning': return OrderStatus.RETURNING;
-            default:
-                console.warn(`⚠️ [STATUS_MAP] Unknown DB status: '${status}'. Keeping current status.`);
-                return OrderStatus.ACCEPTED; // Safe fallback: assume active courier, not pending
-        }
-    }, []);
 
-    const getStatusLabel = useCallback((status: OrderStatus) => {
-        switch (status) {
-            case OrderStatus.PENDING: return "Pendente";
-            case OrderStatus.ACCEPTED: return "Aceito";
-            case OrderStatus.ARRIVED_AT_STORE: return "Na Loja";
-            case OrderStatus.READY_FOR_PICKUP: return "Pronto";
-            case OrderStatus.IN_TRANSIT: return "Em Rota";
-            case OrderStatus.DELIVERED: return "Concluído";
-            case OrderStatus.RETURNING: return "Retornando";
-            case OrderStatus.CANCELED: return "Cancelado";
-            default: return "Atualização";
-        }
-    }, []);
-
-    const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
-        const events: OrderEvent[] = [];
-        const baseTime = new Date(delivery.created_at);
-
-        // 1. Pedido Criado (Always exists)
-        events.push({
-            status: OrderStatus.PENDING,
-            label: "Pedido Criado",
-            timestamp: baseTime,
-            description: "Aguardando entregadores"
-        });
-
-        // 2. Aceito
-        if (['accepted', 'arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({
-                status: OrderStatus.ACCEPTED,
-                label: "Aceito",
-                timestamp: delivery.accepted_at ? new Date(delivery.accepted_at) : new Date(baseTime.getTime() + 2 * 60000),
-                description: "Entregador aceitou o pedido"
-            });
-        }
-
-        // 3. Na Loja (arrived_pickup)
-        if (['arrived_pickup', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({
-                status: OrderStatus.ARRIVED_AT_STORE,
-                label: "Na Loja",
-                timestamp: delivery.arrived_at_pickup_time ? new Date(delivery.arrived_at_pickup_time) : new Date(baseTime.getTime() + 5 * 60000),
-                description: "Guepardo chegou no local"
-            });
-        }
-
-        // 4. Pronto p/ Coleta (ready_for_pickup)
-        if (['ready_for_pickup', 'in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({
-                status: OrderStatus.READY_FOR_PICKUP,
-                label: "Pronto p/ Coleta",
-                timestamp: delivery.ready_at_time ? new Date(delivery.ready_at_time) : new Date(baseTime.getTime() + 10 * 60000),
-                description: "Lojista marcou como pronto"
-            });
-        }
-
-        // 5. Coletado (in_transit)
-        if (['in_transit', 'arrived_at_customer', 'completed', 'returning'].includes(delivery.status)) {
-            events.push({
-                status: OrderStatus.IN_TRANSIT,
-                label: "Coletado",
-                timestamp: delivery.pickup_time ? new Date(delivery.pickup_time) : new Date(baseTime.getTime() + 15 * 60000),
-                description: "Em rota de entrega"
-            });
-        }
-
-        // 6. Entregue (completed)
-        if (delivery.status === 'completed') {
-            events.push({
-                status: OrderStatus.DELIVERED,
-                label: "Entregue",
-                timestamp: delivery.completed_at ? new Date(delivery.completed_at) : new Date(baseTime.getTime() + 30 * 60000),
-                description: "Pedido finalizado"
-            });
-        }
-
-        // 7. Cancelado
-        if (delivery.status === 'cancelled') {
-            events.push({
-                status: OrderStatus.CANCELED,
-                label: "Cancelado",
-                timestamp: delivery.updated_at ? new Date(delivery.updated_at) : new Date(),
-                description: "Pedido interrompido"
-            });
-        }
-
-        return events;
-    }, []);
-
-    const processDeliveryRecord = useCallback(async (d: any): Promise<Order> => {
-        const items = d.items as any || {};
-        const parsedStatus = mapSupabaseStatusToLocal(d.status);
-
-        let courierData: Courier | undefined = undefined;
-        if (d.driver_id) {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
-            if (profile) {
-                const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
-                courierData = {
-                    id: profile.id,
-                    name: profile.full_name || 'Entregador',
-                    vehiclePlate: v?.plate || '---',
-                    vehicleModel: v?.model || '---',
-                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
-                    phone: profile.phone || '',
-                    lat: profile.current_lat || 0,
-                    lng: profile.current_lng || 0
-                };
-            }
-        }
-
-        return {
-            id: d.id,
-            display_id: items.displayId || d.id.slice(-4),
-            clientName: d.customer_name,
-            destination: d.customer_address,
-            addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
-            addressNumber: items.addressNumber || d.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
-            addressNeighborhood: items.addressNeighborhood || '',
-            addressComplement: items.addressComplement || '',
-            addressCity: items.addressCity || 'Itu',
-            addressCep: items.addressCep || '00000-000',
-            deliveryValue: Number(items.deliveryValue) || 0,
-            paymentMethod: items.paymentMethod || 'PIX',
-            changeFor: items.changeFor ? Number(items.changeFor) : null,
-            status: parsedStatus,
-            createdAt: new Date(d.created_at),
-            estimatedPrice: Number(d.earnings) || 0,
-            storeFreight: Number(items.storeFreight) || 0,
-            distanceKm: 1.2,
-            events: synthesizeTimeline(d),
-            pickupCode: d.collection_code,
-            isReturnRequired: items.isReturnRequired,
-            destinationLat: items.destinationLat,
-            destinationLng: items.destinationLng,
-            clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
-            requestSource: items.requestSource || 'SITE',
-            isBatch: items.isBatch,
-            batch_id: d.batch_id,
-            stopNumber: d.stop_number || items.stopNumber,
-            courier: courierData
-        };
-    }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
     const pollData = useCallback(async () => {
         if (!session?.user) return;
