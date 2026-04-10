@@ -141,6 +141,22 @@ function App() {
         return () => clearTimeout(timer);
     }, []);
 
+    const storeProfileRef = useRef(STORE_PROFILE);
+    useEffect(() => { if (realStoreProfile) storeProfileRef.current = realStoreProfile; }, [realStoreProfile]);
+
+    const playAlert = useCallback(() => {
+
+        if (audioRef.current) {
+            audioRef.current.play().catch(e => console.warn('Could not play sound:', e));
+        }
+    }, []);
+
+    useEffect(() => {
+        const soundUrl = SOUNDS[settings.alertSound as keyof typeof SOUNDS] || SOUNDS.default;
+        audioRef.current = new Audio(soundUrl);
+    }, [settings.alertSound]);
+
+
     // --- MANUAL ROUTING (TRACKING PAGE) ---
     // Since we don't have react-router-dom, we check URL manually
     // --- MANUAL ROUTING (TRACKING PAGE) ---
@@ -854,19 +870,7 @@ function App() {
         }
     };
 
-    const playAlert = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.play().catch(e => console.warn('Could not play sound:', e));
-        }
-    }, []);
 
-    const storeProfileRef = useRef(STORE_PROFILE);
-    useEffect(() => { if (realStoreProfile) storeProfileRef.current = realStoreProfile; }, [realStoreProfile]);
-
-    useEffect(() => {
-        const soundUrl = SOUNDS[settings.alertSound as keyof typeof SOUNDS] || SOUNDS.default;
-        audioRef.current = new Audio(soundUrl);
-    }, [settings.alertSound]);
 
     useEffect(() => {
         const root = window.document.documentElement;
