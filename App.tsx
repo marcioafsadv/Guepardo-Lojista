@@ -509,30 +509,57 @@ function App() {
             if (lastResetDate) query = query.gt('created_at', lastResetDate);
             const { data: deliveries, error } = await query;
             if (error || !deliveries) return;
+
             const currentOrders = ordersRef.current;
-            const newDeliveries = deliveries.filter(d => !currentOrders.some(o => o.id === d.id));
-            if (newDeliveries.length > 0) {
-                const newOrdersList: Order[] = await Promise.all(newDeliveries.map(processDeliveryRecord));
-                setOrders(prev => {
-                    const existingIds = new Set(prev.map(o => o.id));
-                    const filteredNew = newOrdersList.filter(o => !existingIds.has(o.id));
-                    if (filteredNew.length === 0) return prev;
-                    return [...filteredNew, ...prev].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            
+            // Process ALL fetched deliveries to ensure we have latest statuses AND courier data
+            const updatedOrdersList: Order[] = await Promise.all(deliveries.map(processDeliveryRecord));
+
+            setOrders(prev => {
+                const prevMap = new Map(prev.map(o => [o.id, o]));
+                let hasChanges = false;
+
+                const result = updatedOrdersList.map(newOrder => {
+                    const existing = prevMap.get(newOrder.id);
+                    if (!existing) {
+                        hasChanges = true;
+                        return newOrder;
+                    }
+
+                    // Rank comparison to prevent status regression
+                    const STATUS_ORDER = [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING, OrderStatus.DELIVERED, OrderStatus.CANCELED];
+                    const currentRank = STATUS_ORDER.indexOf(existing.status);
+                    const newRank = STATUS_ORDER.indexOf(newOrder.status);
+
+                    // If new status is "older" than current, keep current (unless it's a final state override)
+                    if (newRank < currentRank && newOrder.status !== OrderStatus.CANCELED && newOrder.status !== OrderStatus.DELIVERED) {
+                        return existing;
+                    }
+
+                    // Alert on arrival
+                    if (existing.status !== newOrder.status && newOrder.status === OrderStatus.ARRIVED_AT_STORE) {
+                        playAlert();
+                    }
+
+                    // Check if anything meaningful changed (status or courier info)
+                    if (existing.status !== newOrder.status || 
+                        existing.courier?.id !== newOrder.courier?.id ||
+                        existing.pickupCode !== newOrder.pickupCode ||
+                        existing.batch_id !== newOrder.batch_id) {
+                        hasChanges = true;
+                        return newOrder;
+                    }
+
+                    return existing;
                 });
-            }
-            for (const delivery of deliveries) {
-                const existingOrder = ordersRef.current.find(o => o.id === delivery.id);
-                if (!existingOrder) continue;
-                const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
-                const STATUS_ORDER = [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING, OrderStatus.DELIVERED, OrderStatus.CANCELED];
-                const currentRank = STATUS_ORDER.indexOf(existingOrder.status);
-                const newRank = STATUS_ORDER.indexOf(mappedStatus);
-                if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED && mappedStatus !== OrderStatus.DELIVERED) continue;
-                if (existingOrder.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) playAlert();
-                setOrders(prev => prev.map(o => o.id === delivery.id ? { ...o, status: mappedStatus, pickupCode: delivery.collection_code || o.pickupCode, batch_id: delivery.batch_id || o.batch_id, events: synthesizeTimeline(delivery) } : o));
-            }
+
+                // Also check if any orders were removed (though unlikely in this flow)
+                if (!hasChanges && result.length === prev.length) return prev;
+
+                return result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+            });
         } catch (err) { console.error('❌ Polling error:', err); }
-    }, [session?.user, lastResetDate, processDeliveryRecord, playAlert, synthesizeTimeline, mapSupabaseStatusToLocal]);
+    }, [session?.user, lastResetDate, processDeliveryRecord, playAlert]);
 
 
 
@@ -562,18 +589,28 @@ function App() {
                         playAlert();
                     } 
                     else if (payload.eventType === 'UPDATE') {
-                        const existing = ordersRef.current.find(o => o.id === payload.new.id);
-                        const mappedStatus = mapSupabaseStatusToLocal(payload.new.status);
+                        // Fetch the full record to ensure we have all fields (Supabase Realtime payload.new 
+                        // might be incomplete if REPLICA IDENTITY is not FULL)
+                        const { data: fullRecord, error } = await supabase
+                            .from('deliveries')
+                            .select('*')
+                            .eq('id', payload.new.id)
+                            .single();
 
-                        // Trigger alert if status changed to ARRIVED_AT_STORE
+                        if (error || !fullRecord) {
+                            console.warn("⚠️ [REALTIME] Could not fetch full record for update:", payload.new.id);
+                            return;
+                        }
+
+                        const existing = ordersRef.current.find(o => o.id === fullRecord.id);
+                        const mappedStatus = mapSupabaseStatusToLocal(fullRecord.status);
+
                         if (existing && existing.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
                             playAlert();
                         }
 
-                        // Re-process to get full metadata and synthesized timeline
-                        const updatedOrder = await processDeliveryRecord(payload.new);
-                        
-                        setOrders(prev => prev.map(o => o.id === payload.new.id ? updatedOrder : o));
+                        const updatedOrder = await processDeliveryRecord(fullRecord);
+                        setOrders(prev => prev.map(o => o.id === fullRecord.id ? updatedOrder : o));
                     }
                 }
             )
