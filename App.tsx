@@ -528,6 +528,61 @@ function App() {
         return events;
     }, []);
 
+    const processDeliveryRecord = useCallback(async (d: any): Promise<Order> => {
+        const items = d.items as any || {};
+        const parsedStatus = mapSupabaseStatusToLocal(d.status);
+
+        let courierData: Courier | undefined = undefined;
+        if (d.driver_id) {
+            const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
+            if (profile) {
+                const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
+                courierData = {
+                    id: profile.id,
+                    name: profile.full_name || 'Entregador',
+                    vehiclePlate: v?.plate || '---',
+                    vehicleModel: v?.model || '---',
+                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
+                    phone: profile.phone || '',
+                    lat: profile.current_lat || 0,
+                    lng: profile.current_lng || 0
+                };
+            }
+        }
+
+        return {
+            id: d.id,
+            display_id: items.displayId || d.id.slice(-4),
+            clientName: d.customer_name,
+            destination: d.customer_address,
+            addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
+            addressNumber: items.addressNumber || d.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
+            addressNeighborhood: items.addressNeighborhood || '',
+            addressComplement: items.addressComplement || '',
+            addressCity: items.addressCity || 'Itu',
+            addressCep: items.addressCep || '00000-000',
+            deliveryValue: Number(items.deliveryValue) || 0,
+            paymentMethod: items.paymentMethod || 'PIX',
+            changeFor: items.changeFor ? Number(items.changeFor) : null,
+            status: parsedStatus,
+            createdAt: new Date(d.created_at),
+            estimatedPrice: Number(d.earnings) || 0,
+            storeFreight: Number(items.storeFreight) || 0,
+            distanceKm: 1.2,
+            events: synthesizeTimeline(d),
+            pickupCode: d.collection_code,
+            isReturnRequired: items.isReturnRequired,
+            destinationLat: items.destinationLat,
+            destinationLng: items.destinationLng,
+            clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
+            requestSource: items.requestSource || 'SITE',
+            isBatch: items.isBatch,
+            batch_id: d.batch_id,
+            stopNumber: d.stop_number || items.stopNumber,
+            courier: courierData
+        };
+    }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
+
     const pollData = useCallback(async () => {
         if (!session?.user) return;
         try {
@@ -549,61 +604,8 @@ function App() {
             const newDeliveries = deliveries.filter(d => !currentOrders.some(o => o.id === d.id));
 
             if (newDeliveries.length > 0) {
-                console.log(`📥 [SYNC] Found ${newDeliveries.length} new orders`);
-                const newOrdersList: Order[] = await Promise.all(newDeliveries.map(async d => {
-                    const items = d.items as any || {};
-                    const parsedStatus = mapSupabaseStatusToLocal(d.status);
-
-                    let courierData: Courier | undefined = undefined;
-                    if (d.driver_id) {
-                        const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
-                        if (profile) {
-                            const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
-                            courierData = {
-                                id: profile.id,
-                                name: profile.full_name || 'Entregador',
-                                vehiclePlate: v?.plate || '---',
-                                vehicleModel: v?.model || '---',
-                                photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
-                                phone: profile.phone || '',
-                                lat: profile.current_lat || 0,
-                                lng: profile.current_lng || 0
-                            };
-                        }
-                    }
-
-                    return {
-                        id: d.id,
-                        display_id: items.displayId || d.id.slice(-4),
-                        clientName: d.customer_name,
-                        destination: d.customer_address,
-                        addressStreet: items.addressStreet || d.customer_address?.split(',')[0] || d.customer_address,
-                        addressNumber: items.addressNumber || d.customer_address?.split(',')[1]?.split('-')[0]?.trim() || 'S/N',
-                        addressNeighborhood: items.addressNeighborhood || '',
-                        addressComplement: items.addressComplement || '',
-                        addressCity: items.addressCity || 'Itu',
-                        addressCep: items.addressCep || '00000-000',
-                        deliveryValue: Number(items.deliveryValue) || 0,
-                        paymentMethod: items.paymentMethod || 'PIX',
-                        changeFor: items.changeFor ? Number(items.changeFor) : null,
-                        status: parsedStatus,
-                        createdAt: new Date(d.created_at),
-                        estimatedPrice: Number(d.earnings) || 0,
-                        storeFreight: Number(items.storeFreight) || 0,
-                        distanceKm: 1.2,
-                        events: synthesizeTimeline(d),
-                        pickupCode: d.collection_code,
-                        isReturnRequired: items.isReturnRequired,
-                        destinationLat: items.destinationLat,
-                        destinationLng: items.destinationLng,
-                        clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
-                        requestSource: items.requestSource || 'SITE',
-                        isBatch: items.isBatch,
-                        batch_id: d.batch_id,
-                        stopNumber: d.stop_number || items.stopNumber,
-                        courier: courierData
-                    };
-                }));
+                console.log(`📥 [SYNC] Found ${newDeliveries.length} new orders via poll`);
+                const newOrdersList: Order[] = await Promise.all(newDeliveries.map(processDeliveryRecord));
 
                 setOrders(prev => {
                     const existingIds = new Set(prev.map(o => o.id));
@@ -613,71 +615,39 @@ function App() {
                 });
             }
 
-                // 2. Update existing orders status & courier locations
+            // 2. Update existing orders status & courier locations
             for (const delivery of deliveries) {
                 const existingOrder = ordersRef.current.find(o => o.id === delivery.id);
                 if (!existingOrder) continue;
 
                 const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
                 
-                // We MUST update even if status is same to get fresh courier coordinates
-                // during active deliveries (IN_TRANSIT, RETURNING, etc.)
-
-                // Regression protection: do NOT allow backward status transitions
-                // Define the status progression order
+                // Regression protection
                 const STATUS_ORDER = [
-                    OrderStatus.PENDING,
-                    OrderStatus.ACCEPTED,
-                    OrderStatus.ARRIVED_AT_STORE,
-                    OrderStatus.READY_FOR_PICKUP,
-                    OrderStatus.IN_TRANSIT,
-                    OrderStatus.RETURNING, // First returning...
-                    OrderStatus.DELIVERED, // ...then finally delivered (completed)
-                    OrderStatus.CANCELED,
+                    OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE,
+                    OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING,
+                    OrderStatus.DELIVERED, OrderStatus.CANCELED,
                 ];
                 const currentRank = STATUS_ORDER.indexOf(existingOrder.status);
                 const newRank = STATUS_ORDER.indexOf(mappedStatus);
-                // Regression protection: allow forward moves or special transitions (like CANCELED or finishing a return)
+                
                 if (newRank < currentRank && mappedStatus !== OrderStatus.CANCELED && mappedStatus !== OrderStatus.DELIVERED) {
-                    console.warn(`⚠️ [SYNC] Skipping backwards status update for order ${delivery.id.slice(-4)}: ${existingOrder.status} → ${mappedStatus}`);
                     continue;
                 }
 
-                let courierData: Courier | null = null;
-                if (delivery.driver_id) {
-                    const { data: p } = await supabase.from('profiles').select('*').eq('id', delivery.driver_id).single();
-                    if (p) {
-                        const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', p.id).single();
-                        courierData = {
-                            id: p.id,
-                            name: p.full_name || 'Entregador',
-                            vehiclePlate: v?.plate || '---',
-                            vehicleModel: v?.model || '---',
-                            photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
-                            phone: p.phone || '',
-                            lat: p.current_lat || 0,
-                            lng: p.current_lng || 0
-                        };
-                    }
+                // Check for arriving at store alert
+                if (existingOrder.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                    playAlert();
                 }
 
                 setOrders(prev => prev.map(o => {
                     if (o.id === delivery.id) {
-                        const hasStatusChanged = o.status !== mappedStatus;
-                        if (hasStatusChanged) {
-                            if (mappedStatus === OrderStatus.ARRIVED_AT_STORE) playAlert();
-                        }
-                        
-                        const updatedEvents = synthesizeTimeline(delivery);
-
-                        // Ensure we always update courier data to get fresh coordinates
                         return {
                             ...o,
                             status: mappedStatus,
-                            courier: courierData || o.courier,
                             pickupCode: delivery.collection_code || o.pickupCode,
                             batch_id: delivery.batch_id || o.batch_id,
-                            events: updatedEvents
+                            events: synthesizeTimeline(delivery)
                         };
                     }
                     return o;
@@ -686,18 +656,122 @@ function App() {
         } catch (err) {
             console.error('❌ Polling error:', err);
         }
-    }, [session?.user, lastResetDate, mapSupabaseStatusToLocal, getStatusLabel, synthesizeTimeline]);
+    }, [session?.user, lastResetDate, processDeliveryRecord, playAlert, synthesizeTimeline, mapSupabaseStatusToLocal]);
 
+
+    // --- REALTIME SYNCHRONIZATION ---
     useEffect(() => {
         if (!session?.user) return;
+
+        console.log("⚡ [REALTIME] Initializing Delivery & Courier listeners...");
+
+        // 1. Deliveries Listener (Orders & Status)
+        const deliveryChannel = supabase
+            .channel(`deliveries-store-${session.user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'deliveries',
+                    filter: `store_id=eq.${session.user.id}`
+                },
+                async (payload) => {
+                    console.log("📦 [REALTIME] Delivery Change:", payload.eventType, payload.new.id);
+                    
+                    if (payload.eventType === 'INSERT') {
+                        const newOrder = await processDeliveryRecord(payload.new);
+                        setOrders(prev => [newOrder, ...prev]);
+                        playAlert();
+                    } 
+                    else if (payload.eventType === 'UPDATE') {
+                        const existing = ordersRef.current.find(o => o.id === payload.new.id);
+                        const mappedStatus = mapSupabaseStatusToLocal(payload.new.status);
+
+                        // Trigger alert if status changed to ARRIVED_AT_STORE
+                        if (existing && existing.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
+                            playAlert();
+                        }
+
+                        // Re-process to get full metadata and synthesized timeline
+                        const updatedOrder = await processDeliveryRecord(payload.new);
+                        
+                        setOrders(prev => prev.map(o => o.id === payload.new.id ? updatedOrder : o));
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log("📡 [REALTIME] Delivery Channel Status:", status);
+            });
+
+        // 2. Profiles Listener (Courier Locations)
+        // Note: Filtered to only active couriers in state to avoid excessive updates, 
+        // but easier to subscribe to all 'approved' updates and filter in handler.
+        const profilesChannel = supabase
+            .channel('profiles-location-sync')
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles'
+                },
+                (payload) => {
+                    const profile = payload.new;
+                    // Only update if this profile is in our availableCouriers list
+                    setAvailableCouriers(prev => {
+                        if (!prev.some(c => c.id === profile.id)) return prev;
+                        return prev.map(c => c.id === profile.id ? {
+                            ...c,
+                            lat: profile.current_lat || c.lat,
+                            lng: profile.current_lng || c.lng,
+                            name: profile.full_name || c.name,
+                            photoUrl: profile.avatar_url || c.photoUrl
+                        } : c);
+                    });
+
+                    // Also update the courier data inside the active orders
+                    setOrders(prev => prev.map(o => {
+                        if (o.courier?.id === profile.id) {
+                            return {
+                                ...o,
+                                courier: {
+                                    ...o.courier,
+                                    lat: profile.current_lat || o.courier.lat,
+                                    lng: profile.current_lng || o.courier.lng
+                                }
+                            };
+                        }
+                        return o;
+                    }));
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(deliveryChannel);
+            supabase.removeChannel(profilesChannel);
+        };
+    }, [session?.user, processDeliveryRecord, playAlert, mapSupabaseStatusToLocal]);
+
+    // Initial load and insurance polling
+    useEffect(() => {
+        if (!session?.user) return;
+        
+        // Initial load
         pollData();
-        fetchCouriers(); // Initial fetch
+        fetchCouriers();
+
+        // Safety interval (increased from 3s to 30s as Realtime is now primary)
         const pollInterval = setInterval(() => {
+            console.log("🔄 [SYNC] Heartbeat polling...");
             pollData();
-            fetchCouriers(); // Polling fallback for courier locations
-        }, 3000); // slightly faster polling for location tracking
+            fetchCouriers();
+        }, 30000); 
+
         return () => clearInterval(pollInterval);
-    }, [pollData, fetchCouriers]);
+    }, [pollData, fetchCouriers, session?.user]);
+
 
     // Fetch Customers
     useEffect(() => {
