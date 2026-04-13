@@ -1342,21 +1342,6 @@ function App() {
             ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).map(o => o.id)
             : [orderId];
 
-        setOrders(prev => prev.map(o => {
-            if (!orderIds.includes(o.id)) return o;
-            const newEvent: OrderEvent = {
-                status: OrderStatus.IN_TRANSIT,
-                label: "Código Validado",
-                timestamp: new Date(),
-                description: "Segurança confirmada. Despachado."
-            };
-            return {
-                ...o,
-                status: OrderStatus.IN_TRANSIT,
-                events: [...o.events, newEvent]
-            };
-        }));
-
         if (orderIds.length === 0) {
             console.warn("⚠️ [handleValidatePickup] No order IDs to update.");
             return;
@@ -1375,6 +1360,22 @@ function App() {
 
             if (error) throw error;
             console.log("✅ Order(s) validated in DB:", orderIds);
+
+            // ONLY UPDATE LOCAL STATE AFTER DB SUCCESS
+            setOrders(prev => prev.map(o => {
+                if (!orderIds.includes(o.id)) return o;
+                const newEvent: OrderEvent = {
+                    status: OrderStatus.IN_TRANSIT,
+                    label: "Código Validado",
+                    timestamp: new Date(),
+                    description: "Segurança confirmada. Despachado."
+                };
+                return {
+                    ...o,
+                    status: OrderStatus.IN_TRANSIT,
+                    events: [...o.events, newEvent]
+                };
+            }));
         } catch (err) {
             console.error("❌ Error validating order(s) in DB:", err);
             setNotification({ title: "Erro", message: "Falha ao validar no sistema." });
@@ -1423,29 +1424,6 @@ function App() {
             ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId)).map(o => o.id)
             : [orderId];
 
-        setOrders(prev => prev.map(o => {
-            if (!orderIds.includes(o.id)) return o;
-
-            const newEvent: OrderEvent = {
-                status: OrderStatus.DELIVERED,
-                label: "Devolução Confirmada",
-                timestamp: new Date(),
-                description: "Lojista confirmou recebimento da maquininha/dinheiro. Pedido finalizado."
-            };
-
-            // Free up courier (only once for the whole batch)
-            if (o.id === orderId && o.courier) {
-                const courierAtStore = { ...o.courier, lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng };
-                setAvailableCouriers(old => [...old, courierAtStore]);
-            }
-
-            return {
-                ...o,
-                status: OrderStatus.DELIVERED,
-                events: [...o.events, newEvent]
-            };
-        }));
-
         if (orderIds.length === 0) {
             console.warn("⚠️ [handleConfirmReturn] No order IDs to update.");
             return;
@@ -1465,6 +1443,30 @@ function App() {
 
             if (error) throw error;
             console.log("✅ Order(s) finalized in DB:", orderIds);
+
+            // ONLY UPDATE LOCAL STATE AFTER DB SUCCESS
+            setOrders(prev => prev.map(o => {
+                if (!orderIds.includes(o.id)) return o;
+
+                const newEvent: OrderEvent = {
+                    status: OrderStatus.DELIVERED,
+                    label: "Devolução Confirmada",
+                    timestamp: new Date(),
+                    description: "Lojista confirmou recebimento da maquininha/dinheiro. Pedido finalizado."
+                };
+
+                // Free up courier (only once for the whole batch)
+                if (o.id === orderId && o.courier) {
+                    const courierAtStore = { ...o.courier, lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng };
+                    setAvailableCouriers(old => [...old, courierAtStore]);
+                }
+
+                return {
+                    ...o,
+                    status: OrderStatus.DELIVERED,
+                    events: [...o.events, newEvent]
+                };
+            }));
         } catch (err) {
             console.error("❌ Error finalizing order(s) in DB:", err);
             setNotification({ title: "Erro", message: "Falha ao finalizar no sistema." });
