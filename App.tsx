@@ -1928,6 +1928,8 @@ function App() {
                         </div>
                     </div>
                 </div>
+            )}
+
             {/* REALTIME STATUS INDICATOR */}
             <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
                 <div className={`px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md transition-all duration-500 shadow-2xl ${
