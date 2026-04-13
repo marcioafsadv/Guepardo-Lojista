@@ -86,6 +86,7 @@ function App() {
     const [newOrders, setNewOrders] = useState<any[]>([]);
     const [showSuccessToast, setShowSuccessToast] = useState(false);
     const [syncId, setSyncId] = useState(0); 
+    const [realtimeStatus, setRealtimeStatus] = useState<'CONNECTING' | 'SUBSCRIBED' | 'CLOSED' | 'ERROR'>('CONNECTING');
     const [activeOrder, setActiveOrder] = useState<Order | null>(null);
     const [notification, setNotification] = useState<{ title: string, message: string } | null>(null);
     const [availableCouriers, setAvailableCouriers] = useState<Courier[]>(INITIAL_COURIERS);
@@ -637,8 +638,31 @@ function App() {
                     }
                 }
             )
+            .on(
+                'broadcast',
+                { event: 'mission_updated' },
+                async (payload) => {
+                    console.log("🚀 [REALTIME] Received BROADCAST update!", payload.payload.id);
+                    const start = performance.now();
+                    
+                    const delivery = payload.payload;
+                    const updatedOrder = await processDeliveryRecord(delivery);
+                    
+                    setOrders(prev => {
+                        const exists = prev.some(o => o.id === delivery.id);
+                        if (!exists) return [updatedOrder, ...prev];
+                        return prev.map(o => o.id === delivery.id ? updatedOrder : o);
+                    });
+
+                    const end = performance.now();
+                    console.log(`⚡ [REALTIME] Broadcast update processed in ${(end - start).toFixed(2)}ms`);
+                }
+            )
             .subscribe((status) => {
                 console.log("📡 [REALTIME] Delivery Channel Status:", status);
+                if (status === 'SUBSCRIBED') setRealtimeStatus('SUBSCRIBED');
+                else if (status === 'CLOSED') setRealtimeStatus('CLOSED');
+                else if (status === 'CHANNEL_ERROR') setRealtimeStatus('ERROR');
             });
 
         // 2. Profiles Listener (Courier Locations)
@@ -1904,7 +1928,26 @@ function App() {
                         </div>
                     </div>
                 </div>
-            )}
+            {/* REALTIME STATUS INDICATOR */}
+            <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+                <div className={`px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md transition-all duration-500 shadow-2xl ${
+                    realtimeStatus === 'SUBSCRIBED' 
+                        ? 'bg-green-500/10 border-green-500/20 text-green-400' 
+                        : realtimeStatus === 'CONNECTING' 
+                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                        : 'bg-red-500/10 border-red-500/20 text-red-400'
+                }`}>
+                    <div className="relative flex h-2 w-2">
+                        {realtimeStatus === 'SUBSCRIBED' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                            realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' : realtimeStatus === 'CONNECTING' ? 'bg-amber-500' : 'bg-red-500'
+                        }`}></span>
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
+                        {realtimeStatus === 'SUBSCRIBED' ? 'Ao Vivo' : realtimeStatus === 'CONNECTING' ? 'Conectando' : 'Desconectado'}
+                    </span>
+                </div>
+            </div>
         </div>
     );
 }
