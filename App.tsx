@@ -1384,6 +1384,34 @@ function App() {
         // playAlert(); // REMOVED: Only arrive at store should play
         setNotification({ title: "Segurança Confirmada", message: "Pedido(s) despachado(s) com sucesso." });
         setTimeout(() => setNotification(null), 4000);
+
+        // High-Speed Broadcast to driver(s)
+        orderIds.forEach(id => {
+            const delivery = orders.find(o => o.id === id);
+            if (delivery) {
+                emitToDriver(id, { ...delivery, status: 'in_transit' });
+            }
+        });
+    };
+
+    const emitToDriver = async (missionId: string, deliveryData: any) => {
+        try {
+            console.log(`📡 [BROADCAST] Sending instant signal to driver for mission ${missionId}...`);
+            const channel = supabase.channel(`public:deliveries:${missionId}`);
+            await channel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await channel.send({
+                        type: 'broadcast',
+                        event: 'mission_updated',
+                        payload: deliveryData
+                    });
+                    console.log(`✅ [BROADCAST] Signal delivered to mission channel: ${missionId}`);
+                    setTimeout(() => supabase.removeChannel(channel), 2000);
+                }
+            });
+        } catch (err) {
+            console.error('❌ [BROADCAST] Failed to emit to driver:', err);
+        }
     };
 
     // NEW: HANDLE CONFIRM RETURN (Finalize Logic)
@@ -1446,6 +1474,14 @@ function App() {
         // playAlert(); // REMOVED: Only arrive at store should play
         setNotification({ title: "Logística Reversa Concluída", message: "Devolução confirmada. Pedido(s) encerrado(s)." });
         setTimeout(() => setNotification(null), 4000);
+
+        // High-Speed Broadcast to driver(s) - INSTANT FINALIZATION
+        orderIds.forEach(id => {
+            const delivery = orders.find(o => o.id === id);
+            if (delivery) {
+                emitToDriver(id, { ...delivery, status: 'completed' });
+            }
+        });
     };
 
     // NEW: HANDLE CANCEL ORDER
