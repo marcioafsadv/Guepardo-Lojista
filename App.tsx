@@ -713,9 +713,9 @@ function App() {
             supabase.removeChannel(deliveryChannel);
             supabase.removeChannel(profilesChannel);
         };
-    }, [session?.user, processDeliveryRecord, playAlert, mapSupabaseStatusToLocal]);
+    }, [session?.user, processDeliveryRecord, playAlert, mapSupabaseStatusToLocal, syncId]);
 
-    // Initial load and insurance polling
+    // Initial load and insurance polling (Dynamic Interval)
     useEffect(() => {
         if (!session?.user) return;
         
@@ -723,15 +723,32 @@ function App() {
         pollData();
         fetchCouriers();
 
-        // Safety interval (increased from 3s to 30s as Realtime is now primary)
+        // DYNAMIC POLLING: If disconnected, poll every 4s. If connected, poll every 60s.
+        const intervalTime = realtimeStatus === 'SUBSCRIBED' ? 60000 : 4000;
+        
+        console.log(`⏱️ [SYNC] Setting polling interval to ${intervalTime}ms (Status: ${realtimeStatus})`);
+        
         const pollInterval = setInterval(() => {
             console.log("🔄 [SYNC] Heartbeat polling...");
             pollData();
             fetchCouriers();
-        }, 30000); 
+        }, intervalTime); 
 
         return () => clearInterval(pollInterval);
-    }, [pollData, fetchCouriers, session?.user]);
+    }, [pollData, fetchCouriers, session?.user, realtimeStatus]);
+
+    // AUTO-RECONNECT: If connection is lost, try to refresh the session and reconnect
+    useEffect(() => {
+        if (realtimeStatus === 'CLOSED' || realtimeStatus === 'ERROR') {
+            const timer = setTimeout(() => {
+                console.log("🛠️ [REALTIME] Attempting forced reconnection...");
+                setSyncId(prev => prev + 1); // Trigger a refresh that might kickstart things
+                // Small trick: re-fetching the session can sometimes wake up the socket
+                supabase.auth.getSession();
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [realtimeStatus]);
 
 
     // Fetch Customers
