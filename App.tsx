@@ -115,6 +115,7 @@ function App() {
     // --- REFS ---
     const ordersRef = useRef<Order[]>([]);
     const couriersRef = useRef<Courier[]>([]);
+    const courierCacheRef = useRef<Map<string, Courier>>(new Map());
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const storeProfileRef = useRef<StoreProfile | null>(null);
 
@@ -250,19 +251,36 @@ function App() {
 
         let courierData: Courier | undefined = undefined;
         if (d.driver_id) {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', d.driver_id).single();
-            if (profile) {
-                const { data: v } = await supabase.from('vehicles').select('*').eq('user_id', profile.id).single();
-                courierData = {
-                    id: profile.id,
-                    name: profile.full_name || 'Entregador',
-                    vehiclePlate: v?.plate || '---',
-                    vehicleModel: v?.model || '---',
-                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
-                    phone: profile.phone || '',
-                    lat: profile.current_lat || 0,
-                    lng: profile.current_lng || 0
-                };
+            // Check cache first to avoid sequential DB round-trips (profiles -> vehicles)
+            const cached = courierCacheRef.current.get(d.driver_id);
+            if (cached) {
+                courierData = cached;
+            } else {
+                console.log(`👤 [CACHE_MISS] Fetching courier info for: ${d.driver_id}`);
+                
+                // Fetch profile and vehicle in parallel to save ~100-200ms
+                const [profileRes, vehicleRes] = await Promise.all([
+                    supabase.from('profiles').select('*').eq('id', d.driver_id).single(),
+                    supabase.from('vehicles').select('*').eq('user_id', d.driver_id).maybeSingle()
+                ]);
+
+                const profile = profileRes.data;
+                const v = vehicleRes.data;
+
+                if (profile) {
+                    courierData = {
+                        id: profile.id,
+                        name: profile.full_name || 'Entregador',
+                        vehiclePlate: v?.plate || '---',
+                        vehicleModel: v?.model || '---',
+                        photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
+                        phone: profile.phone || '',
+                        lat: profile.current_lat || 0,
+                        lng: profile.current_lng || 0
+                    };
+                    // Save to cache
+                    courierCacheRef.current.set(d.driver_id, courierData);
+                }
             }
         }
 
@@ -589,17 +607,19 @@ function App() {
                         playAlert();
                     } 
                     else if (payload.eventType === 'UPDATE') {
-                        // Fetch the full record to ensure we have all fields (Supabase Realtime payload.new 
-                        // might be incomplete if REPLICA IDENTITY is not FULL)
-                        const { data: fullRecord, error } = await supabase
-                            .from('deliveries')
-                            .select('*')
-                            .eq('id', payload.new.id)
-                            .single();
-
-                        if (error || !fullRecord) {
-                            console.warn("⚠️ [REALTIME] Could not fetch full record for update:", payload.new.id);
-                            return;
+                        const start = performance.now();
+                        
+                        // PERFORMANCE WIN: Rely on REPLICA IDENTITY FULL instead of fetching the whole record again.
+                        // However, if some columns are missing from payload.new (due to RLS or DB config), 
+                        // we gracefully fallback but log it for optimization.
+                        let fullRecord = payload.new;
+                        
+                        // Heuristic: If crucial fields like 'customer_name' are missing from payload.new, 
+                        // then REPLICA IDENTITY is likely NOT FULL.
+                        if (!fullRecord.customer_name) {
+                            console.warn("⚠️ [REALTIME_LATENCY] Payload is incomplete. REPLICA IDENTITY FULL might be disabled. Falling back to fetch...");
+                            const { data, error } = await supabase.from('deliveries').select('*').eq('id', payload.new.id).single();
+                            if (!error && data) fullRecord = data;
                         }
 
                         const existing = ordersRef.current.find(o => o.id === fullRecord.id);
@@ -611,6 +631,9 @@ function App() {
 
                         const updatedOrder = await processDeliveryRecord(fullRecord);
                         setOrders(prev => prev.map(o => o.id === fullRecord.id ? updatedOrder : o));
+                        
+                        const end = performance.now();
+                        console.log(`⚡ [REALTIME] Update processed in ${(end - start).toFixed(2)}ms`);
                     }
                 }
             )
