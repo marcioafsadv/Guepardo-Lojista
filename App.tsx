@@ -1420,42 +1420,47 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
-            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId)).map(o => o.id)
-            : [orderId];
-
-        if (orderIds.length === 0) {
-            console.warn("⚠️ [handleConfirmReturn] No order IDs to update.");
-            return;
-        }
-
-        console.log("🚀 [handleConfirmReturn] Updating order IDs:", orderIds);
+        console.log("🚀 [handleConfirmReturn] Finalizing mission(s)...", { orderId, batchId: orderToUpdate.batch_id });
 
         try {
-            const { error } = await supabase
-                .from('deliveries')
-                .update({
-                    status: 'completed',
-                    updated_at: new Date().toISOString(),
-                    completed_at: new Date().toISOString()
-                })
-                .in('id', orderIds);
+            // Updated to use batch_id directly if it exists, to ensure ALL stops are completed
+            let updateQuery = supabase.from('deliveries').update({
+                status: 'completed',
+                updated_at: new Date().toISOString(),
+                completed_at: new Date().toISOString()
+            });
+
+            if (orderToUpdate.batch_id) {
+                updateQuery = updateQuery.eq('batch_id', orderToUpdate.batch_id);
+            } else {
+                updateQuery = updateQuery.eq('id', orderId);
+            }
+
+            const { data: updatedRows, error } = await updateQuery.select('id');
 
             if (error) throw error;
-            console.log("✅ Order(s) finalized in DB:", orderIds);
+            
+            const finalizedIds = (updatedRows || []).map(r => r.id);
+            console.log("✅ Order(s) finalized in DB:", finalizedIds);
 
-            // ONLY UPDATE LOCAL STATE AFTER DB SUCCESS
+            // 2. BROADCAST: High-Speed Signal to driver(s) for ALL affected IDs
+            finalizedIds.forEach(id => {
+                const deliveryObj = orders.find(o => o.id === id) || orderToUpdate;
+                emitToDriver(id, { ...deliveryObj, status: 'completed' });
+            });
+
+            // 3. INTERNAL STATE: UPDATE LOCAL ORDERS
             setOrders(prev => prev.map(o => {
-                if (!orderIds.includes(o.id)) return o;
+                if (!finalizedIds.includes(o.id)) return o;
 
                 const newEvent: OrderEvent = {
                     status: OrderStatus.DELIVERED,
                     label: "Devolução Confirmada",
                     timestamp: new Date(),
-                    description: "Lojista confirmou recebimento da maquininha/dinheiro. Pedido finalizado."
+                    description: "Lojista confirmou recebimento. Pedido finalizado."
                 };
 
-                // Free up courier (only once for the whole batch)
+                // Free up courier (only once per batch)
                 if (o.id === orderId && o.courier) {
                     const courierAtStore = { ...o.courier, lat: STORE_PROFILE.lat, lng: STORE_PROFILE.lng };
                     setAvailableCouriers(old => [...old, courierAtStore]);
@@ -1467,23 +1472,15 @@ function App() {
                     events: [...o.events, newEvent]
                 };
             }));
+
+            setNotification({ title: "Logística Concluída", message: "Retorno confirmado e entrega encerrada." });
+            setTimeout(() => setNotification(null), 4000);
+
         } catch (err) {
             console.error("❌ Error finalizing order(s) in DB:", err);
             setNotification({ title: "Erro", message: "Falha ao finalizar no sistema." });
             setTimeout(() => setNotification(null), 4000);
         }
-
-        // playAlert(); // REMOVED: Only arrive at store should play
-        setNotification({ title: "Logística Reversa Concluída", message: "Devolução confirmada. Pedido(s) encerrado(s)." });
-        setTimeout(() => setNotification(null), 4000);
-
-        // High-Speed Broadcast to driver(s) - INSTANT FINALIZATION
-        orderIds.forEach(id => {
-            const delivery = orders.find(o => o.id === id);
-            if (delivery) {
-                emitToDriver(id, { ...delivery, status: 'completed' });
-            }
-        });
     };
 
     // NEW: HANDLE CANCEL ORDER
