@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Order, OrderStatus } from '../types';
-import { X, AlertTriangle, Trash2, Info, DollarSign, Clock, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { X, AlertTriangle, Trash2, Info, DollarSign, Clock, ShieldCheck, CheckCircle2, ChevronRight, Slash } from 'lucide-react';
 
 interface CancellationModalProps {
     order: Order;
@@ -13,9 +13,9 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
     const [customReason, setCustomReason] = useState<string>('');
     const [now, setNow] = useState<Date>(new Date());
 
-    // Update internal clock every minute to keep the "15 min rule" accurate
+    // Sync clock for real-time timer
     useEffect(() => {
-        const timer = setInterval(() => setNow(new Date()), 60000);
+        const timer = setInterval(() => setNow(new Date()), 30000);
         return () => clearInterval(timer);
     }, []);
 
@@ -29,7 +29,7 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
         "Outro motivo"
     ];
 
-    // Business Logic: Financial Impact
+    // Business Logic
     const isPostAcceptance = [
         OrderStatus.ACCEPTED, 
         OrderStatus.ARRIVED_AT_STORE, 
@@ -46,11 +46,7 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
     const isLate = minutesElapsed >= 15;
     const isPlausibleReason = ["Demora na busca do entregador", "Motoboy não chegou ao estabelecimento"].includes(reason);
     
-    // Fee logic: 
-    // 0 if before acceptance.
-    // 0 if late (> 15 min).
-    // 0 if plausible reason (Demora/Não chegou).
-    // 4.90 otherwise.
+    // Fee = 4.90 unless it's before acceptance, or courier is late, or reason is valid
     const cancellationFee = useMemo(() => {
         if (!isPostAcceptance) return 0;
         if (isLate) return 0;
@@ -62,129 +58,135 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
         const finalReason = reason === "Outro motivo" ? customReason : reason;
         if (!finalReason) return;
         onConfirm(order.id, finalReason);
-        setReason('');
-        setCustomReason('');
     };
 
     return (
-        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-md rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden relative border border-white/20">
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 animate-in fade-in duration-500">
+            {/* Main Modal Container: Deep Cocoa */}
+            <div className="bg-[#0D0400] w-full max-w-lg rounded-[3.5rem] shadow-[0_40px_100px_rgba(0,0,0,1)] overflow-hidden relative border border-white/10 ring-1 ring-orange-500/20">
+                
+                {/* Neon Orange Top Glow */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent blur-[1px]" />
 
-                {/* Top Brand Bar */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-orange-500 via-amber-400 to-orange-600" />
-
-                {/* Header */}
-                <div className="bg-[#fff9f2] p-8 pb-6 flex items-start gap-5 relative">
-                    <div className="bg-red-50 p-3 rounded-2xl text-red-600 shadow-sm border border-red-100 flex items-center justify-center">
-                        <Trash2 size={24} strokeWidth={2.5} />
-                    </div>
-                    <div className="flex-1">
-                        <h2 className="text-2xl font-black text-[#3d1b11] tracking-tight leading-none italic uppercase text-[1.4rem]">
-                            Cancelar <span className="text-red-600">Solicitação</span>
-                        </h2>
-                        <div className="flex items-center gap-2 mt-2">
-                            <span className="bg-gray-200/50 px-2 py-0.5 rounded text-[10px] font-bold text-gray-600 uppercase">OS #{order.id.slice(-4)}</span>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-sm font-semibold text-gray-500 truncate max-w-[150px]">{order.clientName}</span>
+                {/* Header: High Impact */}
+                <div className="p-10 pb-4 flex items-start justify-between relative">
+                    <div className="flex items-start gap-6">
+                        <div className="bg-orange-600/10 p-4 rounded-[2rem] text-orange-500 shadow-[0_0_30px_rgba(255,122,0,0.15)] border border-orange-500/20 group">
+                            <Slash size={32} strokeWidth={3} className="rotate-45 group-hover:rotate-[225deg] transition-transform duration-700" />
+                        </div>
+                        <div>
+                            <h2 className="text-4xl font-black italic text-white leading-none uppercase tracking-tighter">
+                                Cancelar <br />
+                                <span className="text-orange-500 text-shadow-glow">Solicitação</span>
+                            </h2>
+                            <div className="flex items-center gap-3 mt-4">
+                                <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-black text-white/40 uppercase tracking-[0.2em] border border-white/5">OS #{order.id.slice(-4)}</span>
+                                <span className="text-white/10 italic text-sm">/</span>
+                                <span className="text-sm font-bold text-white/50">{order.clientName}</span>
+                            </div>
                         </div>
                     </div>
                     <button 
                         onClick={onClose} 
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                        className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all text-white/30 hover:text-white border border-white/5 shadow-xl"
                     >
-                        <X size={20} />
+                        <X size={24} />
                     </button>
                 </div>
 
-                <div className="p-8 pt-2 space-y-6">
+                <div className="px-10 pb-10 space-y-8">
 
-                    {/* 1. Dynamic Financial Warning - The "Premium" Box */}
-                    <div className={`rounded-3xl p-5 border-2 transition-all duration-500 overflow-hidden relative ${
+                    {/* 1. Ultra-Premium Glass Financial Panel */}
+                    <div className={`rounded-[2.5rem] p-8 border transition-all duration-700 relative overflow-hidden ${
                         cancellationFee > 0 
-                        ? 'bg-amber-50/50 border-amber-100 shadow-[0_4px_20px_rgba(245,158,11,0.1)]' 
-                        : 'bg-emerald-50/50 border-emerald-100 shadow-[0_4px_20px_rgba(16,185,129,0.1)]'
+                        ? 'bg-gradient-to-br from-orange-600/10 to-transparent border-orange-500/20' 
+                        : 'bg-gradient-to-br from-emerald-600/10 to-transparent border-emerald-500/20'
                     }`}>
                         
-                        {/* Status Icon Indicator */}
-                        <div className={`absolute -right-4 -top-4 opacity-5 pointer-events-none`}>
-                            {cancellationFee > 0 ? <AlertTriangle size={120} /> : <ShieldCheck size={120} />}
-                        </div>
+                        {/* Background subtle glow */}
+                        <div className={`absolute -right-20 -bottom-20 w-64 h-64 blur-[80px] pointer-events-none opacity-20 ${
+                            cancellationFee > 0 ? 'bg-orange-500' : 'bg-emerald-500'
+                        }`} />
 
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <div className={`p-1.5 rounded-lg ${cancellationFee > 0 ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'}`}>
-                                    <DollarSign size={14} strokeWidth={3} />
+                        <div className="flex items-center justify-between mb-8 relative z-10">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-xl ${cancellationFee > 0 ? 'bg-orange-500 text-black shadow-glow' : 'bg-emerald-500 text-black shadow-glow-green'}`}>
+                                    <DollarSign size={18} strokeWidth={3} />
                                 </div>
-                                <span className={`text-[10px] font-black uppercase tracking-[0.1em] ${cancellationFee > 0 ? 'text-amber-800' : 'text-emerald-800'}`}>
-                                    Conciliação Financeira
-                                </span>
+                                <span className="text-[11px] font-black uppercase tracking-[0.3em] text-white">CONCILIAÇÃO FINANCEIRA</span>
                             </div>
                             {isPostAcceptance && (
-                                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${isLate ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                                    <Clock size={12} />
-                                    {isLate ? 'ATRASO DETECTADO' : 'EM ROTA'}
+                                <div className={`px-4 py-1.5 rounded-full text-[10px] font-black italic tracking-widest flex items-center gap-2 ${
+                                    isLate ? 'bg-red-500 text-white shadow-glow-red' : 'bg-white/10 text-orange-400 border border-orange-500/20'
+                                }`}>
+                                    <Clock size={12} strokeWidth={3} />
+                                    {isLate ? 'ATRASO DETECTADO' : 'ACEITO EM ROTA'}
                                 </div>
                             )}
                         </div>
 
-                        {cancellationFee > 0 ? (
+                        <div className="relative z-10 flex items-end justify-between">
                             <div>
-                                <div className="flex items-baseline gap-1.5 mb-1">
-                                    <span className="text-2xl font-black text-amber-900">R$ 4,90</span>
-                                    <span className="text-xs font-bold text-amber-700/60 uppercase">Taxa de Deslocamento</span>
-                                </div>
-                                <p className="text-xs text-amber-800/80 leading-relaxed font-medium">
-                                    O entregador aceitou o pedido há <span className="font-bold underline">{minutesElapsed} min</span>. 
-                                    Este cancelamento gerará cobrança para compensar o deslocamento parcial.
-                                </p>
+                                {cancellationFee > 0 ? (
+                                    <>
+                                        <div className="text-4xl font-black italic text-white tracking-tighter mb-2">R$ 4,90</div>
+                                        <p className="text-sm font-bold text-white/50 flex flex-col">
+                                            <span>Taxa de Deslocamento</span>
+                                            <span className="text-[10px] text-orange-500/60 uppercase tracking-widest mt-1">Motoboy já percorreu parte da rota</span>
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="text-4xl font-black italic text-emerald-400 tracking-tighter mb-2 uppercase">Isenção Total</div>
+                                        <p className="text-sm font-bold text-white/50 leading-tight">
+                                            {isLate 
+                                                ? `Cancelamento gratuito devido ao atraso do entregador (${minutesElapsed} min).`
+                                                : isPlausibleReason 
+                                                    ? "Cancelamento por falha na entrega. Reembolso integral aprovado."
+                                                    : "Cancelamento em fase pendente. Sem custos operacionais."
+                                            }
+                                        </p>
+                                    </>
+                                )}
                             </div>
-                        ) : (
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1">
-                                    <h3 className="text-lg font-black text-emerald-900 leading-tight uppercase italic tracking-tighter">Isenção de Taxa</h3>
-                                    <p className="text-xs text-emerald-800/80 mt-1 font-medium leading-relaxed">
-                                        {isLate 
-                                            ? `O entregador excedeu o prazo de 15 minutos (tempo: ${minutesElapsed} min). Cancelamento gratuito.`
-                                            : isPlausibleReason 
-                                                ? "Motivo plausível selecionado. O valor será estornado integralmente para seu saldo."
-                                                : "O cancelamento em fase pendente não gera custos ao estabelecimento."
-                                        }
-                                    </p>
-                                </div>
-                                <CheckCircle2 className="text-emerald-500 shrink-0" size={32} />
-                            </div>
-                        )}
+                            {cancellationFee === 0 && <CheckCircle2 className="text-emerald-500 drop-shadow-glow-green" size={48} strokeWidth={1.5} />}
+                            {cancellationFee > 0 && <AlertTriangle className="text-orange-500 drop-shadow-glow" size={48} strokeWidth={1.5} />}
+                        </div>
                     </div>
 
-                    {/* 2. Reason Selector */}
-                    <div>
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 ml-1">Motivo do Cancelamento</label>
-                        <div className="grid gap-2">
+                    {/* 2. Custom Chocolate Reason Buttons */}
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-white/30 uppercase tracking-[0.3em] ml-2 mb-4 block">Selecione o Motivo Real</label>
+                        <div className="grid gap-3">
                             {reasons.map((r) => (
                                 <button
                                     key={r}
                                     onClick={() => setReason(r)}
-                                    className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 text-left ${
+                                    className={`group flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all duration-300 text-left relative overflow-hidden ${
                                         reason === r 
-                                        ? 'bg-[#3d1b11] border-[#3d1b11] text-white shadow-xl scale-[1.02]' 
-                                        : 'bg-white border-gray-100 hover:border-orange-200 text-gray-700 hover:bg-orange-50/10'
+                                        ? 'bg-orange-500 border-orange-500 text-black shadow-[0_15px_30px_rgba(255,122,0,0.3)] scale-[1.03]' 
+                                        : 'bg-white/5 border-white/5 hover:border-white/20 text-white/70 hover:bg-white/[0.08]'
                                     }`}
                                 >
-                                    <span className={`text-sm font-bold ${reason === r ? 'text-white' : 'text-gray-900 group-hover:text-orange-600'}`}>{r}</span>
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                        reason === r ? 'border-orange-400 bg-orange-400' : 'border-gray-200 group-hover:border-orange-200'
+                                    {/* Inner Shine for active buttons */}
+                                    {reason === r && <div className="absolute top-0 left-0 w-full h-[1px] bg-white/40 blur-[1px]" />}
+                                    
+                                    <span className={`text-sm font-black italic uppercase tracking-tight ${reason === r ? 'text-black' : 'group-hover:text-white'}`}>{r}</span>
+                                    
+                                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                                        reason === r ? 'border-black bg-black shadow-lg' : 'border-white/20 group-hover:border-white/40'
                                     }`}>
-                                        {reason === r && <Check size={12} strokeWidth={4} className="text-white" />}
+                                        {reason === r && <ChevronRight size={14} strokeWidth={4} className="text-orange-500" />}
                                     </div>
                                 </button>
                             ))}
                         </div>
 
                         {reason === "Outro motivo" && (
-                            <div className="mt-4 animate-in slide-in-from-top-2 duration-300">
+                            <div className="mt-6 animate-in zoom-in-95 duration-300">
                                 <textarea
-                                    className="w-full p-5 border-2 border-gray-100 bg-gray-50 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#3d1b11] focus:bg-white transition-all resize-none"
-                                    placeholder="Diga-nos o que aconteceu..."
+                                    className="w-full p-6 bg-white/5 border-2 border-white/10 rounded-[2rem] text-sm font-bold text-white placeholder:text-white/20 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:bg-white/10 transition-all resize-none shadow-inner"
+                                    placeholder="Descreva o motivo detalhadamente..."
                                     rows={3}
                                     value={customReason}
                                     onChange={(e) => setCustomReason(e.target.value)}
@@ -193,35 +195,39 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
                         )}
                     </div>
 
-                    {/* 3. Helper Text */}
-                    <div className="flex items-center justify-center gap-2 py-2">
-                        <div className="h-[1px] flex-1 bg-gray-100" />
-                        <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase tracking-tighter">
-                            <Info size={12} className="shrink-0" />
-                            Atenção: Ação Irreversível
-                        </div>
-                        <div className="h-[1px] flex-1 bg-gray-100" />
+                    {/* 3. Footer Actions: Ultra Contrast */}
+                    <div className="pt-6 flex items-center gap-4">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 py-5 text-[11px] font-black text-white/40 hover:text-white uppercase tracking-[0.3em] transition-all hover:translate-x-[-4px]"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                Voltar
+                            </span>
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!reason || (reason === "Outro motivo" && !customReason)}
+                            className={`flex-[2] py-6 text-sm font-black italic text-black uppercase tracking-[0.3em] rounded-[2.5rem] transition-all relative overflow-hidden shadow-2xl active:scale-95 disabled:opacity-20 disabled:grayscale ${
+                                reason 
+                                ? 'bg-orange-500 hover:bg-orange-400 shadow-orange-500/20' 
+                                : 'bg-white/10 text-white/30'
+                            }`}
+                        >
+                            {/* Button Shine Layer */}
+                            {reason && <div className="absolute top-0 left-0 w-full h-1/2 bg-white/20 rotate-12 -translate-y-full group-hover:translate-y-full transition-transform duration-1000" />}
+                            Confirmar
+                        </button>
                     </div>
 
                 </div>
 
-                {/* Footer Actions */}
-                <div className="p-6 bg-[#fff9f2]/50 border-t border-gray-100 flex gap-4">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-4 text-sm font-black text-gray-500 hover:text-gray-800 transition-colors uppercase tracking-widest"
-                    >
-                        Voltar
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!reason || (reason === "Outro motivo" && !customReason)}
-                        className={`flex-1 py-4 text-xs font-black text-white uppercase tracking-[0.2em] rounded-2xl transition-all shadow-xl disabled:opacity-30 disabled:grayscale ${
-                            reason ? 'bg-[#3d1b11] hover:bg-[#2a120c] shadow-orange-900/10 hover:shadow-orange-900/20 active:scale-95' : 'bg-gray-300'
-                        }`}
-                    >
-                        Confirmar
-                    </button>
+                {/* Info Bar */}
+                <div className="bg-white/[0.03] p-4 text-center border-t border-white/5">
+                    <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] flex items-center justify-center gap-3">
+                        <Info size={12} />
+                        Segurança Guepardo: Operação Ratificada
+                    </p>
                 </div>
 
             </div>
