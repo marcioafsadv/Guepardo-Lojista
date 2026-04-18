@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, User, Bike, Store, MessageSquare } from 'lucide-react';
+import { X, Send, User, Bike, Store, MessageSquare, ShieldCheck } from 'lucide-react';
 import { Order, ChatMessage, SenderType, ChatRoomType } from '../types';
 import { supabase } from '../lib/supabaseClient';
 
@@ -11,7 +11,7 @@ interface ChatMultilateralModalProps {
 
 export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ onClose, order, theme }) => {
   const isOpen = !!order;
-  const [activeTab, setActiveTab] = useState<ChatRoomType>('COURIER_CLIENT');
+  const [activeTab, setActiveTab] = useState<ChatRoomType>('STORE_COURIER');
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -130,14 +130,14 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
         {/* TABS */}
         <div className="px-6 py-4 bg-[#1A0900] flex gap-3">
           <button
-            onClick={() => setActiveTab('COURIER_CLIENT')}
+            onClick={() => setActiveTab('STORE_CENTRAL')}
             className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 border ${
-              activeTab === 'COURIER_CLIENT' 
+              activeTab === 'STORE_CENTRAL' 
               ? 'bg-white/10 border-white/20 text-white shadow-xl scale-[1.02]' 
               : 'bg-transparent border-white/5 text-white/20 hover:text-white/40 hover:bg-white/5'
             }`}
           >
-            <Bike size={16} strokeWidth={3} /> Entregador x Cliente
+            <ShieldCheck size={16} strokeWidth={3} /> Lojista x Central
           </button>
           <button
             onClick={() => setActiveTab('STORE_COURIER')}
@@ -147,7 +147,7 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
               : 'bg-transparent border-white/5 text-white/20 hover:text-white/40 hover:bg-white/5'
             }`}
           >
-            <Store size={16} strokeWidth={3} /> Loja x Entregador
+            <Store size={16} strokeWidth={3} /> Lojista x Entregador
           </button>
         </div>
 

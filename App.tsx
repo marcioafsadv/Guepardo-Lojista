@@ -298,6 +298,7 @@ function App() {
             addressComplement: items.addressComplement || '',
             addressCity: items.addressCity || 'Itu',
             addressCep: items.addressCep || '00000-000',
+            acceptedAt: d.accepted_at ? new Date(d.accepted_at) : null,
             deliveryValue: Number(items.deliveryValue) || 0,
             paymentMethod: items.paymentMethod || 'PIX',
             changeFor: items.changeFor ? Number(items.changeFor) : null,
@@ -1580,6 +1581,45 @@ function App() {
         cancelOrderInDB();
     };
 
+    const handleReassignOrder = async (orderId: string) => {
+        console.log("♻️ [handleReassignOrder] Reassigning order due to timeout:", orderId);
+        
+        try {
+            // Update DB: Back to PENDING, remove driver
+            const { error } = await supabase
+                .from('deliveries')
+                .update({ 
+                    status: 'pending',
+                    driver_id: null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (error) throw error;
+
+            // Update local state immediately
+            setOrders(prev => prev.map(o => {
+                if (o.id !== orderId) return o;
+                return {
+                    ...o,
+                    status: OrderStatus.PENDING,
+                    courier: undefined,
+                    acceptedAt: null
+                };
+            }));
+
+            playAlert('cheetah'); // Rugido alertando que voltou a ser pendente
+            setNotification({ title: "Pedido Reaberto", message: "Entregador removido por atraso na chegada." });
+            setTimeout(() => setNotification(null), 5000);
+            
+            // Broadcast to all drivers that a new mission is available
+            emitToDriver(orderId, { id: orderId, status: 'pending', driver_id: null });
+
+        } catch (err) {
+            console.error("❌ [handleReassignOrder] Error:", err);
+        }
+    };
+
 
 
 
@@ -1719,9 +1759,25 @@ function App() {
                 setAvailableCouriers(roamingCouriers);
             }
 
-        }, 100);
+            // --- PART C: TIMEOUT MONITOR (15 MIN RULE) ---
+            const TIMEOUT_LIMIT = 15 * 60 * 1000; // 15 minutes
+            const now = Date.now();
+            
+            currentOrders.forEach(order => {
+                // Rule applies only for ACCEPTED orders where the courier hasn't arrived at the store yet
+                if ((order.status === OrderStatus.ACCEPTED) && order.acceptedAt) {
+                    const acceptedTime = new Date(order.acceptedAt).getTime();
+                    const elapsed = now - acceptedTime;
+                    
+                    if (elapsed > TIMEOUT_LIMIT) {
+                        handleReassignOrder(order.id);
+                    }
+                }
+            });
+
+        }, 5000); // Check every 5 seconds (good balance for roaming and timeout)
         return () => clearInterval(interval);
-    }, []); // Empty dependency array = stable interval that uses Refs
+    }, [realtimeStatus, handleReassignOrder]);
 
     // Sync activeOrder separately if needed (Optional, UI updates via orders prop usually)
     useEffect(() => {

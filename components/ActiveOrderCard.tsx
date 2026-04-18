@@ -42,6 +42,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
   unreadCount = 0
 }) => {
   const [secondsWaiting, setSecondsWaiting] = useState(0);
+  const [arrivalTimerSeconds, setArrivalTimerSeconds] = useState(0);
 
   // Timer logic for Pending state
   useEffect(() => {
@@ -55,6 +56,21 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
     }
     return () => clearInterval(interval);
   }, [order.status]);
+
+  // Arrival Timer logic (Timeout monitor counterpart)
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if ((order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE) && order.acceptedAt) {
+      interval = setInterval(() => {
+        const acceptedDate = new Date(order.acceptedAt!);
+        const elapsed = Math.floor((Date.now() - acceptedDate.getTime()) / 1000);
+        setArrivalTimerSeconds(elapsed >= 0 ? elapsed : 0);
+      }, 1000);
+    } else {
+      setArrivalTimerSeconds(0);
+    }
+    return () => clearInterval(interval);
+  }, [order.status, order.acceptedAt]);
 
   // Format seconds to mm:ss
   const formatTime = (totalSeconds: number) => {
@@ -271,6 +287,16 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                       <MapPin size={12} />
                       {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
                     </div>
+
+                    {/* Arrival Timer Display */}
+                    {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE) && arrivalTimerSeconds > 0 && (
+                      <div className={`ml-auto flex items-center gap-2 text-[10px] font-black italic px-3 py-1.5 rounded-xl border animate-pulse ${
+                          arrivalTimerSeconds > 720 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                        }`}>
+                        <Clock size={12} strokeWidth={3} className={arrivalTimerSeconds > 720 ? 'animate-spin-slow' : ''} />
+                        TEMPO: {formatTime(arrivalTimerSeconds)} / 15:00
+                      </div>
+                    )}
                   </>
                 )}
               </div>

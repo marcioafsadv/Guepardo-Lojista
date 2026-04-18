@@ -75,6 +75,7 @@ export interface Order {
 
   status: OrderStatus;
   createdAt: Date;
+  acceptedAt?: Date | null;
   courier?: Courier;
   estimatedPrice: number;
   storeFreight: number; // The actual freight cost paid by the store (base + stops + return)
@@ -174,8 +175,8 @@ export interface AddressComponents {
 }
 
 
-export type SenderType = 'STORE' | 'COURIER' | 'CLIENT';
-export type ChatRoomType = 'STORE_COURIER' | 'COURIER_CLIENT';
+export type SenderType = 'STORE' | 'COURIER' | 'CLIENT' | 'CENTRAL';
+export type ChatRoomType = 'STORE_COURIER' | 'COURIER_CLIENT' | 'STORE_CENTRAL';
 
 export interface ChatMessage {
   id: string;
