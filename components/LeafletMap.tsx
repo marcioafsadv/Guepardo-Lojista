@@ -533,45 +533,24 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     );
                 })}
 
-                {/* 3. ACTIVE ROUTES & STOPS */}
+                {/* 3. ACTIVE ROUTE (Only shown for activeOrder) */}
                 {batchRoutes.map(route => {
                     const isTrackingActive = activeOrder && activeRouteStats?.geometry && route.orders?.some(o => o.id === activeOrder.id);
+                    if (!isTrackingActive) return null;
                     
                     return (
-                        <React.Fragment key={route.id}>
-                            {/* Road-snapped Route (High Fidelity) */}
-                            {isTrackingActive ? (
-                                <Polyline 
-                                    positions={activeRouteStats.geometry!}
-                                    pathOptions={{ 
-                                        color: route.color, 
-                                        weight: 4, 
-                                        opacity: 0.9
-                                    }}
-                                />
-                            ) : (
-                                <>
-                                    {/* Line from Start (Store or Courier) to first stop (Dashed) */}
-                                    <Polyline 
-                                        positions={[route.path[0], route.path[1]]}
-                                        pathOptions={{ 
-                                            color: route.color, 
-                                            weight: 2, 
-                                            opacity: route.hasCourier ? 0.9 : 0.6
-                                        }}
-                                    />
-                                    {/* Lines between stops (Solid) */}
-                                    {route.path.length > 2 && (
-                                        <Polyline 
-                                            positions={route.path.slice(1)}
-                                            pathOptions={{ color: route.color, weight: 3, opacity: 0.8 }}
-                                        />
-                                    )}
-                                </>
-                            )}
-                        </React.Fragment>
+                        <Polyline 
+                            key={`route-${route.id}`}
+                            positions={activeRouteStats.geometry!}
+                            pathOptions={{ 
+                                color: route.color, 
+                                weight: 6, 
+                                opacity: 0.9
+                            }}
+                        />
                     );
                 })}
+
 
                 {/* 3.1 STOP MARKERS */}
                 {orderMarkers.map(m => {
@@ -602,13 +581,10 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     );
                 })}
 
-                {/* 4. DRAFT ROUTE (Dashed Orange) */}
+                {/* 4. DRAFT MARKERS (Route line removed) */}
                 {routePolyline && routePolyline.length > 0 && (
                     <>
-                        <Polyline 
-                            positions={routePolyline}
-                            pathOptions={{ color: COLORS.orange, weight: 5, opacity: 0.8 }}
-                        />
+
                         {showDrafts && (
                             <>
                                 {destinationCoords && (

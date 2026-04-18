@@ -98,6 +98,8 @@ function App() {
     const [historyFilter, setHistoryFilter] = useState('all');
     const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
+    const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
+    const [openChatId, setOpenChatId] = useState<string | null>(null);
     const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
     const [settings, setSettings] = useState<StoreSettings>({
         openTime: "08:00",
@@ -165,10 +167,10 @@ function App() {
         }
     }, []);
 
-    const playAlert = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.play().catch(e => console.warn('Could not play sound:', e));
-        }
+    const playAlert = useCallback((type: keyof typeof SOUNDS = 'cheetah') => {
+        const soundPath = SOUNDS[type] || SOUNDS.default;
+        const audio = new Audio(soundPath);
+        audio.play().catch(e => console.warn('Could not play sound:', e));
     }, []);
 
     const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
@@ -557,7 +559,7 @@ function App() {
 
                     // Alert on arrival
                     if (existing.status !== newOrder.status && newOrder.status === OrderStatus.ARRIVED_AT_STORE) {
-                        playAlert();
+                        playAlert('beep');
                     }
 
                     // Check if anything meaningful changed (status or courier info)
@@ -605,7 +607,7 @@ function App() {
                     if (payload.eventType === 'INSERT') {
                         const newOrder = await processDeliveryRecord(payload.new);
                         setOrders(prev => [newOrder, ...prev]);
-                        playAlert();
+                        playAlert('cheetah');
                     } 
                     else if (payload.eventType === 'UPDATE') {
                         const start = performance.now();
@@ -627,7 +629,7 @@ function App() {
                         const mappedStatus = mapSupabaseStatusToLocal(fullRecord.status);
 
                         if (existing && existing.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
-                            playAlert();
+                            playAlert('beep');
                         }
 
                         const updatedOrder = await processDeliveryRecord(fullRecord);
@@ -709,11 +711,42 @@ function App() {
             )
             .subscribe();
 
+        // 3. Unread Messages Listener (Global)
+        const messageChannel = supabase
+            .channel(`unread-messages-${session.user.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'order_messages'
+                },
+                (payload) => {
+                    const orderId = payload.new.order_id;
+                    const senderType = payload.new.sender_type;
+
+                    if (senderType === 'STORE') return;
+
+                    // Security & Performance: Only alert if the order belongs to this store's active list
+                    const isOurOrder = ordersRef.current.some(o => o.id === orderId);
+                    if (!isOurOrder) return;
+
+                    setUnreadMessages(prev => ({
+                        ...prev,
+                        [orderId]: (prev[orderId] || 0) + 1
+                    }));
+
+                    playAlert('beep');
+                }
+            )
+            .subscribe();
+
         return () => {
             supabase.removeChannel(deliveryChannel);
             supabase.removeChannel(profilesChannel);
+            supabase.removeChannel(messageChannel);
         };
-    }, [session?.user, processDeliveryRecord, playAlert, mapSupabaseStatusToLocal, syncId]);
+    }, [session?.user, pollData, playAlert, processDeliveryRecord, mapSupabaseStatusToLocal, syncId]);
 
     // Initial load and insurance polling (Dynamic Interval)
     useEffect(() => {
@@ -1914,6 +1947,8 @@ function App() {
                             onBulkAssign={handleBulkAssign}
                             theme={settings.mapTheme}
                             settings={settings}
+                            unreadMessages={unreadMessages}
+                            setUnreadMessages={setUnreadMessages}
                             onToggleMapTheme={toggleMapTheme}
                             balance={realStoreProfile?.wallet_balance || 0}
                             onSelectView={setCurrentView}
@@ -1982,26 +2017,6 @@ function App() {
                 </div>
             )}
 
-            {/* REALTIME STATUS INDICATOR */}
-            <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
-                <div className={`px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-md transition-all duration-500 shadow-2xl ${
-                    realtimeStatus === 'SUBSCRIBED' 
-                        ? 'bg-green-500/10 border-green-500/20 text-green-400' 
-                        : realtimeStatus === 'CONNECTING' 
-                        ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                        : 'bg-red-500/10 border-red-500/20 text-red-400'
-                }`}>
-                    <div className="relative flex h-2 w-2">
-                        {realtimeStatus === 'SUBSCRIBED' && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                        <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                            realtimeStatus === 'SUBSCRIBED' ? 'bg-green-500' : realtimeStatus === 'CONNECTING' ? 'bg-amber-500' : 'bg-red-500'
-                        }`}></span>
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] italic">
-                        {realtimeStatus === 'SUBSCRIBED' ? 'Ao Vivo' : realtimeStatus === 'CONNECTING' ? 'Conectando' : 'Desconectado'}
-                    </span>
-                </div>
-            </div>
         </div>
     );
 }

@@ -44,6 +44,8 @@ interface GestaoDePedidosProps {
     mapboxToken?: string;
     balance?: number;
     onSelectView?: (view: any) => void;
+    unreadMessages: Record<string, number>;
+    setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -78,7 +80,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     settings,
     onToggleMapTheme,
     balance = 0,
-    onSelectView
+    onSelectView,
+    unreadMessages,
+    setUnreadMessages
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -101,6 +105,19 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [targetCourierId, setTargetCourierId] = useState<string>('');
     const [isFormCollapsed, setIsFormCollapsed] = useState(false);
     const [enrichedDraftStops, setEnrichedDraftStops] = useState<any[]>([]);
+    const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
+
+    // Effect to clear unread messages when chat opens
+    useEffect(() => {
+        if (selectedOrderForChat) {
+            setUnreadMessages(prev => {
+                if (!prev[selectedOrderForChat.id]) return prev;
+                const next = { ...prev };
+                delete next[selectedOrderForChat.id];
+                return next;
+            });
+        }
+    }, [selectedOrderForChat?.id, setUnreadMessages]);
 
     // Bulk Actions State
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
@@ -229,7 +246,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
     // --- CHAT STATE ---
     const [isChatOpen, setIsChatOpen] = useState(false);
-    const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
 
     const handleOpenChat = (order: Order) => {
         setSelectedOrderForChat(order);
@@ -415,9 +431,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     draftAddress={draftAddress}
                     draftAddressCoords={draftAddressCoords}
                     draftAdditionalStops={enrichedDraftStops}
-                    draftRouteStats={routeStats}
                     onCardClick={handleOrderSelect}
                     mapboxToken={mapboxToken}
+                    activeRouteStats={activeRouteStats}
                     showDrafts={!isFormCollapsed && !!draftAddress}
                 />
             </div>
@@ -490,6 +506,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 onConfirmReturn={onConfirmReturn}
                                 onMarkAsReady={onMarkAsReady}
                                 routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
+                                unreadCount={unreadMessages[order.id] || 0}
                             />
                         ))}
 

@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
-import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle, MessageSquare, PackageCheck } from 'lucide-react';
 
 interface ActiveOrderCardProps {
   order: Order;
@@ -12,9 +12,9 @@ interface ActiveOrderCardProps {
   onCardClick?: (order: Order) => void;
   onTrackClick?: (order: Order) => void;
   onValidateClick?: (order: Order) => void;
-  onConfirmReturn?: (orderId: string) => void;
   onMarkAsReady?: (orderId: string) => void;
   routeStats?: any;
+  unreadCount?: number;
 }
 
 // Helper for distance
@@ -38,7 +38,8 @@ const BASE_STEPS = [
 ];
 
 export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ 
-  order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, onMarkAsReady, routeStats
+  order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, onMarkAsReady, routeStats,
+  unreadCount = 0
 }) => {
   const [secondsWaiting, setSecondsWaiting] = useState(0);
 
@@ -276,29 +277,29 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex gap-2 mt-6">
             {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onMarkAsReady?.(order.id); }}
-                className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-orange-600 text-white hover:bg-orange-700 transition-all text-[10px] font-black uppercase tracking-widest shadow-glow animate-in zoom-in duration-300"
+                className="flex-[1.2] h-12 flex items-center justify-center gap-2 rounded-xl bg-orange-600/20 border border-orange-500/40 text-orange-500 hover:bg-orange-600 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest shadow-glow animate-in zoom-in duration-300"
+                title="Marcar como Preparado"
               >
-                <CheckCircle2 size={14} strokeWidth={3} />
+                <CheckCircle2 size={16} strokeWidth={3} />
                 Pronto
               </button>
             )}
-            <button 
-              onClick={(e) => { e.stopPropagation(); }}
-              className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl bg-black/40 border border-white/5 text-white hover:bg-white/5 transition-all text-[10px] font-black uppercase tracking-wider shadow-2xl"
-            >
-              <Phone size={14} strokeWidth={3} />
-              Ligar
-            </button>
+            
             <button 
               onClick={(e) => { e.stopPropagation(); onChatClick?.(order); }}
-              className="w-12 h-12 bg-black/40 hover:bg-white/5 text-white rounded-xl border border-white/5 transition-all flex items-center justify-center relative shadow-2xl group/chat"
+              className="w-14 h-12 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all flex items-center justify-center relative shadow-2xl group/chat"
+              title="Abrir Chat"
             >
-              <MessageSquare size={18} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-guepardo-accent rounded-full border-2 border-[#121212]"></div>
+              <MessageSquare size={20} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+              {unreadCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-[#1a0900] shadow-[0_0_10px_rgba(255,165,0,0.5)] animate-bounce flex items-center justify-center">
+                   <span className="text-[7px] font-black text-white">{unreadCount}</span>
+                </div>
+              )}
             </button>
             
             {order.status === OrderStatus.RETURNING ? (
@@ -306,7 +307,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 onClick={(e) => { e.stopPropagation(); onConfirmReturn?.(order.id); }}
                 className="flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow-green"
               >
-                <CheckCircle2 size={14} strokeWidth={3} />
+                <CheckCircle2 size={16} strokeWidth={3} />
                 Finalizar
               </button>
             ) : (
@@ -322,8 +323,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 className={`flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl text-white hover:brightness-110 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow 
                   ${(order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'bg-green-600 shadow-glow-green' : 'bg-brand-gradient'}`}
               >
-                <Navigation size={14} strokeWidth={3} className="drop-shadow-glow" />
-                <span className="text-shadow-glow">{ (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }</span>
+                { (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? <PackageCheck size={20} strokeWidth={3} /> : <Navigation size={18} strokeWidth={3} className="drop-shadow-glow" /> }
+                <span className="text-shadow-glow uppercase tracking-wider">{ (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }</span>
               </button>
             )}
           </div>
