@@ -1568,6 +1568,25 @@ function App() {
             const { error: dbError } = await supabase.from('deliveries').update({ status: 'cancelled', cancellation_reason: reason }).eq('id', orderId);
             if (dbError) throw dbError;
 
+            // 4.1. Fast Broadcast to Courier
+            try {
+                const channel = supabase.channel(`public:deliveries:${orderId}`);
+                await channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'mission_updated',
+                            payload: { id: orderId, status: 'cancelled' }
+                        });
+                        console.log(`🚀 [REALTIME] Cancellation broadcast sent to courier for OS: ${orderId}`);
+                        // Clean up channel after a short delay
+                        setTimeout(() => supabase.removeChannel(channel), 5000);
+                    }
+                });
+            } catch (broadcastErr) {
+                console.warn('⚠️ Fallback to database sync only (Broadcast failed):', broadcastErr);
+            }
+
             if (refundAmount > 0 && session?.user?.id) {
                 await supabase.from('wallet_transactions').insert({
                     store_id: session.user.id,
