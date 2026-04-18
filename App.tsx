@@ -1518,18 +1518,31 @@ function App() {
     };
 
     // NEW: HANDLE CANCEL ORDER
-    const handleCancelOrder = (orderId: string, reason: string) => {
+    const handleCancelOrder = async (orderId: string, reason: string) => {
         const order = orders.find(o => o.id === orderId);
         if (!order) return;
 
         // 1. Return courier to pool if exists
         if (order.courier) {
-            // If the courier is not at the destination yet, place them back at current simulated location
             const returnedCourier = { ...order.courier };
-            setAvailableCouriers(prev => [...prev, returnedCourier]);
+            setAvailableCouriers(prev => {
+                const filtered = prev.filter(c => c.id !== returnedCourier.id);
+                return [...filtered, returnedCourier];
+            });
         }
 
-        // 2. Update Order Status
+        // 2. Logic for Refund & Fees
+        const now = new Date();
+        const acceptedTime = order.acceptedAt ? new Date(order.acceptedAt).getTime() : now.getTime();
+        const minutesElapsed = Math.floor((now.getTime() - acceptedTime) / 60000);
+        const isPostAcceptance = [OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT].includes(order.status);
+        const isLate = minutesElapsed >= 15;
+        const isPlausibleReason = ["Demora na busca do entregador", "Motoboy não chegou ao estabelecimento"].includes(reason);
+        const isRefundable = !isPostAcceptance || isLate || isPlausibleReason;
+        const cancellationFee = isRefundable ? 0 : 4.90;
+        const refundAmount = (order.storeFreight || 0) > 0 ? (order.storeFreight - cancellationFee) : 0;
+
+        // 3. Update Order Status locally
         const newEvent: OrderEvent = {
             status: OrderStatus.CANCELED,
             label: "Cancelado",
@@ -1544,42 +1557,41 @@ function App() {
                 status: OrderStatus.CANCELED,
                 cancellationReason: reason,
                 events: [...o.events, newEvent],
-                courier: undefined // Remove courier association from order
+                courier: undefined
             };
         }));
+        if (activeOrder?.id === orderId) setActiveOrder(null);
+        if (selectedOrderDetails?.id === orderId) setSelectedOrderDetails(null);
 
-        // 3. Clear Active Order if it's the one cancelled
-        if (activeOrder?.id === orderId) {
-            setActiveOrder(null);
-        }
-        if (selectedOrderDetails?.id === orderId) {
-            setSelectedOrderDetails(null);
-        }
+        // 4. Persist to DB
+        try {
+            const { error: dbError } = await supabase.from('deliveries').update({ status: 'cancelled', cancellation_reason: reason }).eq('id', orderId);
+            if (dbError) throw dbError;
 
-
-        setNotification({ title: "Pedido Cancelado", message: "Solicitação interrompida e motoboy liberado." });
-        setTimeout(() => setNotification(null), 4000);
-
-        // 4. Persist to Supabase
-        const cancelOrderInDB = async () => {
-            try {
-                const { error } = await supabase
-                    .from('deliveries')
-                    .update({
-                        status: 'cancelled'
-                    })
-                    .eq('id', orderId);
-
-                if (error) throw error;
-                console.log("✅ Order cancelled in DB:", orderId);
-            } catch (err) {
-                console.error("❌ Error cancelling order in DB:", err);
-                setNotification({ title: "Erro", message: "Falha ao cancelar no servidor." });
-                setTimeout(() => setNotification(null), 4000);
+            if (refundAmount > 0 && session?.user?.id) {
+                await supabase.from('wallet_transactions').insert({
+                    store_id: session.user.id,
+                    amount: refundAmount,
+                    type: 'REFUND',
+                    status: 'CONFIRMED',
+                    description: `Reembolso OS #${order.display_id || order.id.slice(-4)} ${cancellationFee > 0 ? '(Taxa desc.)' : ''}`,
+                    payment_method: 'WALLET'
+                });
+                const { data: store, error: fetchErr } = await supabase.from('stores').select('wallet_balance').eq('id', session.user.id).single();
+                if (!fetchErr && store) {
+                    const newBalance = (store.wallet_balance || 0) + refundAmount;
+                    await supabase.from('stores').update({ wallet_balance: newBalance }).eq('id', session.user.id);
+                    fetchStoreProfile();
+                }
             }
-        };
-        cancelOrderInDB();
+            setNotification({ title: "Pedido Cancelado", message: refundAmount > 0 ? `Reembolso de R$ ${refundAmount.toFixed(2)} creditado.` : "Solicitação interrompida e motoboy liberado." });
+        } catch (err) {
+            console.error("❌ [App] Error during cancellation flow:", err);
+            setNotification({ title: "Erro", message: "O cancelamento falhou no servidor." });
+        }
+        setTimeout(() => setNotification(null), 5000);
     };
+
 
     const handleReassignOrder = async (orderId: string) => {
         console.log("♻️ [handleReassignOrder] Reassigning order due to timeout:", orderId);
