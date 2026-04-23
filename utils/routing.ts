@@ -66,54 +66,88 @@ export async function calculateRoute(
 
 /**
  * Optimizes a route between multiple coordinates using Mapbox Optimization API.
+ * Includes a local Greedy fallback if the API is unauthorized or fails.
  * @param coordinates - Array of [lat, lng] pairs. First is ALWAYS the origin (Store).
  * @param roundtrip - If true, the route will end back at the origin.
- * @returns Array of indices in optimized order, or null if fails.
+ * @returns Array of indices in optimized order.
  */
 export async function optimizeRoute(
     coordinates: [number, number][],
     roundtrip: boolean = false
-): Promise<number[] | null> {
+): Promise<number[]> {
     if (coordinates.length < 3) {
-        // Optimization only makes sense for 3+ points (Store + 2 stops)
         return coordinates.map((_, i) => i);
     }
 
-    // Mapbox Optimization API uses [lng, lat] strings joined by ';'
     const coordString = coordinates.map(c => `${c[1]},${c[0]}`).join(';');
-    
-    // source=first: Fixes the first point as the start
-    // destination=any: Allows any point to be the last (Mapbox decides)
-    // roundtrip: if true, returns to start
     const url = `https://api.mapbox.com/optimized-trips/v1/mapbox/driving/${coordString}?access_token=${MAPBOX_TOKEN}&source=first&destination=any&roundtrip=${roundtrip}&geometries=geojson&overview=full`;
 
     try {
-        console.log("🎯 [Routing] Optimizing route with", coordinates.length, "points (Roundtrip:", roundtrip, ")");
+        console.log("🎯 [Routing] Attempting Mapbox Optimization API...");
         const response = await fetch(url);
         
-        if (!response.ok) {
-            console.error("❌ [Routing] Mapbox Optimization API error:", response.status, response.statusText);
-            return null;
+        if (response.ok) {
+            const data = await response.json();
+            if (data.code === 'Ok' && data.waypoints) {
+                const optimized = data.waypoints.map((wp: any) => wp.waypoint_index);
+                console.log("✅ [Routing] Mapbox Cloud Optimization Success:", optimized);
+                return optimized;
+            }
         }
-
-        const data = await response.json();
-
-        if (data.code !== 'Ok' || !data.waypoints || !data.trips) {
-            console.warn("⚠️ [Routing] Mapbox returned no optimization results:", data.code);
-            return null;
-        }
-
-        // Mapbox Documentation: "The waypoints are returned in the order in which they are visited."
-        // Each waypoint has a 'waypoint_index' reflecting its position in the original request.
-        const optimizedSequence = data.waypoints.map((wp: any) => wp.waypoint_index);
-
-        console.log("✅ [Routing] Optimized sequence:", optimizedSequence);
         
-        // We also want to return the geometry of the optimized trip
-        // but for now the caller just needs the sequence to reorder the stops.
-        return optimizedSequence;
+        console.warn("⚠️ [Routing] Mapbox API failed or unauthorized. Falling back to local Greedy Optimization.");
     } catch (error) {
-        console.error("❌ [Routing] Error optimizing route:", error);
-        return null;
+        console.error("❌ [Routing] Error calling Mapbox Optimization:", error);
     }
+
+    // --- FALLBACK: LOCAL GREEDY OPTIMIZATION ---
+    // Simple Greedy algorithm (Nearest Neighbor) is highly effective for < 10 points.
+    const visited = new Set<number>([0]); // Start at Store (0)
+    const result = [0];
+    let currentIdx = 0;
+
+    while (result.length < coordinates.length) {
+        let bestNext = -1;
+        let minDist = Infinity;
+
+        for (let i = 0; i < coordinates.length; i++) {
+            if (!visited.has(i)) {
+                // We use straight-line distance for the fallback optimization
+                const dist = calculateDistanceSimple(
+                    coordinates[currentIdx][0], coordinates[currentIdx][1],
+                    coordinates[i][0], coordinates[i][1]
+                );
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestNext = i;
+                }
+            }
+        }
+
+        if (bestNext !== -1) {
+            visited.add(bestNext);
+            result.push(bestNext);
+            currentIdx = bestNext;
+        } else {
+            break; 
+        }
+    }
+
+    console.log("🤖 [Routing] Local Greedy Optimization Result:", result);
+    return result;
+}
+
+/**
+ * Simple Haversine distance for local fallback
+ */
+function calculateDistanceSimple(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
 }
