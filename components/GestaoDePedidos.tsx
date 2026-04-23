@@ -398,11 +398,12 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             finalData.deliveryValue = first.deliveryValue;
             finalData.paymentMethod = first.paymentMethod;
             finalData.changeFor = first.changeFor;
+            finalData.stopNumber = 1; // Main destination is always the first stop (#1)
             
             // 4. Put the rest in additionalStops
             finalData.additionalStops = sortedByLogic.slice(1).map((s, i) => ({
                 ...s,
-                stopNumber: i + 2
+                stopNumber: i + 2 // Following stops continue the sequence
             }));
             
             // 5. Update display strings for the main order

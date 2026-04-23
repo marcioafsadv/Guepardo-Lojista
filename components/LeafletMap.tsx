@@ -413,7 +413,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                             id: stop.id,
                             position: [stop.destinationLat, stop.destinationLng],
                             name: stop.clientName,
-                            stopNumber: stop.stopNumber || 1,
+                            stopNumber: stop.stopNumber ?? 1,
                             status: stop.status,
                             courier_id: o.courier?.id,
                             batch_id: o.batch_id
@@ -428,7 +428,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         id: o.id,
                         position: [o.destinationLat, o.destinationLng],
                         name: o.clientName,
-                        stopNumber: o.stopNumber || 1,
+                        stopNumber: o.stopNumber ?? 1,
                         status: o.status,
                         courier_id: o.courier?.id,
                         batch_id: o.batch_id
