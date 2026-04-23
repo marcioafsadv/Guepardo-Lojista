@@ -255,6 +255,7 @@ interface LeafletMapProps {
     onCardClick?: (order: Order) => void;
     mapboxToken?: string;
     showDrafts?: boolean;
+    mainDestStopNumber?: number;
 }
 
 export const LeafletMap: React.FC<LeafletMapProps> = ({ 
@@ -271,7 +272,8 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     onCardClick,
     mapboxToken,
     draftAddressCoords,
-    showDrafts = true
+    showDrafts = true,
+    mainDestStopNumber = 1
 }) => {
     const [isManualFocus, setIsManualFocus] = useState(false);
     const [mapTheme, setMapTheme] = useState<'dark' | 'standard' | 'satellite'>('standard');
@@ -588,11 +590,11 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         {showDrafts && (
                             <>
                                 {destinationCoords && (
-                                     <Marker position={destinationCoords} icon={createStopMarker(1, draftAddressName, COLORS.orange)}>
+                                     <Marker position={destinationCoords} icon={createStopMarker(mainDestStopNumber, draftAddressName, COLORS.orange)}>
                                         <Popup>
                                             <div className="text-xs font-black">
                                                 <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
-                                                <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #1 (Rascunho)</p>
+                                                <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #{mainDestStopNumber} (Rascunho)</p>
                                             </div>
                                         </Popup>
                                      </Marker>

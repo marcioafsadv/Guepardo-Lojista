@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ActiveOrderCard } from './ActiveOrderCard';
 import { geocodeAddress } from '../utils/geocoding';
-import { calculateRoute } from '../utils/routing';
+import { calculateRoute, optimizeRoute } from '../utils/routing';
 
 // Sub-components used in GestaoDePedidos
 const SearchIcon = ({ size, className }: { size: number, className: string }) => (
@@ -105,6 +105,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [targetCourierId, setTargetCourierId] = useState<string>('');
     const [isFormCollapsed, setIsFormCollapsed] = useState(false);
     const [enrichedDraftStops, setEnrichedDraftStops] = useState<any[]>([]);
+    const [mainDestStopNumber, setMainDestStopNumber] = useState<number>(1);
     const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
 
     // Effect to clear unread messages when chat opens
@@ -171,8 +172,69 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             }
             setEnrichedDraftStops(geocodedStops);
 
-            // 3. Calculate Route
-            const stats = await calculateRoute(coords);
+
+            // 3. Optimize Route Sequence
+            let finalCoords = [...coords];
+            let finalGeocodedStops = [...geocodedStops];
+            
+            if (coords.length > 2) {
+                console.log("🛣️ [GestaoDePedidos] Optimizing sequence for", coords.length, "points...");
+                // Note: DeliveryForm doesn't have an explicit return checkbox yet, 
+                // but we can pass false or check if a return is needed based on payment method logic
+                const optimizedIndices = await optimizeRoute(coords, false);
+                
+                if (optimizedIndices && optimizedIndices.length === coords.length) {
+                    // Reorder everything based on optimized indices
+                    // Index 0 in optimizedIndices is always 0 (the Store)
+                    // We need to map the rest to our stops
+                    
+                    const newCoords: [number, number][] = [];
+                    const newEnrichedStops: any[] = [];
+                    
+                    optimizedIndices.forEach((origIdx, visitOrder) => {
+                        newCoords.push(coords[origIdx]);
+                        
+                        // If origIdx was 1, it's the main destination.
+                        // If origIdx > 1, it's one of the additional stops.
+                        if (origIdx > 1) {
+                            const stop = geocodedStops[origIdx - 2];
+                            newEnrichedStops.push({ ...stop, stopNumber: visitOrder + 1 });
+                        }
+                    });
+                    
+                    finalCoords = newCoords;
+                    // We need to identify which stop became Stop #1, #2 etc.
+                    // This is tricky because LeafletMap expects draftAdditionalStops.
+                    // Let's just update the stopNumber property in enrichedDraftStops.
+                    
+                    // Update enriched stops with their NEW optimized stop numbers
+                    const optimizedEnriched = geocodedStops.map(stop => {
+                        const originalPos = geocodedStops.indexOf(stop) + 2;
+                        const newPos = optimizedIndices.indexOf(originalPos);
+                        return { ...stop, stopNumber: newPos + 1 };
+                    });
+                    
+                    // We also need to know the NEW stop number of the main destination
+                    const mainDestNewPos = optimizedIndices.indexOf(1);
+                    console.log("📍 [GestaoDePedidos] Main destination is now Stop #", mainDestNewPos + 1);
+                    
+                    // Update state for map markers
+                    setEnrichedDraftStops(optimizedEnriched);
+                    // We might need a small hack to tell LeafletMap the main dest stop number
+                    // (DraftAddressCoords is used for marker 1).
+                    // Let's add a state for mainDestStopNumber.
+                    setMainDestStopNumber(mainDestNewPos + 1);
+                } else {
+                    setEnrichedDraftStops(geocodedStops);
+                    setMainDestStopNumber(1);
+                }
+            } else {
+                setEnrichedDraftStops(geocodedStops);
+                setMainDestStopNumber(1);
+            }
+
+            // 4. Calculate Final Optimized Route Geometry
+            const stats = await calculateRoute(finalCoords);
             if (stats) {
                 setRouteStats(stats);
             } else {
@@ -180,7 +242,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                 const dist = calculateDistance(storeProfile.lat, storeProfile.lng, destCoords.lat, destCoords.lng);
                 setRouteStats({
                     distanceText: `${dist.toFixed(1)} km`,
-                    durationText: `${Math.round(dist * 2.5)} min`, // Very rough estimate
+                    durationText: `${Math.round(dist * 2.5)} min`, 
                     distanceValue: dist * 1000,
                     durationValue: dist * 1000 * 2.5 * 60
                 });
@@ -286,13 +348,80 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     };
 
     const handleNewOrderSubmit = (data: any) => {
-        onNewOrder(data);
+        // --- ROUTE OPTIMIZATION SYNC ---
+        // If we have an optimized sequence from the live preview, we apply it here
+        // so the order is saved in the correct pedagogical sequence.
+        
+        let finalData = { ...data };
+        
+        if (data.additionalStops && data.additionalStops.length > 0 && mainDestStopNumber !== undefined) {
+            console.log("🚀 [GestaoDePedidos] Applying optimized sequence to submission...");
+            
+            // 1. Collect all stops into one array
+            // Original Stop 1 is the main destination in 'data'
+            const mainStop = {
+                clientName: data.clientName,
+                clientPhone: data.clientPhone,
+                addressStreet: data.addressStreet,
+                addressNumber: data.addressNumber,
+                addressComplement: data.addressComplement,
+                addressNeighborhood: data.addressNeighborhood,
+                addressCity: data.addressCity,
+                addressCep: data.addressCep,
+                deliveryValue: data.deliveryValue,
+                paymentMethod: data.paymentMethod,
+                changeFor: data.changeFor
+            };
+            
+            const allStops = [mainStop, ...data.additionalStops];
+            
+            // 2. Identify the optimized order
+            // Map enrichedDraftStops back to the sequence.
+            // Actually, we can just use the stopNumber we assigned.
+            const sortedByLogic = allStops.map((stop, idx) => {
+                // Find matching stop in enrichedDraftStops to get its stopNumber
+                // Stop 0 is main
+                if (idx === 0) return { ...stop, stopNumber: mainDestStopNumber };
+                const enriched = enrichedDraftStops[idx - 1];
+                return { ...stop, stopNumber: enriched?.stopNumber || (idx + 1) };
+            }).sort((a, b) => a.stopNumber - b.stopNumber);
+            
+            console.log("✅ [GestaoDePedidos] Re-sequenced stops:", sortedByLogic.map(s => s.addressStreet));
+            
+            // 3. Re-assign the first one to the 'main' level of finalData
+            const first = sortedByLogic[0];
+            finalData.clientName = first.clientName;
+            finalData.clientPhone = first.clientPhone;
+            finalData.addressStreet = first.addressStreet;
+            finalData.addressNumber = first.addressNumber;
+            finalData.addressComplement = first.addressComplement;
+            finalData.addressNeighborhood = first.addressNeighborhood;
+            finalData.addressCity = first.addressCity;
+            finalData.addressCep = first.addressCep;
+            finalData.deliveryValue = first.deliveryValue;
+            finalData.paymentMethod = first.paymentMethod;
+            finalData.changeFor = first.changeFor;
+            
+            // 4. Put the rest in additionalStops
+            finalData.additionalStops = sortedByLogic.slice(1).map((s, i) => ({
+                ...s,
+                stopNumber: i + 2
+            }));
+            
+            // 5. Update display strings for the main order
+            finalData.destination = `${first.addressStreet}, ${first.addressNumber}${first.addressComplement ? ' - ' + first.addressComplement : ''} - ${first.addressNeighborhood}, ${first.addressCity}`;
+        }
+
+        onNewOrder(finalData);
+        
+        // Reset local draft states
         setDraftAddress('');
         setDraftAddressCoords(null);
         setRouteStats(null);
         setDraftAdditionalStops([]);
         setTargetCourierId('');
         setIsSelectingCourier(false);
+        setMainDestStopNumber(1);
     };
 
     const handleCourierSelect = (courierId: string) => {
@@ -435,6 +564,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     mapboxToken={mapboxToken}
                     activeRouteStats={activeRouteStats}
                     showDrafts={!isFormCollapsed && !!draftAddress}
+                    mainDestStopNumber={mainDestStopNumber}
                 />
             </div>
 
