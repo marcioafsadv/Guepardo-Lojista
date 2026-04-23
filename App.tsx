@@ -1227,7 +1227,8 @@ function App() {
                     isReturnRequired: createdData.items?.isReturnRequired || false,
                     destinationLat: createdData.items?.destinationLat,
                     destinationLng: createdData.items?.destinationLng,
-                    batch_id: createdData.batch_id
+                    batch_id: createdData.batch_id,
+                    stopNumber: createdData.stop_number || createdData.items?.stopNumber || (index + 1)
                 };
             });
 
