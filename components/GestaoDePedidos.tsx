@@ -210,20 +210,17 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     // Update enriched stops with their NEW optimized stop numbers
                     const optimizedEnriched = geocodedStops.map(stop => {
                         const originalPos = geocodedStops.indexOf(stop) + 2;
-                        const newPos = optimizedIndices.indexOf(originalPos);
-                        return { ...stop, stopNumber: newPos + 1 };
+                        const visitOrder = optimizedIndices.indexOf(originalPos);
+                        return { ...stop, stopNumber: visitOrder };
                     });
                     
                     // We also need to know the NEW stop number of the main destination
-                    const mainDestNewPos = optimizedIndices.indexOf(1);
-                    console.log("📍 [GestaoDePedidos] Main destination is now Stop #", mainDestNewPos + 1);
+                    const mainDestVisitOrder = optimizedIndices.indexOf(1);
+                    console.log("📍 [GestaoDePedidos] Main destination is now Stop #", mainDestVisitOrder);
                     
                     // Update state for map markers
                     setEnrichedDraftStops(optimizedEnriched);
-                    // We might need a small hack to tell LeafletMap the main dest stop number
-                    // (DraftAddressCoords is used for marker 1).
-                    // Let's add a state for mainDestStopNumber.
-                    setMainDestStopNumber(mainDestNewPos + 1);
+                    setMainDestStopNumber(mainDestVisitOrder);
                 } else {
                     setEnrichedDraftStops(geocodedStops);
                     setMainDestStopNumber(1);
