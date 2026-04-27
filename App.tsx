@@ -1261,6 +1261,67 @@ function App() {
         }
     };
 
+    // =============================================
+    // SCHEDULED ORDER DISPATCHER
+    // Runs every 30s. When a scheduled order's time is due,
+    // removes items.scheduledAt so it becomes a normal pending
+    // mission and the progressive radius dispatch picks it up.
+    // =============================================
+    useEffect(() => {
+        const checkScheduledOrders = async () => {
+            const now = new Date();
+            const nowHH = now.getHours();
+            const nowMM = now.getMinutes();
+
+            const scheduledOrders = orders.filter(o =>
+                o.status === OrderStatus.PENDING && o.scheduled_at
+            );
+
+            for (const order of scheduledOrders) {
+                const scheduledAt = order.scheduled_at as string;
+                const [hh, mm] = scheduledAt.split(':').map(Number);
+
+                const isDue = (nowHH > hh) || (nowHH === hh && nowMM >= mm);
+                if (!isDue) continue;
+
+                console.log(`⏰ [SCHEDULER] Scheduled order ${order.id} is due! Dispatching now...`);
+
+                try {
+                    // Fetch current items from DB to avoid overwriting
+                    const { data: current } = await supabase
+                        .from('deliveries')
+                        .select('items')
+                        .eq('id', order.id)
+                        .single();
+
+                    if (current) {
+                        const updatedItems = { ...current.items };
+                        delete updatedItems.scheduledAt;
+                        delete updatedItems.scheduled_at;
+
+                        await supabase
+                            .from('deliveries')
+                            .update({ items: updatedItems })
+                            .eq('id', order.id);
+
+                        // Update local state
+                        setOrders(prev => prev.map(o =>
+                            o.id === order.id ? { ...o, scheduled_at: null } : o
+                        ));
+
+                        console.log(`✅ [SCHEDULER] Order ${order.id} released to dispatch queue.`);
+                    }
+                } catch (err) {
+                    console.error(`❌ [SCHEDULER] Failed to dispatch order ${order.id}:`, err);
+                }
+            }
+        };
+
+        const interval = setInterval(checkScheduledOrders, 30000);
+        checkScheduledOrders(); // run immediately on mount
+        return () => clearInterval(interval);
+    }, [orders, supabase]);
+
     const handleBulkAssign = async (orderIds: string[], courierId: string) => {
         console.log(`📦 [App] Bulk assigning ${orderIds.length} orders to courier ${courierId}`);
         try {
