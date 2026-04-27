@@ -318,7 +318,8 @@ function App() {
             isBatch: items.isBatch,
             batch_id: d.batch_id,
             stopNumber: d.stop_number || items.stopNumber,
-            courier: courierData
+            courier: courierData,
+            scheduled_at: items.scheduledAt || null
         };
     }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
@@ -1123,9 +1124,8 @@ function App() {
                         changeFor: stop.changeFor,
                         stopNumber: index + 1,
                         storeFreight: index === 0 ? data.storeFreight : 0, // Store total in the first stop for batch aggregation
-                        scheduledAt: stop.scheduled_at
+                        scheduledAt: stop.scheduled_at || null
                     },
-                    scheduled_at: stop.scheduled_at,
                     earnings: stopEarnings,
                     delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length,
                     payment_method: stop.paymentMethod,
@@ -1233,7 +1233,7 @@ function App() {
                     destinationLng: createdData.items?.destinationLng,
                     batch_id: createdData.batch_id,
                     stopNumber: createdData.stop_number || createdData.items?.stopNumber || (index + 1),
-                    scheduled_at: createdData.scheduled_at || createdData.items?.scheduledAt
+                    scheduled_at: createdData.items?.scheduledAt || null
                 };
             });
 
