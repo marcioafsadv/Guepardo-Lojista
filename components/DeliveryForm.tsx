@@ -131,6 +131,8 @@ export const DeliveryForm = ({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeStopSuggestionsId, setActiveStopSuggestionsId] = useState<string | null>(null);
   const [customerNote, setCustomerNote] = useState<string | null>(null);
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
 
   // Ref for auto-focus
   const numberInputRef = useRef<HTMLInputElement>(null);
@@ -210,7 +212,8 @@ export const DeliveryForm = ({
       })(),
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
-      storeFreight: totalFreight
+      storeFreight: totalFreight,
+      scheduled_at: isScheduled && scheduledTime ? scheduledTime : undefined
     });
 
     // Reset form
@@ -228,6 +231,8 @@ export const DeliveryForm = ({
     setPaymentMethod('PIX');
     setCustomerNote(null);
     setIsReturnRequired(false);
+    setIsScheduled(false);
+    setScheduledTime('');
     setAdditionalStops([]);
   };
 
@@ -998,8 +1003,9 @@ export const DeliveryForm = ({
                   onChange={(e) => setIsReturnRequired(e.target.checked)}
                   className="sr-only"
                 />
-                <div className={`w-10 h-6 rounded-full shadow-inner transition-colors duration-300 ${isReturnRequired ? 'bg-guepardo-accent' : 'bg-white/10'}`}></div>
-                <div className={`absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isReturnRequired ? 'bg-guepardo-accent shadow-[0_0_15px_rgba(211,84,0,0.5)]' : 'bg-white/10'}`}>
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-6' : ''}`}></div>
+                </div>
               </div>
               <div className="flex-1 relative z-10">
                 <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent text-shadow-glow' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
@@ -1007,7 +1013,53 @@ export const DeliveryForm = ({
               </div>
             </label>
 
-            {/* Price Alert: Return Required */}
+            {/* Toggle Switch for Scheduled */}
+            <label className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
+              <div className="relative z-10">
+                <input
+                  type="checkbox"
+                  checked={isScheduled}
+                  onChange={(e) => setIsScheduled(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isScheduled ? 'bg-guepardo-accent shadow-[0_0_15px_rgba(211,84,0,0.5)]' : 'bg-white/10'}`}>
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isScheduled ? 'translate-x-6' : ''}`}></div>
+                </div>
+              </div>
+              <div className="flex-1 relative z-10">
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-black uppercase tracking-widest ${isScheduled ? 'text-white' : 'text-white/30'}`}>Agendar Pedido?</span>
+                  {isScheduled && <Clock size={12} className="text-guepardo-accent animate-pulse" />}
+                </div>
+                <p className="text-[9px] font-bold text-white/20 uppercase tracking-tighter mt-1">Definir um horário para coleta</p>
+              </div>
+            </label>
+
+            {/* Scheduled Time Input */}
+            {isScheduled && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="bg-guepardo-accent/5 border border-guepardo-accent/20 rounded-[1.5rem] p-5">
+                  <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 mb-2 text-shadow-glow">
+                    <Clock size={14} className="drop-shadow-glow" /> Horário da Programação
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="time"
+                      className="w-full px-4 py-3 bg-black/60 border-2 border-guepardo-accent/40 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="text-[10px] text-guepardo-accent/60 font-black italic uppercase tracking-wider mt-2">
+                    * O pedido aparecerá no Mural do Guepardo como Programado.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ERROR ALERTS (INSIDE THE FLOW) */}
             {isReturnRequired && (
               <div className="bg-guepardo-accent/5 border border-guepardo-accent/20 rounded-2xl p-4 flex items-start gap-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-8 h-8 bg-guepardo-accent/20 rounded-lg flex items-center justify-center text-guepardo-accent shrink-0">

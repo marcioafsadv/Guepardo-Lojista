@@ -435,6 +435,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const activeOrders = useMemo(() => {
         const validStatuses = [
             OrderStatus.PENDING,
+            OrderStatus.SCHEDULED,
             OrderStatus.ACCEPTED,
             OrderStatus.TO_STORE,
             OrderStatus.ARRIVED_AT_STORE,

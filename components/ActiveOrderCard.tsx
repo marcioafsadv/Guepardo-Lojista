@@ -47,7 +47,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
   // Timer logic for Pending state
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
-    if (order.status === OrderStatus.PENDING) {
+    if (order.status === OrderStatus.PENDING || order.status === OrderStatus.SCHEDULED) {
       interval = setInterval(() => {
         setSecondsWaiting(prev => prev + 1);
       }, 1000);
@@ -151,6 +151,11 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-black/40 text-white/30 text-[10px] font-black uppercase tracking-[0.2em] mb-3 border border-white/5">
             #{order.display_id || order.id.slice(-4)}
           </span>
+          {(order.scheduled_at || (order as any).items?.scheduledAt) && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-guepardo-accent text-white text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-2 border border-white/5 shadow-glow animate-pulse">
+              <Clock size={12} strokeWidth={3} /> {order.scheduled_at || (order as any).items?.scheduledAt}
+            </span>
+          )}
           {/* Client Name: High Contrast */}
           <h3 className="font-black italic text-2xl tracking-tighter text-white leading-none">
             {order.clientName}
@@ -218,8 +223,12 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           </div>
 
           <div className="relative z-10 space-y-1">
-            <p className="text-base font-black italic text-white tracking-widest uppercase">Procurando Entregadores</p>
-            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">Varredura de Proximidade Ativa</p>
+            <p className="text-base font-black italic text-white tracking-widest uppercase">
+              {order.status === OrderStatus.SCHEDULED ? 'Pedido Programado' : 'Procurando Entregadores'}
+            </p>
+            <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
+              {order.status === OrderStatus.SCHEDULED ? 'Aguardando Horário de Coleta' : 'Varredura de Proximidade Ativa'}
+            </p>
             <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow text-shadow-glow">
               <Clock size={14} className="drop-shadow-glow" /> {formatTime(secondsWaiting)}
             </div>

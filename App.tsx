@@ -136,6 +136,7 @@ function App() {
     const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
         switch (status.toLowerCase()) {
             case 'pending': return OrderStatus.PENDING;
+            case 'scheduled': return OrderStatus.SCHEDULED;
             case 'accepted': return OrderStatus.ACCEPTED;
             case 'to_store': return OrderStatus.ACCEPTED;          // Courier heading to store → show as accepted
             case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
@@ -1016,7 +1017,8 @@ function App() {
                     paymentMethod: data.paymentMethod,
                     changeFor: data.changeFor,
                     isReturnRequired: data.isReturnRequired,
-                    customerNote: data.customerNote
+                    customerNote: data.customerNote,
+                    scheduled_at: data.scheduled_at
                 },
                 ...(data.additionalStops || []).map(s => ({
                     clientName: s.clientName || '',
@@ -1102,7 +1104,7 @@ function App() {
                     customer_address: stop.destination,
                     customer_phone_suffix: phoneSuffix,
                     collection_code: finalPickupCode,
-                    status: 'pending',
+                    status: stop.scheduled_at ? 'scheduled' : 'pending',
                     driver_id: targetCourierId || null,
                     batch_id: batchId,
                     stop_number: index + 1,
@@ -1120,8 +1122,10 @@ function App() {
                         addressCep: stop.addressCep,
                         changeFor: stop.changeFor,
                         stopNumber: index + 1,
-                        storeFreight: index === 0 ? data.storeFreight : 0 // Store total in the first stop for batch aggregation
+                        storeFreight: index === 0 ? data.storeFreight : 0, // Store total in the first stop for batch aggregation
+                        scheduledAt: stop.scheduled_at
                     },
+                    scheduled_at: stop.scheduled_at,
                     earnings: stopEarnings,
                     delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length,
                     payment_method: stop.paymentMethod,
@@ -1212,7 +1216,7 @@ function App() {
                     deliveryValue: parseFloat(createdData.items?.deliveryValue) || 0,
                     paymentMethod: createdData.items?.paymentMethod || 'PIX',
                     changeFor: createdData.items?.changeFor || null,
-                    status: OrderStatus.PENDING,
+                    status: mapSupabaseStatusToLocal(createdData.status),
                     createdAt: new Date(createdData.created_at),
                     estimatedPrice: createdData.earnings || 15.0,
                     storeFreight: Number(createdData.items?.storeFreight) || 0,
@@ -1228,7 +1232,8 @@ function App() {
                     destinationLat: createdData.items?.destinationLat,
                     destinationLng: createdData.items?.destinationLng,
                     batch_id: createdData.batch_id,
-                    stopNumber: createdData.stop_number || createdData.items?.stopNumber || (index + 1)
+                    stopNumber: createdData.stop_number || createdData.items?.stopNumber || (index + 1),
+                    scheduled_at: createdData.scheduled_at || createdData.items?.scheduledAt
                 };
             });
 

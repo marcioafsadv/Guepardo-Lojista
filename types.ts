@@ -26,6 +26,7 @@ export interface StoreSettings {
 
 export enum OrderStatus {
   PENDING = 'PENDING',
+  SCHEDULED = 'SCHEDULED',
   ACCEPTED = 'ACCEPTED',
   TO_STORE = 'TO_STORE',
   ARRIVED_AT_STORE = 'ARRIVED_AT_STORE', // Step 2.1: Courier arrived at store
@@ -113,6 +114,7 @@ export interface Order {
   // Source & CRM
   requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE';
   clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
+  scheduled_at?: string; // e.g., "14:30"
 }
 
 export interface SavedAddress {
