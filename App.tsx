@@ -1105,7 +1105,7 @@ function App() {
                     customer_address: stop.destination,
                     customer_phone_suffix: phoneSuffix,
                     collection_code: finalPickupCode,
-                    status: stop.scheduled_at ? 'scheduled' : 'pending',
+                    status: 'pending',
                     driver_id: targetCourierId || null,
                     batch_id: batchId,
                     stop_number: index + 1,
@@ -1274,7 +1274,7 @@ function App() {
             const nowMM = now.getMinutes();
 
             const scheduledOrders = orders.filter(o =>
-                o.status === OrderStatus.SCHEDULED && o.scheduled_at
+                o.status === OrderStatus.PENDING && o.scheduled_at
             );
 
             for (const order of scheduledOrders) {
@@ -1302,7 +1302,6 @@ function App() {
                         await supabase
                             .from('deliveries')
                             .update({ 
-                                status: 'pending',
                                 items: updatedItems 
                             })
                             .eq('id', order.id);
