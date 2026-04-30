@@ -97,6 +97,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
   // Determine current step index
   const currentStepIndex = STEPS.findIndex(s => {
     if (order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) return s.status === OrderStatus.ACCEPTED;
+    if (order.status === OrderStatus.SCHEDULED) return s.status === OrderStatus.PENDING;
     return s.status === order.status;
   });
 
@@ -208,7 +209,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       </div>
 
       {/* STATUS CONTENT */}
-      {order.status === OrderStatus.PENDING ? (
+      {(order.status === OrderStatus.PENDING || order.status === OrderStatus.SCHEDULED) ? (
         /* SEARCHING STATE (RADAR) */
         <div className="bg-black/40 rounded-2xl p-6 border border-white/5 flex flex-col items-center justify-center gap-4 text-center py-8 relative overflow-hidden group/radar shadow-inner">
 
@@ -229,9 +230,11 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
               {order.scheduled_at ? `Coleta agendada para ${order.scheduled_at}` : 'Varredura de Proximidade Ativa'}
             </p>
-            <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow text-shadow-glow">
-              <Clock size={14} className="drop-shadow-glow" /> {formatTime(secondsWaiting)}
-            </div>
+            {order.status === OrderStatus.PENDING && (
+              <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow text-shadow-glow">
+                <Clock size={14} className="drop-shadow-glow" /> {formatTime(secondsWaiting)}
+              </div>
+            )}
           </div>
 
           {/* DEV SIMULATION BUTTON */}
