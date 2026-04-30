@@ -346,7 +346,7 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
             case OrderStatus.ACCEPTED: return 'Aceito';
             case OrderStatus.TO_STORE: return 'A caminho da loja';
             case OrderStatus.ARRIVED_AT_STORE: return 'Na loja';
-            case OrderStatus.READY_FOR_PICKUP: return 'Pronto para coleta';
+            case OrderStatus.READY_FOR_PICKUP: return 'Pedido Pronto';
             case OrderStatus.IN_TRANSIT: return 'Em rota';
             case OrderStatus.RETURNING: return 'Retornando';
             case OrderStatus.DELIVERED: return 'Finalizado';

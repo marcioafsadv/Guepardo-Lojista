@@ -159,7 +159,7 @@ function App() {
             case OrderStatus.PENDING: return "Pendente";
             case OrderStatus.ACCEPTED: return "Aceito";
             case OrderStatus.ARRIVED_AT_STORE: return "Na Loja";
-            case OrderStatus.READY_FOR_PICKUP: return "Pronto";
+            case OrderStatus.READY_FOR_PICKUP: return "Pedido Pronto";
             case OrderStatus.IN_TRANSIT: return "Em Rota";
             case OrderStatus.DELIVERED: return "Concluído";
             case OrderStatus.RETURNING: return "Retornando";

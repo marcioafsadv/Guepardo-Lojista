@@ -143,7 +143,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       case OrderStatus.ACCEPTED:
       case OrderStatus.TO_STORE: return "Em Coleta";
       case OrderStatus.ARRIVED_AT_STORE: return "Na Loja";
-      case OrderStatus.READY_FOR_PICKUP: return "Pronto";
+      case OrderStatus.READY_FOR_PICKUP: return "Pedido Pronto";
       case OrderStatus.IN_TRANSIT: return "Em Rota";
       case OrderStatus.RETURNING: return "Retorno";
       default: return "Ativo";
@@ -177,8 +177,10 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             
             <span className={`inline-flex items-center px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border border-white/5 shadow-glow-sm ${
                 order.status === OrderStatus.PENDING ? 'bg-orange-500/10 text-orange-400 animate-pulse' :
-                order.status === OrderStatus.IN_TRANSIT ? 'bg-green-500/10 text-green-400' :
-                order.status === OrderStatus.RETURNING ? 'bg-blue-500/10 text-blue-400' :
+                (order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) ? 'bg-amber-500/10 text-amber-400 shadow-glow-amber' :
+                order.status === OrderStatus.READY_FOR_PICKUP ? 'bg-cyan-500/10 text-cyan-400 shadow-glow-cyan' :
+                order.status === OrderStatus.IN_TRANSIT ? 'bg-green-500/10 text-green-400 shadow-glow-green' :
+                order.status === OrderStatus.RETURNING ? 'bg-violet-500/10 text-violet-400 shadow-glow-violet' :
                 'bg-white/5 text-white/30'
             }`}>
                 {getCompactStatusLabel(order.status)}
@@ -315,10 +317,15 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 <div className="flex items-center gap-3 mt-3">
                     {telemetry && (
                     <>
-                        <div className={`flex items-center gap-2 text-[10px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border ${order.status === OrderStatus.IN_TRANSIT 
+                        <div className={`flex items-center gap-2 text-[10px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+                            order.status === OrderStatus.IN_TRANSIT 
                             ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-glow-green' 
-                            : (order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) 
-                            ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 shadow-glow'
+                            : (order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ACCEPTED) 
+                            ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-glow-amber'
+                            : order.status === OrderStatus.READY_FOR_PICKUP
+                            ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-glow-cyan'
+                            : order.status === OrderStatus.RETURNING
+                            ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-glow-violet'
                             : 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-glow-blue'
                         }`}>
                         <Clock size={12} strokeWidth={3} />
