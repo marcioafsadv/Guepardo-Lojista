@@ -57,7 +57,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       setSecondsWaiting(0);
     }
     return () => clearInterval(interval);
-  }, [order.status]);
+  }, [order.status, order.scheduled_at]);
 
   // Arrival Timer logic (Timeout monitor counterpart)
   useEffect(() => {
