@@ -248,7 +248,7 @@ export const TrackingPage: React.FC = () => {
                 <div className="w-20 h-20 relative mb-6">
                     <div className="absolute inset-0 border-4 border-orange-500/20 rounded-full"></div>
                     <div className="absolute inset-0 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-                    <img src="/logo-icon.png" className="absolute inset-4 opacity-50" alt="" />
+                    <img src="/logo-guepardo.png" className="absolute inset-4 opacity-50" alt="" />
                 </div>
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-orange-500 animate-pulse">Localizando Pedido...</p>
             </div>
@@ -278,7 +278,7 @@ export const TrackingPage: React.FC = () => {
             <div className="absolute top-0 left-0 right-0 p-6 z-[1000] pointer-events-none">
                 <div className="max-w-md mx-auto flex justify-center">
                     <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-6 py-2.5 rounded-full flex items-center gap-3">
-                        <img src="https://eviukbluwrwcblwhkzwz.supabase.co/storage/v1/object/public/courier-documents/public/logo-guepardo.png" className="h-5" alt="Guepardo" />
+                        <img src="/logo-guepardo.png" className="h-5" alt="Guepardo" />
                         <div className="h-4 w-px bg-white/20"></div>
                         <span className="text-white/70 text-[10px] uppercase font-black tracking-[0.2em]">Acompanhamento em tempo real</span>
                     </div>
