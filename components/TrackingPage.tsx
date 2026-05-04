@@ -18,6 +18,8 @@ export const TrackingPage: React.FC = () => {
         destination?: any;
         route?: any;
     }>({});
+    const [routeStats, setRouteStats] = useState<any>(null);
+
 
     // 1. ID Extraction from URL
     useEffect(() => {
@@ -202,6 +204,7 @@ export const TrackingPage: React.FC = () => {
                             lineJoin: 'round',
                             className: 'animate-pulse' // Subtle feedback
                         }).addTo(map);
+                        setRouteStats(stats);
                     } else {
                         // Fallback to straight line
                         if (markersRef.current.route) markersRef.current.route.remove();
@@ -277,7 +280,7 @@ export const TrackingPage: React.FC = () => {
                     <div className="bg-black/40 backdrop-blur-xl border border-white/10 px-6 py-2.5 rounded-full flex items-center gap-3">
                         <img src="https://eviukbluwrwcblwhkzwz.supabase.co/storage/v1/object/public/courier-documents/public/logo-guepardo.png" className="h-5" alt="Guepardo" />
                         <div className="h-4 w-px bg-white/20"></div>
-                        <span className="text-white/70 text-[10px] uppercase font-black tracking-[0.2em]">Live Tracking</span>
+                        <span className="text-white/70 text-[10px] uppercase font-black tracking-[0.2em]">Acompanhamento em tempo real</span>
                     </div>
                 </div>
             </div>
@@ -304,9 +307,31 @@ export const TrackingPage: React.FC = () => {
                                         order.status === 'in_transit' ? 'Chegando em breve' :
                                             'Preparando tudo'}
                                 </h1>
+                                {order.status === 'in_transit' && routeStats && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <div className="h-1.5 w-1.5 bg-orange-500 rounded-full animate-pulse"></div>
+                                        <p className="text-orange-500 text-[10px] font-black uppercase tracking-widest">
+                                            Previsão de entrega: {routeStats.durationText}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                            <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-white/20 border border-white/5">
-                                {order.status === 'completed' ? <CheckCircle2 size={28} className="text-green-500" /> : <Clock size={28} />}
+                            <div className="w-14 h-14 bg-white/5 rounded-2xl flex flex-col items-center justify-center text-white/20 border border-white/5 relative overflow-hidden group">
+                                {order.status === 'completed' ? (
+                                    <CheckCircle2 size={28} className="text-green-500" />
+                                ) : (
+                                    <>
+                                        {routeStats ? (
+                                            <div className="flex flex-col items-center">
+                                                <span className="text-[14px] font-black text-white leading-none mb-0.5">{routeStats.durationText.split(' ')[0]}</span>
+                                                <span className="text-[8px] font-bold uppercase text-white/40 tracking-tighter">min</span>
+                                            </div>
+                                        ) : (
+                                            <Clock size={28} />
+                                        )}
+                                        <div className="absolute inset-0 bg-orange-500/5 group-hover:bg-orange-500/10 transition-colors"></div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -365,7 +390,9 @@ export const TrackingPage: React.FC = () => {
                             Falar com a Loja
                         </button>
                         <div className="px-5 py-4 bg-white/5 border border-white/5 rounded-[24px] flex items-center justify-center">
-                            <span className="text-white/40 text-[10px] font-black uppercase tracking-widest">#{order.id.slice(-4)}</span>
+                            <span className="text-white/40 text-[10px] font-black uppercase tracking-widest">
+                                #{order.items?.displayId || order.items?.display_id || order.display_id || order.id.slice(-4)}
+                            </span>
                         </div>
                     </div>
                 </div>
