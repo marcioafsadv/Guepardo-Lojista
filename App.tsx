@@ -1464,6 +1464,18 @@ function App() {
             if (error) throw error;
             console.log("✅ Order(s) validated in DB:", orderIds);
 
+            // AUTO-SHARE TRACKING LINK: Trigger WhatsApp redirect for the first/main order in batch
+            if (orderToUpdate.clientPhone) {
+                const link = `${window.location.origin}/track/${orderToUpdate.id}`;
+                const customerName = orderToUpdate.clientName;
+                const message = `🛵 *Guepardo Delivery* — Olá ${customerName}! Seu pedido saiu para entrega!\n\n📍 Acompanhe o entregador em tempo real:\n${link}`;
+                const digits = orderToUpdate.clientPhone.replace(/\D/g, '') || '';
+                const phone = digits.startsWith('55') ? digits : `55${digits}`;
+                if (digits.length >= 10) {
+                    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                }
+            }
+
             // ONLY UPDATE LOCAL STATE AFTER DB SUCCESS
             setOrders(prev => prev.map(o => {
                 if (!orderIds.includes(o.id)) return o;

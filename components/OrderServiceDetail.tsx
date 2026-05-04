@@ -4,7 +4,7 @@ import { Order, OrderStatus, StoreProfile } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -288,21 +288,14 @@ const OrderContent: React.FC<{
                         onClick={(e) => {
                             e.stopPropagation();
                             const link = `${window.location.origin}/track/${order.id}`;
-                            const customerName = order.clientName;
-                            const message = `🛵 *Guepardo Delivery* — Olá ${customerName}! Seu pedido saiu para entrega!\n\n📍 Acompanhe o entregador em tempo real:\n${link}`;
-                            const digits = order.clientPhone?.replace(/\D/g, '') || '';
-                            const phone = digits.startsWith('55') ? digits : `55${digits}`;
-                            if (digits) {
-                                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
-                            } else {
-                                // No phone: copy link to clipboard instead
-                                navigator.clipboard.writeText(link).then(() => alert('Link de rastreamento copiado!'));
-                            }
+                            navigator.clipboard.writeText(link).then(() => {
+                                alert('Link de rastreamento copiado!');
+                            });
                         }}
-                        className="w-full h-12 bg-green-600 hover:bg-green-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(22,163,74,0.3)]"
+                        className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.3)]"
                     >
-                        <Share2 size={18} />
-                        Compartilhar Rastreio (WhatsApp)
+                        <Copy size={18} />
+                        Copiar Link de Rastreio
                     </button>
                 </div>
             )}
