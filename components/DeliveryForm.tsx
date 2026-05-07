@@ -442,7 +442,7 @@ export const DeliveryForm = ({
   const totalChangeNeeded = calculateChangeNeeded();
 
   return (
-    <div className="w-full flex flex-col relative bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)]"
+    <div className="w-full flex flex-col relative bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)]"
          style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}
          ref={wrapperRef}>
 
@@ -452,13 +452,13 @@ export const DeliveryForm = ({
         onClick={() => setIsFormCollapsed(prev => !prev)}
         title={isFormCollapsed ? 'Expandir formulário' : 'Minimizar formulário'}
       >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-guepardo-accent rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)] group-hover:shadow-[0_0_25px_rgba(211,84,0,0.6)] transition-all duration-300">
-            <Bike size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-guepardo-accent rounded-lg md:rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)] group-hover:shadow-[0_0_25px_rgba(211,84,0,0.6)] transition-all duration-300">
+            <Bike size={18} md:size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Logística Express</span>
-            <h2 className="text-xl font-black italic text-white tracking-tighter leading-none">Chamar Guepardo</h2>
+            <span className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Logística Express</span>
+            <h2 className="text-lg md:text-xl font-black italic text-white tracking-tighter leading-none">Chamar Guepardo</h2>
           </div>
         </div>
         <button
@@ -474,12 +474,12 @@ export const DeliveryForm = ({
       <div
         className="overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
         style={{
-          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 280px)',
+          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 220px)',
           opacity: isFormCollapsed ? 0 : 1,
           paddingRight: isFormCollapsed ? 0 : '4px'
         }}
       >
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-2 md:space-y-3">
 
           {/* CUSTOMER SEARCH / NAME */}
           <div className="relative group/input z-50">
@@ -489,7 +489,7 @@ export const DeliveryForm = ({
             <input
               type="text"
               placeholder="Nome (Busca Automática)"
-              className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+              className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
               value={clientName}
               onChange={(e) => {
                 setClientName(e.target.value);
@@ -539,7 +539,7 @@ export const DeliveryForm = ({
             <input
               type="tel"
               placeholder="Telefone / WhatsApp"
-              className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+              className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
               value={clientPhone}
               onChange={(e) => {
                 // Basic phone mask (digits only)
@@ -569,7 +569,7 @@ export const DeliveryForm = ({
               <input
                 type="text"
                 placeholder="CEP"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={cep}
                 onChange={handleCepChange}
                 maxLength={9}
@@ -580,7 +580,7 @@ export const DeliveryForm = ({
               <input
                 type="text"
                 placeholder="Rua"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
                 required
@@ -595,7 +595,7 @@ export const DeliveryForm = ({
                 ref={numberInputRef}
                 type="text"
                 placeholder="Nº"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={number}
                 onChange={(e) => setNumber(e.target.value)}
                 required
@@ -618,7 +618,7 @@ export const DeliveryForm = ({
               <input
                 type="text"
                 placeholder="Bairro"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={neighborhood}
                 onChange={(e) => setNeighborhood(e.target.value)}
                 required
@@ -628,7 +628,7 @@ export const DeliveryForm = ({
               <input
                 type="text"
                 placeholder="Cidade/UF"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={cityState}
                 onChange={(e) => setCityState(e.target.value)}
                 required
@@ -645,7 +645,7 @@ export const DeliveryForm = ({
               <input
                 type="number"
                 placeholder="Valor"
-                className="w-full pl-11 pr-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                 value={deliveryValue}
                 onChange={(e) => setDeliveryValue(e.target.value)}
               />
@@ -658,7 +658,7 @@ export const DeliveryForm = ({
                   setPaymentMethod(e.target.value as any);
                   if (e.target.value !== 'CASH') setChangeFor('');
                 }}
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-xs font-black italic focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white appearance-none"
+                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-[10px] md:text-xs font-black italic focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white appearance-none"
               >
                 <option value="PIX">PIX</option>
                 <option value="CARD">Cartão (Maq.)</option>
@@ -687,7 +687,7 @@ export const DeliveryForm = ({
                       <input
                         type="number"
                         placeholder="Ex: 50.00"
-                        className="w-full pl-11 pr-4 py-3 bg-black/60 border-2 border-guepardo-accent/40 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white placeholder-guepardo-accent/50"
+                        className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border-2 border-guepardo-accent/40 rounded-2xl text-xs md:text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white placeholder-guepardo-accent/50"
                         value={changeFor}
                         onChange={(e) => setChangeFor(e.target.value)}
                         required
@@ -1118,7 +1118,7 @@ export const DeliveryForm = ({
 
             <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-2 relative z-10">
               <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total ao Cliente</span>
-              <span className="text-3xl font-black italic text-white tracking-tighter text-shadow-glow">
+              <span className="text-2xl md:text-3xl font-black italic text-white tracking-tighter text-shadow-glow">
                 {street && number ? (totalFreight || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ ****'}
               </span>
             </div>

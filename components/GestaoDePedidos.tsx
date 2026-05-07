@@ -568,8 +568,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             </div>
 
             {/* --- LEFT OVERLAY (Form + Monitoring) --- */}
-            <div className={`absolute top-0 left-0 h-full p-6 flex flex-col gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'w-[528px] opacity-100 translate-x-0'}`}>
-                <div className="pointer-events-auto flex flex-col gap-6 h-full overflow-hidden">
+            <div className={`absolute top-0 left-0 h-full md:p-6 p-2 flex flex-col gap-4 md:gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'md:w-[528px] w-full opacity-100 translate-x-0'}`}>
+                <div className="pointer-events-auto flex flex-col gap-4 md:gap-6 h-full overflow-hidden">
                     {/* Delivery Form */}
                     <DeliveryForm
                     onSubmit={handleNewOrderSubmit}
