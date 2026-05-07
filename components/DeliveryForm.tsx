@@ -157,6 +157,36 @@ export const DeliveryForm = ({
     // Note: We don't auto-disable if switching away from CARD, to respect manual user choice
   }, [paymentMethod]);
 
+  // ── CÁLCULO DE FRETE & BATCHING (Centralizado) ────────────────────────
+  // Distância exata em metros fornecida pela API de rotas
+  const distanceMeters = routeStats?.distanceValue ?? 0;
+
+  // Se o entregador já tem pedidos ativos, cobramos taxa de Batching (reduzida).
+  // Se ele está livre ou não foi selecionado (Chamada Geral), cobramos taxa Simples.
+  const isBatching = !!(targetCourierId && allOrders.some(o => 
+    o.courier?.id === targetCourierId && 
+    o.status !== OrderStatus.DELIVERED && 
+    o.status !== OrderStatus.CANCELED
+  ));
+
+  const baseFreightResult = isBatching
+    ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
+    : calculateFreight(distanceMeters);           // Base R$8,00 + R$1,32/km
+
+  const baseFreight = baseFreightResult.storeFee;
+  const baseCourierEarnings = baseFreightResult.courierFee;
+
+  // ── Taxa de retorno ───────────────────────────────────────────────────
+  const returnFeeActive = settings?.returnFeeActive ?? true;
+  const returnFeeResult = (isReturnRequired && returnFeeActive)
+    ? calculateReturnFee(distanceMeters)
+    : null;
+  const returnFee = returnFeeResult?.storeFee ?? 0;
+  const returnCourierEarnings = returnFeeResult?.courierFee ?? 0;
+
+  const additionalStopsFee = 0;
+  const totalFreight = baseFreight + returnFee + additionalStopsFee;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("📝 [DeliveryForm] handleSubmit triggered", { clientName, street, number, targetCourierId, additionalStopsCount: additionalStops.length });
@@ -191,25 +221,9 @@ export const DeliveryForm = ({
       changeFor: paymentMethod === 'CASH' && changeFor ? parseFloat(changeFor) : null,
       isReturnRequired,
       // Pass calculated values to parent (distância em KM para compatibilidade)
-      calculatedDistance: (routeStats?.distanceValue ?? 0) / 1000,
-      calculatedEarnings: (() => {
-        const dm = routeStats?.distanceValue ?? 0;
-        
-        // 1. Base Stop: R$ 7.00 fixed + (meters * 0.00132 * 0.875)
-        const baseResult = targetCourierId
-          ? calculateFreightBatching(dm)
-          : calculateFreight(dm);
-        
-        // 2. Additional Stops: O custo da distância já está embutido no 'dm' (distância total da rota)
-        const addStopsEarnings = 0;
-
-        // 3. Optional Return: (meters * 0.00132 * 0.875)
-        const retResult = (isReturnRequired && (settings?.returnFeeActive ?? true))
-          ? calculateReturnFee(dm)
-          : null;
-
-        return Number((baseResult.courierFee + addStopsEarnings + (retResult?.courierFee ?? 0)).toFixed(2));
-      })(),
+      calculatedDistance: distanceMeters / 1000,
+      calculatedEarnings: Number((baseCourierEarnings + returnCourierEarnings).toFixed(2)),
+      isBatch: isBatching,
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
       storeFreight: totalFreight,
@@ -396,40 +410,7 @@ export const DeliveryForm = ({
     setComplement("Casa Verde");
   };
 
-  // Distância exata em metros fornecida pela API de rotas
-  const distanceMeters = routeStats?.distanceValue ?? 0;
 
-  // ── Cálculo do frete base ─────────────────────────────────────────────
-  // Se o entregador já tem pedidos ativos, cobramos taxa de Batching (reduzida).
-  // Se ele está livre ou não foi selecionado (Chamada Geral), cobramos taxa Simples.
-  const isBatching = targetCourierId && allOrders.some(o => 
-    o.courier?.id === targetCourierId && 
-    o.status !== OrderStatus.DELIVERED && 
-    o.status !== OrderStatus.CANCELED
-  );
-
-  const baseFreightResult = isBatching
-    ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
-    : calculateFreight(distanceMeters);           // Base R$8,00 + R$1,32/km
-
-  const baseFreight = baseFreightResult.storeFee;
-  const baseCourierEarnings = baseFreightResult.courierFee;
-
-  // ── Taxa de retorno ───────────────────────────────────────────────────
-  // R$4,50 base + R$1,44/km sobre a distância do retorno (mesma rota de ida).
-  const returnFeeActive = settings?.returnFeeActive ?? true;
-  const returnFeeResult = (isReturnRequired && returnFeeActive)
-    ? calculateReturnFee(distanceMeters)
-    : null;
-  const returnFee = returnFeeResult?.storeFee ?? 0;
-  const returnCourierEarnings = returnFeeResult?.courierFee ?? 0;
-
-  // ── Total previsto (estimativa) ───────────────────────────────────────
-  // Paradas adicionais: A distância exata da rota otimizada já engloba todos os pontos. 
-  // Sem taxa fixa por parada extra.
-  const additionalStopsFee = 0;
-  
-  const totalFreight = baseFreight + returnFee + additionalStopsFee;
 
   // Calculate change needed
   const calculateChangeNeeded = () => {

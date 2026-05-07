@@ -1077,7 +1077,7 @@ function App() {
                 // Earnings Calculation: Distribute total route earnings proportionally across all stops
                 const distMeters = (data.calculatedDistance || 1.2) * 1000;
                 
-                let totalBatchEarnings = targetCourierId 
+                let totalBatchEarnings = data.isBatch 
                     ? calculateFreightBatching(distMeters).courierFee 
                     : calculateFreight(distMeters).courierFee;
                     
