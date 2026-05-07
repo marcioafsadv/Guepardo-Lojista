@@ -474,7 +474,7 @@ export const DeliveryForm = ({
       <div
         className="overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
         style={{
-          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 220px)',
+          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 260px)',
           opacity: isFormCollapsed ? 0 : 1,
           paddingRight: isFormCollapsed ? 0 : '4px'
         }}
@@ -1126,7 +1126,7 @@ export const DeliveryForm = ({
 
         </form>
 
-        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-12 md:pb-6">
           <button
             type="button"
             onClick={onToggleSelection}
