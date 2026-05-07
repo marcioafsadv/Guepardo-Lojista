@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock, RefreshCcw, Check } from 'lucide-react';
 import { RechargeModal } from './RechargeModal.tsx';
 import { supabase } from '../lib/supabaseClient';
@@ -92,11 +92,11 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
     }, [storeId]);
 
     return (
-        <div className="flex flex-col h-full bg-[#121212] text-white p-8 overflow-y-auto scrollbar-guepardo">
+        <div className="flex flex-col h-full bg-[#121212] text-white p-4 md:p-8 overflow-y-auto scrollbar-guepardo">
             {/* Header Section */}
-            <div className="flex justify-between items-center mb-10">
+            <div className="flex justify-between items-center mb-6 md:mb-10">
                 <div>
-                    <h2 className="text-3xl font-black italic tracking-tighter flex items-center gap-3">
+                    <h2 className="text-2xl md:text-3xl font-black italic tracking-tighter flex items-center gap-2 md:gap-3">
                         <Wallet className="text-guepardo-accent w-8 h-8" />
                         MINHA CARTEIRA
                     </h2>
@@ -112,7 +112,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
             </div>
 
             {/* main Dashboard Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 mb-6 md:mb-10">
 
                 {/* Balance Card - PREMIUM */}
                 <div className="lg:col-span-2 relative overflow-hidden group rounded-3xl border border-white/10 hover:border-emerald-500/50 transition-all duration-500 shadow-2xl">
@@ -120,25 +120,25 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] group-hover:bg-emerald-500/30 transition-all duration-700"></div>
                     <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-500/10 rounded-full blur-[80px]"></div>
 
-                    <div className="relative p-10 flex flex-col justify-between h-full min-h-[260px]">
+                    <div className="relative p-6 md:p-10 flex flex-col justify-between h-full min-h-[200px] md:min-h-[260px]">
                         <div>
                             <span className="text-white/60 text-xs font-bold uppercase tracking-widest">Saldo Disponível</span>
                             <div key={`balance-card-${syncId}`} className={`flex items-baseline gap-2 mt-2 transition-all ${syncId > 0 ? 'animate-balance-pulse' : ''}`}>
-                                <h1 className="text-6xl font-black tracking-tighter tabular-nums drop-shadow-lg">
+                                <h1 className="text-4xl md:text-6xl font-black tracking-tighter tabular-nums drop-shadow-lg">
                                     <span className="text-2xl opacity-50 mr-2">R$</span>
                                     {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </h1>
                             </div>
                         </div>
 
-                        <div className="flex gap-4 mt-8">
+                        <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-8">
                             <button
                                 onClick={() => setIsRechargeModalOpen(true)}
-                                className="group relative bg-emerald-600 hover:bg-emerald-500 text-white px-10 py-5 rounded-2xl font-black italic text-lg shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-3 overflow-hidden"
+                                className="group relative bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-2xl font-black italic text-base shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] transition-all hover:scale-105 active:scale-95 flex items-center gap-3 overflow-hidden"
                             >
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                                 <Plus size={24} className="group-hover:rotate-90 transition-transform duration-300" />
-                                RECARREGAR AGORA
+                                RECARREGAR
                             </button>
 
                             <button className="bg-white/10 hover:bg-white/20 text-white px-6 py-4 rounded-2xl font-bold transition-all flex items-center gap-2 backdrop-blur-md border border-white/10">
@@ -197,7 +197,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
 
             {/* Transactions Table */}
             <div className="bg-guepardo-gray-800/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex-1 flex flex-col shadow-2xl">
-                <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                <div className="p-4 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                     <h3 className="font-black italic tracking-tight flex items-center gap-3 text-lg">
                         <div className="p-2 bg-guepardo-accent/10 rounded-lg shadow-[0_0_15px_rgba(211,84,0,0.15)]">
                             <History size={20} className="text-guepardo-accent" />
@@ -218,7 +218,49 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* Mobile transaction cards */}
+                <div className="md:hidden divide-y divide-white/5">
+                    {transactions.length > 0 ? transactions.map(tx => (
+                        <div key={tx.id} className="flex items-center justify-between px-4 py-4 hover:bg-white/[0.03] transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className={`p-2 rounded-xl ${
+                                    tx.amount > 0 ? 'bg-green-500/10 text-green-400' : 'bg-white/10 text-white/50'
+                                }`}>
+                                    {tx.method === 'PIX' && <QrCode size={16} />}
+                                    {tx.method === 'CARD' && <CreditCard size={16} />}
+                                    {tx.method === 'BALANCE' && <Wallet size={16} />}
+                                    {!['PIX','CARD','BALANCE'].includes(tx.method) && <Clock size={16} />}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-white leading-tight">
+                                        {tx.type === 'RECHARGE' ? 'Recarga' : tx.type === 'PAYMENT' ? 'Frete' : 'Estorno'}
+                                    </p>
+                                    <p className="text-[10px] text-white/30">{tx.date}</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1">
+                                <span className={`text-sm font-black ${tx.amount > 0 ? 'text-green-400' : 'text-white'}`}>
+                                    {tx.amount > 0 ? '+' : ''} R$ {Math.abs(tx.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                                    tx.status === 'CONFIRMED' ? 'bg-green-500/20 text-green-400' :
+                                    tx.status === 'PENDING' ? 'bg-amber-500/20 text-amber-400' :
+                                    'bg-red-500/20 text-red-400'
+                                }`}>
+                                    {tx.status === 'CONFIRMED' ? 'OK' : tx.status === 'PENDING' ? 'Aguard.' : 'Falhou'}
+                                </span>
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="py-12 flex flex-col items-center gap-3 text-white/20">
+                            <History size={36} strokeWidth={1} />
+                            <p className="text-xs font-bold uppercase tracking-widest">Sem movimentações</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Desktop table */}
+                <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-[#1A0900]/40 text-[10px] font-black text-white/40 uppercase tracking-[0.25em] border-b border-white/5">
                             <tr>

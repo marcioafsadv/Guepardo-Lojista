@@ -929,10 +929,10 @@ export const DeliveryForm = ({
             type="button"
             onClick={addStop}
             disabled={additionalStops.length >= 4}
-            className="w-full py-3 border-2 border-dashed border-white/10 rounded-[1.5rem] text-xs font-black text-white hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4 text-shadow-glow"
+            className="w-full py-4 border-2 border-dashed border-white/10 rounded-[1.5rem] text-[10px] md:text-xs font-black text-white hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4 text-shadow-glow"
           >
-            <MapPin size={16} className="group-hover:animate-bounce text-white group-hover:text-guepardo-accent transition-colors" />
-            Adicionar Outra Parada (+)
+            <MapPin size={18} className="group-hover:animate-bounce text-white group-hover:text-guepardo-accent transition-colors" />
+            <span>ADICIONAR PARADA (+)</span>
           </button>
           <div className="space-y-3">
             <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 text-shadow-glow">
@@ -1126,20 +1126,23 @@ export const DeliveryForm = ({
 
         </form>
 
-        <div className="flex gap-4 pt-4">
+        <div className="flex flex-col sm:flex-row gap-4 pt-4">
           <button
             type="button"
             onClick={onToggleSelection}
-            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border-2 relative overflow-hidden group/hardhat ${isSelecting
-              ? 'bg-guepardo-accent text-white border-guepardo-accent shadow-glow animate-pulse'
+            className={`h-14 rounded-2xl flex items-center justify-center transition-all border-2 relative overflow-hidden group/hardhat ${isSelecting
+              ? 'bg-guepardo-accent text-white border-guepardo-accent shadow-glow animate-pulse w-full'
               : targetCourierId
-                ? 'bg-guepardo-accent/20 text-guepardo-accent border-guepardo-accent/50 shadow-glow-sm'
-                : 'bg-black/40 text-white/20 border-white/5 hover:border-guepardo-accent/50 hover:text-white transition-all'
+                ? 'bg-guepardo-accent/20 text-guepardo-accent border-guepardo-accent/50 shadow-glow-sm w-full sm:w-14'
+                : 'bg-black/40 text-white/20 border-white/5 hover:border-guepardo-accent/50 hover:text-white transition-all w-full sm:w-14'
               }`}
             title={isSelecting ? 'Selecione no Mapa' : 'Selecionar Guepardo no Mapa'}
           >
             <div className="absolute inset-0 bg-brand-gradient opacity-0 group-hover/hardhat:opacity-10 transition-opacity"></div>
-            <HardHat size={28} strokeWidth={2.5} className="relative z-10" />
+            <div className="flex items-center gap-3 sm:gap-0">
+                <HardHat size={28} strokeWidth={2.5} className="relative z-10" />
+                <span className="sm:hidden font-black text-xs uppercase tracking-widest">Selecionar no Mapa</span>
+            </div>
           </button>
 
           <button

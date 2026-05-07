@@ -158,11 +158,11 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
   return (
     <div className={`
-      relative overflow-hidden transition-all duration-500 mb-4 rounded-[2.5rem]
+      relative overflow-hidden transition-all duration-500 mb-4 rounded-[1.5rem] md:rounded-[2.5rem]
       bg-black/40 backdrop-blur-xl
       border border-white/10 border-l-[6px] border-l-guepardo-accent
       shadow-[0_20px_40px_rgba(0,0,0,0.4)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.99]
-      ${isExpanded ? 'p-6 ring-2 ring-guepardo-accent/20' : 'p-5'}
+      ${isExpanded ? 'p-4 md:p-6 ring-2 ring-guepardo-accent/20' : 'p-4 md:p-5'}
     `}
       onClick={handleToggleExpand}
     >
@@ -193,7 +193,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             )}
           </div>
 
-          <h3 className={`font-black italic tracking-tighter text-white leading-none transition-all duration-300 ${isExpanded ? 'text-2xl' : 'text-lg'}`}>
+          <h3 className={`font-black italic tracking-tighter text-white leading-none transition-all duration-300 ${isExpanded ? 'text-xl md:text-2xl' : 'text-lg'}`}>
             {order.clientName}
           </h3>
           
@@ -203,7 +203,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
         </div>
 
         <div className="text-right flex flex-col items-end gap-3">
-          <div className={`font-black italic text-white tracking-tighter leading-none transition-all duration-300 ${isExpanded ? 'text-2xl' : 'text-xl'}`}>
+          <div className={`font-black italic text-white tracking-tighter leading-none transition-all duration-300 ${isExpanded ? 'text-xl md:text-2xl' : 'text-xl'}`}>
             R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           
@@ -230,13 +230,13 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
             return (
                 <div key={step.label} className="relative z-10 flex flex-col items-center group">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center border-2 transition-all duration-500 shadow-2xl ${isCompleted
+                <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center border md:border-2 transition-all duration-500 shadow-2xl ${isCompleted
                     ? 'bg-guepardo-accent border-guepardo-accent text-white scale-110 shadow-glow'
                     : 'bg-black/40 border-white/5 text-white/10'
-                    } ${isCurrent ? 'ring-4 ring-guepardo-accent/30 animate-pulse' : ''}`}>
-                    {isCompleted ? <CheckCircle2 size={16} strokeWidth={3} /> : <Circle size={10} fill="currentColor" />}
+                    } ${isCurrent ? 'ring-2 md:ring-4 ring-guepardo-accent/30 animate-pulse' : ''}`}>
+                    {isCompleted ? <CheckCircle2 size={12} className="md:size-4" strokeWidth={3} /> : <Circle size={8} fill="currentColor" />}
                 </div>
-                <span className={`text-[8px] font-black mt-2 uppercase tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent text-shadow-glow' : 'text-white/20'
+                <span className={`text-[7px] md:text-[8px] font-black mt-2 uppercase tracking-tighter md:tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent text-shadow-glow' : 'text-white/20'
                     }`}>
                     {step.label}
                 </span>

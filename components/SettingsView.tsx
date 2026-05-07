@@ -147,15 +147,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
     return (
         <div className="flex flex-col h-full bg-gray-200 dark:bg-guepardo-gray-900 text-gray-900 dark:text-white overflow-y-auto transition-colors duration-300">
             {/* Header */}
-            <div className="p-8 border-b border-gray-200 dark:border-guepardo-gray-800 flex justify-between items-center sticky top-0 bg-gray-100/95 dark:bg-guepardo-gray-900/95 backdrop-blur z-10 transition-colors duration-300">
+            <div className="p-4 md:p-8 border-b border-gray-200 dark:border-guepardo-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sticky top-0 bg-gray-100/95 dark:bg-guepardo-gray-900/95 backdrop-blur z-10 transition-colors duration-300">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Configurações da Loja</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie os parâmetros de operação e interface.</p>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Configurações</h2>
+                    <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">Gerencie os parâmetros da loja.</p>
                 </div>
                 <button
                     onClick={handleSave}
                     disabled={!hasChanges || isSaving}
-                    className={`px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${hasChanges && !isSaving
+                    className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${hasChanges && !isSaving
                         ? 'bg-guepardo-accent text-guepardo-gray-900 hover:brightness-110 shadow-lg shadow-guepardo-accent/20'
                         : 'bg-gray-200 dark:bg-guepardo-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
@@ -165,12 +165,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                 </button>
             </div>
 
-            <div className="p-8 max-w-4xl mx-auto w-full space-y-8 pb-32">
+            <div className="p-4 md:p-8 max-w-4xl mx-auto w-full space-y-6 md:space-y-8 pb-32">
 
                 {/* 0. DADOS DA EMPRESA */}
-                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
-                    <h3 className="text-lg font-bold text-guepardo-accent mb-6 flex items-center gap-2">
-                        <Building2 size={20} /> Dados da Empresa
+                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                    <h3 className="text-base md:text-lg font-bold text-guepardo-accent mb-4 md:mb-6 flex items-center gap-2">
+                        <Building2 size={18} /> Dados da Empresa
                     </h3>
                     
                     <div className="space-y-6">
@@ -261,9 +261,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                 </section>
 
                 {/* 1. PERFIL & OPERAÇÃO */}
-                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
-                    <h3 className="text-lg font-bold text-guepardo-accent mb-6 flex items-center gap-2">
-                        <Clock size={20} /> Perfil & Operação
+                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                    <h3 className="text-base md:text-lg font-bold text-guepardo-accent mb-4 md:mb-6 flex items-center gap-2">
+                        <Clock size={18} /> Perfil & Operação
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Status da Loja */}
@@ -323,9 +323,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                 </section>
 
                 {/* 2. LOGÍSTICA & TAXAS */}
-                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
-                    <h3 className="text-lg font-bold text-guepardo-accent mb-6 flex items-center gap-2">
-                        <Truck size={20} /> Logística & Taxas
+                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                    <h3 className="text-base md:text-lg font-bold text-guepardo-accent mb-4 md:mb-6 flex items-center gap-2">
+                        <Truck size={18} /> Logística & Taxas
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {/* Frete Base */}

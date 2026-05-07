@@ -238,9 +238,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
     <div className="flex flex-col h-full bg-gray-200 dark:bg-guepardo-gray-900 overflow-y-auto transition-colors duration-300">
 
       {/* HEADER & FILTERS - REORGANIZED: FILTERS LEFT, EXPORTS RIGHT */}
-      <div className="px-8 pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="px-4 md:px-8 pt-6 md:pt-8 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Painel Operacional</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">Painel Operacional</h1>
           <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-status-green animate-pulse"></span>
             Loja Online • {storeName}
@@ -248,29 +248,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
         </div>
 
         {/* FILTERS LEFT */}
-        <div className="flex items-center gap-2">
-          <div className="bg-white dark:bg-guepardo-gray-800 p-1 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <div className="bg-white dark:bg-guepardo-gray-800 p-1 rounded-xl border border-gray-200 dark:border-white/5 shadow-sm flex items-center shrink-0">
             <button
               onClick={() => setPreset('today')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${dateRange.label === 'today' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all whitespace-nowrap ${dateRange.label === 'today' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
             >
               Hoje
             </button>
             <button
               onClick={() => setPreset('7days')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${dateRange.label === '7days' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all whitespace-nowrap ${dateRange.label === '7days' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
             >
               Últ. 7 dias
             </button>
             <button
               onClick={() => setPreset('30days')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${dateRange.label === '30days' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all whitespace-nowrap ${dateRange.label === '30days' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
             >
               Últ. 30 dias
             </button>
             <button
               onClick={() => setShowCustomPicker(!showCustomPicker)}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${dateRange.label === 'custom' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
+              className={`px-3 py-1.5 text-xs md:text-sm font-bold rounded-lg transition-all whitespace-nowrap ${dateRange.label === 'custom' ? 'bg-guepardo-accent/10 text-guepardo-accent' : 'text-gray-500 hover:text-white'}`}
             >
               Personalizado
             </button>
@@ -305,13 +305,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
         </div>
       </div>
 
-      <div className="p-8 pt-0 space-y-6">
+      <div className="px-4 md:px-8 pb-8 pt-0 space-y-4 md:space-y-6">
 
         {/* ROW 1: KPI GRID - NEW "VENDAS" CARD + OTHERS */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
 
           {/* Metric 1: Total Vendas */}
-          <div className="bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
+          <div className="bg-white dark:bg-guepardo-gray-800 p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
                 <ShoppingBag size={20} />
@@ -364,7 +364,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
           </div>
 
           {/* Metric 3: Ticket Médio */}
-          <div className="bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
+          <div className="bg-white dark:bg-guepardo-gray-800 p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
                 <TrendingUp size={20} />
@@ -385,7 +385,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
           </div>
 
           {/* Metric 4: Novos Clientes */}
-          <div className="bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
+          <div className="bg-white dark:bg-guepardo-gray-800 p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group col-span-2 md:col-span-1">
             <div className="flex justify-between items-start mb-4">
               <div className="p-2 bg-orange-500/10 rounded-lg text-orange-500">
                 <Users size={20} />
@@ -407,7 +407,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
 
 
           {/* KPI 3: CANCELLATIONS (RETAINED) */}
-          <div className="bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
+          <div className="bg-white dark:bg-guepardo-gray-800 p-4 md:p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
               <XCircle size={64} className="text-red-500" />
             </div>
@@ -444,7 +444,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
         </div>
 
         {/* ROW 2: CHARTS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
 
           {/* COLUMN 1+2: HOURLY VOLUME */}
           <div className="lg:col-span-2 bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5">
@@ -523,7 +523,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({ orders, customers, o
         </div>
 
         {/* ROW 3: DETAILED FINANCE & CUSTOMERS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-6">
 
           {/* TOP CUSTOMERS */}
           <div className="lg:col-span-2 bg-white dark:bg-guepardo-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5">

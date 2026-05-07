@@ -173,37 +173,37 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         <div className="flex flex-col h-full bg-[#0D0500] text-white">
             {/* TOOLBAR */}
             <div className="p-6 bg-[#1A0900]/40 border-b border-white/5 backdrop-blur-3xl sticky top-0 z-20">
-                <div className="flex flex-wrap items-center justify-between gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-guepardo-accent rounded-2xl shadow-[0_0_20px_rgba(211,84,0,0.3)]">
                             <Clock size={24} className="text-white" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black italic tracking-tighter uppercase text-white">Histórico de Entregas</h2>
+                            <h2 className="text-xl md:text-2xl font-black italic tracking-tighter uppercase text-white">Histórico de Entregas</h2>
                             <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">{filteredOrders.length} solicitações encontradas</p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4 w-full lg:w-auto">
                         {/* SEARCH BAR */}
-                        <div className="relative group">
+                        <div className="relative group w-full md:w-auto">
                             <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-guepardo-accent transition-colors" />
                             <input 
                                 type="text"
                                 placeholder="Buscar pedido ou cliente..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs font-bold text-white placeholder:text-white/20 focus:outline-none focus:border-guepardo-accent/50 focus:bg-white/10 transition-all w-[240px]"
+                                className="bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs font-bold text-white placeholder:text-white/20 focus:outline-none focus:border-guepardo-accent/50 focus:bg-white/10 transition-all w-full md:w-[240px]"
                             />
                         </div>
 
                         {/* STATUS CATEGORY TOGGLE */}
-                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md">
+                        <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md overflow-x-auto scrollbar-none">
                             {(['all', 'active', 'finished'] as const).map((f) => (
                                 <button
                                     key={f}
                                     onClick={() => setStatusCategory(f)}
-                                    className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusCategory === f
+                                    className={`flex-1 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${statusCategory === f
                                         ? 'bg-guepardo-accent text-white shadow-lg shadow-guepardo-accent/20'
                                         : 'text-white/40 hover:text-white'
                                         }`}
@@ -213,45 +213,51 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                             ))}
                         </div>
 
-                        {/* SPECIFIC STATUS FILTER */}
-                        <select 
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white focus:outline-none appearance-none cursor-pointer"
-                        >
-                            <option value="all" className="bg-[#1A0900]">Todos os Status</option>
-                            <option value="PENDING" className="bg-[#1A0900]">Pendentes</option>
-                            <option value="ACCEPTED" className="bg-[#1A0900]">Aceitos</option>
-                            <option value="IN_TRANSIT" className="bg-[#1A0900]">Em Rota</option>
-                            <option value="DELIVERED" className="bg-[#1A0900]">Concluídos</option>
-                            <option value="CANCELED" className="bg-[#1A0900]">Cancelados</option>
-                        </select>
-
-                        <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10 backdrop-blur-md">
-                            <button onClick={() => handlePresetDate(7)} className="px-3 py-1.5 text-[9px] font-black text-white/40 hover:text-white border-r border-white/5 uppercase tracking-widest">7 Dias</button>
-                            <button onClick={() => handlePresetDate(30)} className="px-3 py-1.5 text-[9px] font-black text-white/40 hover:text-white border-r border-white/5 uppercase tracking-widest">30 Dias</button>
-                            
-                            <div className="flex items-center gap-2 px-2">
-                                <span className="text-[9px] font-black text-white/20 uppercase">De:</span>
-                                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-[10px] font-black text-white focus:outline-none [color-scheme:dark]" />
+                        {/* DATE PRESETS & INPUTS */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10 backdrop-blur-md">
+                            <div className="flex divide-x divide-white/5">
+                                <button onClick={() => handlePresetDate(7)} className="flex-1 px-3 py-1.5 text-[9px] font-black text-white/40 hover:text-white uppercase tracking-widest">7 Dias</button>
+                                <button onClick={() => handlePresetDate(30)} className="flex-1 px-3 py-1.5 text-[9px] font-black text-white/40 hover:text-white uppercase tracking-widest">30 Dias</button>
                             </div>
-                            <div className="w-px h-4 bg-white/5"></div>
-                            <div className="flex items-center gap-2 px-2">
-                                <span className="text-[9px] font-black text-white/20 uppercase">Até:</span>
-                                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[10px] font-black text-white focus:outline-none [color-scheme:dark]" />
+                            
+                            <div className="flex flex-1 items-center justify-between sm:justify-start gap-2 px-2 border-t sm:border-t-0 sm:border-l border-white/5 pt-2 sm:pt-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-white/20 uppercase">De:</span>
+                                    <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="bg-transparent text-[10px] font-black text-white focus:outline-none [color-scheme:dark]" />
+                                </div>
+                                <div className="w-px h-4 bg-white/5 hidden sm:block"></div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black text-white/20 uppercase">Até:</span>
+                                    <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="bg-transparent text-[10px] font-black text-white focus:outline-none [color-scheme:dark]" />
+                                </div>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                            <button onClick={handleExportExcel} className="p-3 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-xl border border-green-500/20 transition-all">
-                                <FileSpreadsheet size={18} />
-                            </button>
-                            <button onClick={handleExportPDF} className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all">
-                                <FileDown size={18} />
-                            </button>
-                            <button onClick={handlePrint} className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all">
-                                <Printer size={18} />
-                            </button>
+                        <div className="flex items-center justify-between sm:justify-end gap-2 mt-2 md:mt-0">
+                            <div className="flex gap-2">
+                                <button onClick={handleExportExcel} className="p-3 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-xl border border-green-500/20 transition-all">
+                                    <FileSpreadsheet size={18} />
+                                </button>
+                                <button onClick={handleExportPDF} className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all">
+                                    <FileDown size={18} />
+                                </button>
+                                <button onClick={handlePrint} className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all">
+                                    <Printer size={18} />
+                                </button>
+                            </div>
+                            
+                            <select 
+                                value={selectedStatus}
+                                onChange={(e) => setSelectedStatus(e.target.value)}
+                                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white focus:outline-none appearance-none cursor-pointer md:w-auto"
+                            >
+                                <option value="all" className="bg-[#1A0900]">Todos os Status</option>
+                                <option value="PENDING" className="bg-[#1A0900]">Pendentes</option>
+                                <option value="ACCEPTED" className="bg-[#1A0900]">Aceitos</option>
+                                <option value="IN_TRANSIT" className="bg-[#1A0900]">Em Rota</option>
+                                <option value="DELIVERED" className="bg-[#1A0900]">Concluídos</option>
+                                <option value="CANCELED" className="bg-[#1A0900]">Cancelados</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -269,18 +275,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                             <div 
                                 key={order.id}
                                 onClick={() => onSelectOrder(order)}
-                                className="bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[2rem] p-4 flex flex-wrap lg:flex-nowrap items-center gap-6 hover:bg-white/[0.07] hover:border-orange-500/30 transition-all duration-300 cursor-pointer group shadow-2xl relative overflow-hidden"
+
+                                className="bg-white/[0.03] backdrop-blur-2xl border border-white/5 rounded-[1.5rem] md:rounded-[2rem] p-4 flex flex-col lg:flex-row items-stretch lg:items-center gap-4 lg:gap-6 hover:bg-white/[0.07] hover:border-orange-500/30 transition-all duration-300 cursor-pointer group shadow-2xl relative overflow-hidden"
                             >
                                 <div className="absolute -right-20 -top-20 w-40 h-40 bg-orange-500/5 rounded-full blur-[60px] group-hover:bg-orange-500/10 transition-all duration-700"></div>
 
-                                <div className="flex flex-col min-w-[120px]">
-                                    <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1 flex items-center gap-1">
-                                        <Hash size={10} /> Pedido
-                                    </span>
-                                    <h4 className="text-xl font-black text-white italic tracking-tighter">
-                                        #{order.display_id || order.id.slice(-4)}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center justify-between lg:flex-col lg:items-start lg:min-w-[120px]">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                            <Hash size={10} /> Pedido
+                                        </span>
+                                        <h4 className="text-lg md:text-xl font-black text-white italic tracking-tighter">
+                                            #{order.display_id || order.id.slice(-4)}
+                                        </h4>
+                                    </div>
+                                    <div className="flex flex-col items-end lg:items-start gap-1 lg:mt-2">
                                         <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${
                                             order.status === OrderStatus.DELIVERED ? 'bg-green-500/10 text-green-400 border-green-500/20' :
                                             order.status === OrderStatus.CANCELED ? 'bg-red-500/10 text-red-400 border-red-500/20' :
@@ -294,42 +303,47 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                     </div>
                                 </div>
 
+                                <div className="h-px w-full bg-white/5 lg:hidden"></div>
                                 <div className="w-px h-12 bg-white/5 hidden lg:block"></div>
 
-                                <div className="flex items-center gap-3 min-w-[160px]">
-                                    <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
-                                        <User size={20} />
+                                <div className="flex items-center gap-3 lg:min-w-[160px]">
+                                    <div className="p-2.5 md:p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)]">
+                                        <User size={18} />
                                     </div>
-                                    <div className="flex flex-col">
+                                    <div className="flex flex-col min-w-0">
                                         <span className="text-[10px] font-black text-blue-400/60 uppercase tracking-widest mb-0.5">Cliente</span>
-                                        <span className="text-sm font-black text-white group-hover:text-blue-400 transition-colors uppercase truncate max-w-[130px]">
+                                        <span className="text-sm font-black text-white group-hover:text-blue-400 transition-colors uppercase truncate">
                                             {order.clientName}
                                         </span>
                                     </div>
                                 </div>
 
+                                <div className="h-px w-full bg-white/5 lg:hidden"></div>
                                 <div className="w-px h-12 bg-white/5 hidden lg:block"></div>
 
-                                <div className="flex items-center gap-3 flex-1 min-w-[300px]">
-                                    <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
-                                        <MapPin size={20} />
+                                <div className="flex items-center gap-3 lg:flex-1 lg:min-w-[300px]">
+                                    <div className="p-2.5 md:p-3 bg-red-500/10 rounded-2xl border border-red-500/20 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                                        <MapPin size={18} />
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest mb-0.5">Localização de Entrega</span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[10px] font-black text-red-400/60 uppercase tracking-widest mb-0.5">Destino</span>
                                         <span className="text-xs font-bold text-white/70 line-clamp-1 group-hover:text-white transition-colors">
-                                            {order.addressStreet}, {order.addressNumber} - {order.addressCity}
+                                            {order.addressStreet}, {order.addressNumber}
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-6">
-                                    <div className="flex flex-col min-w-[80px]">
-                                        <span className="text-[9px] font-black text-green-400/60 uppercase tracking-widest mb-0.5">Pedido</span>
+                                <div className="h-px w-full bg-white/5 lg:hidden"></div>
+                                <div className="w-px h-12 bg-white/5 hidden lg:block"></div>
+
+                                <div className="flex items-center justify-between lg:justify-start gap-6">
+                                    <div className="flex flex-col lg:min-w-[80px]">
+                                        <span className="text-[9px] font-black text-green-400/60 uppercase tracking-widest mb-0.5">Valor</span>
                                         <span className="text-base font-black italic text-white tracking-tighter">
                                             {(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                         </span>
                                     </div>
-                                    <div className="flex flex-col min-w-[80px]">
+                                    <div className="flex flex-col lg:min-w-[80px]">
                                         <span className="text-[9px] font-black text-orange-400/60 uppercase tracking-widest mb-0.5">Entrega</span>
                                         <span className="text-base font-black italic text-white tracking-tighter">
                                             {(Number(order.storeFreight) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
@@ -337,53 +351,35 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                     </div>
                                 </div>
 
+                                <div className="h-px w-full bg-white/5 lg:hidden"></div>
                                 <div className="w-px h-12 bg-white/5 hidden lg:block"></div>
 
-                                <div className="flex items-center gap-3 min-w-[150px]">
-                                    <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20 text-amber-500">
-                                        <Store size={18} />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-black text-amber-500/60 uppercase tracking-widest mb-0.5">Lojista</span>
-                                        <span className="text-xs font-black text-white/80 uppercase truncate max-w-[120px]">
-                                            LOJA GUEPARDO
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-4 min-w-[200px]">
-                                    <div className="flex items-center gap-2">
+                                <div className="flex items-center justify-between lg:justify-start gap-4">
+                                    <div className="flex items-center gap-2 lg:min-w-[150px]">
                                         <img 
                                             src={order.courier?.photoUrl || `https://ui-avatars.com/api/?name=${order.courier?.name || 'G'}&background=D35400&color=fff`} 
-                                            className="w-10 h-10 rounded-full border-2 border-white/10 object-cover" 
+                                            className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-white/10 object-cover" 
                                             alt="" 
                                         />
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col min-w-0">
                                             <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">Entregador</span>
-                                            <span className="text-xs font-extrabold text-white truncate max-w-[100px] uppercase">
-                                                {order.courier?.name.split(' ')[0] || 'GUEPARDO'}...
+                                            <span className="text-xs font-extrabold text-white truncate max-w-[80px] md:max-w-[100px] uppercase">
+                                                {order.courier?.name.split(' ')[0] || 'GUEPARDO'}
                                             </span>
                                         </div>
                                     </div>
 
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); onSelectOrder(order); }}
-                                        className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-[10px] font-black text-white tracking-widest transition-all hover:scale-105 active:scale-95 whitespace-nowrap"
-                                    >
-                                        VER DETALHES
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-2 ml-auto">
-                                    <button 
-                                        onClick={(e) => handleOpenChat(e, order)}
-                                        className="p-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-2xl border border-blue-500/20 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]"
-                                    >
-                                        <MessageSquare size={18} />
-                                    </button>
-                                    <button className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 transition-all">
-                                        <Navigation size={18} />
-                                    </button>
+                                    <div className="flex items-center gap-2 ml-auto lg:ml-0">
+                                        <button 
+                                            onClick={(e) => handleOpenChat(e, order)}
+                                            className="p-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-xl border border-blue-500/20 transition-all shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+                                        >
+                                            <MessageSquare size={16} />
+                                        </button>
+                                        <button className="p-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 transition-all">
+                                            <Navigation size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -534,29 +530,29 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                 )}
              </div>
 
-            <div className="bg-[#1A0900]/80 backdrop-blur-3xl border-t border-white/10 p-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="bg-[#1A0900]/80 backdrop-blur-3xl border-t border-white/10 p-4 md:p-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-6 md:gap-4">
+                <div className="flex items-center justify-between md:justify-start gap-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total de Pedidos</span>
-                        <span className="text-xl font-black italic text-white">{filteredOrders.length}</span>
+                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Total Pedidos</span>
+                        <span className="text-lg md:text-xl font-black italic text-white">{filteredOrders.length}</span>
                     </div>
                     <div className="w-px h-8 bg-white/10"></div>
                     <div className="flex flex-col">
-                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Período Selecionado</span>
-                        <span className="text-sm font-bold text-white/70">{filterText}</span>
+                        <span className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em]">Período</span>
+                        <span className="text-xs md:text-sm font-bold text-white/70 truncate max-w-[150px]">{filterText}</span>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-8">
-                    <div className="flex flex-col text-right">
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Volume de Vendas (Produtos)</span>
-                        <span className="text-xl font-black italic text-white tracking-tighter">
+                <div className="flex items-center justify-between md:justify-end gap-6 md:gap-8">
+                    <div className="flex flex-col text-left md:text-right">
+                        <span className="text-[9px] md:text-[10px] font-black text-white/40 uppercase tracking-widest leading-tight">Volume Vendas</span>
+                        <span className="text-lg md:text-xl font-black italic text-white tracking-tighter">
                             R$ {totalSales.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                     </div>
                     <div className="flex flex-col text-right">
-                        <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Custo Total (Frete)</span>
-                        <span className="text-xl font-black italic text-guepardo-accent drop-shadow-glow">
+                        <span className="text-[9px] md:text-[10px] font-black text-white/40 uppercase tracking-widest leading-tight">Custo (Frete)</span>
+                        <span className="text-lg md:text-xl font-black italic text-guepardo-accent drop-shadow-glow">
                             R$ {totalFees.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                     </div>
