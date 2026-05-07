@@ -108,7 +108,6 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [mainDestStopNumber, setMainDestStopNumber] = useState<number>(1);
     const [isDetailCollapsed, setIsDetailCollapsed] = useState(false);
     const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
-    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Effect to clear unread messages when chat opens
     useEffect(() => {
