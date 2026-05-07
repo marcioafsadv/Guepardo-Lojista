@@ -162,7 +162,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       bg-black/40 backdrop-blur-xl
       border border-white/10 border-l-[6px] border-l-guepardo-accent
       shadow-[0_20px_40px_rgba(0,0,0,0.4)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.99]
-      ${isExpanded ? 'p-4 md:p-6 ring-2 ring-guepardo-accent/20' : 'p-4 md:p-5'}
+      ${isExpanded ? 'p-3 md:p-6 ring-2 ring-guepardo-accent/20' : 'p-3 md:p-5'}
     `}
       onClick={handleToggleExpand}
     >
@@ -193,22 +193,35 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             )}
           </div>
 
-          <h3 className={`font-black italic tracking-tighter text-white leading-none transition-all duration-300 ${isExpanded ? 'text-xl md:text-2xl' : 'text-lg'}`}>
-            {order.clientName}
-          </h3>
-          
-          <p className="text-[10px] font-black uppercase tracking-tighter text-white/30 mt-1 truncate max-w-[300px]">
-            {order.destination}
-          </p>
+          <div className="flex items-center gap-3">
+            {order.courier && (
+              <div className="relative shrink-0">
+                <img
+                  src={order.courier.photoUrl}
+                  alt={order.courier.name}
+                  className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-cover border border-white/10 shadow-glow-sm"
+                />
+                <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border border-[#1A0900]"></div>
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h3 className={`font-black italic tracking-tighter text-white leading-tight truncate transition-all duration-300 ${isExpanded ? 'text-lg md:text-2xl' : 'text-base md:text-lg'}`}>
+                {order.clientName}
+              </h3>
+              <p className="text-[9px] md:text-[10px] font-black uppercase tracking-tighter text-white/30 mt-0.5 truncate">
+                {order.destination}
+              </p>
+            </div>
+          </div>
         </div>
 
-        <div className="text-right flex flex-col items-end gap-3">
-          <div className={`font-black italic text-white tracking-tighter leading-none transition-all duration-300 ${isExpanded ? 'text-xl md:text-2xl' : 'text-xl'}`}>
+        <div className="text-right flex flex-col items-end justify-between min-h-[40px] md:min-h-[60px]">
+          <div className={`font-black italic text-white tracking-tighter leading-none transition-all duration-300 ${isExpanded ? 'text-lg md:text-2xl' : 'text-base md:text-xl'}`}>
             R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           
-          <div className={`w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover/card:text-guepardo-accent group-hover/card:bg-guepardo-accent/10 transition-all duration-300 ${isExpanded ? 'rotate-180 bg-guepardo-accent/20 text-guepardo-accent' : ''}`}>
-            <ChevronDown size={18} />
+          <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover/card:text-guepardo-accent group-hover/card:bg-guepardo-accent/10 transition-all duration-300 ${isExpanded ? 'rotate-180 bg-guepardo-accent/20 text-guepardo-accent' : ''}`}>
+            <ChevronDown size={14} md:size={18} />
           </div>
         </div>
       </div>
@@ -217,10 +230,10 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 mt-6' : 'max-h-0 opacity-0'}`}>
         
         {/* STEPPER (Timeline) */}
-        <div className="relative flex items-center justify-between mb-8 px-1">
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-white/5 rounded-full -z-0"></div>
+        <div className="relative flex items-center justify-between mb-6 px-1">
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/5 rounded-full -z-0"></div>
             <div
-            className="absolute top-1/2 left-0 h-1 bg-guepardo-accent rounded-full -z-0 transition-all duration-1000 shadow-[0_0_10px_rgba(211,84,0,0.5)]"
+            className="absolute top-1/2 left-0 h-0.5 bg-guepardo-accent rounded-full -z-0 transition-all duration-1000 shadow-[0_0_10px_rgba(211,84,0,0.5)]"
             style={{ width: `${(currentStepIndex / (STEPS.length - 1)) * 100}%` }}
             ></div>
 
@@ -230,13 +243,13 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
             return (
                 <div key={step.label} className="relative z-10 flex flex-col items-center group">
-                <div className={`w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl flex items-center justify-center border md:border-2 transition-all duration-500 shadow-2xl ${isCompleted
+                <div className={`w-5 h-5 md:w-8 md:h-8 rounded-md md:rounded-xl flex items-center justify-center border md:border-2 transition-all duration-500 shadow-2xl ${isCompleted
                     ? 'bg-guepardo-accent border-guepardo-accent text-white scale-110 shadow-glow'
                     : 'bg-black/40 border-white/5 text-white/10'
                     } ${isCurrent ? 'ring-2 md:ring-4 ring-guepardo-accent/30 animate-pulse' : ''}`}>
-                    {isCompleted ? <CheckCircle2 size={12} className="md:size-4" strokeWidth={3} /> : <Circle size={8} fill="currentColor" />}
+                    {isCompleted ? <CheckCircle2 size={10} className="md:size-4" strokeWidth={3} /> : <Circle size={6} fill="currentColor" />}
                 </div>
-                <span className={`text-[7px] md:text-[8px] font-black mt-2 uppercase tracking-tighter md:tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent text-shadow-glow' : 'text-white/20'
+                <span className={`text-[6px] md:text-[8px] font-black mt-1 md:mt-2 uppercase tracking-tighter md:tracking-widest transition-colors duration-500 line-clamp-1 ${isCurrent ? 'text-guepardo-accent text-shadow-glow' : 'text-white/20'
                     }`}>
                     {step.label}
                 </span>
@@ -292,7 +305,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover/courier:bg-white/10 transition-colors"></div>
 
             <div className="flex items-center gap-3 relative z-10">
-                <div className="relative">
+                <div className="relative hidden md:block">
                 <img
                     src={order.courier.photoUrl}
                     alt={order.courier.name}
@@ -301,23 +314,23 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-[#1A0900] shadow-glow-green"></div>
                 </div>
 
-                <div className="flex-1">
-                <div className="flex justify-between items-center">
-                    <p className="text-base font-black italic text-white tracking-tighter">{order.courier.name}</p>
+                <div className="flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-1 md:gap-3">
+                    <p className="text-sm md:text-base font-black italic text-white tracking-tighter truncate">{order.courier.name}</p>
                     <div className="flex items-center gap-2">
                     {order.status === OrderStatus.ARRIVED_AT_STORE && (
                         <span className="animate-pulse bg-orange-500 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase text-shadow-glow">Na Loja</span>
                     )}
-                    <span className="bg-black/40 text-white/40 px-3 py-1 rounded-lg text-[10px] font-black uppercase border border-white/5 tracking-widest shadow-inner">
+                    <span className="bg-black/40 text-white/40 px-2 md:px-3 py-1 rounded-lg text-[8px] md:text-[10px] font-black uppercase border border-white/5 tracking-widest shadow-inner">
                         {order.courier.vehiclePlate}
                     </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 mt-3">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 mt-3">
                     {telemetry && (
                     <>
-                        <div className={`flex items-center gap-2 text-[10px] font-black italic uppercase tracking-widest px-3 py-1.5 rounded-xl border ${
+                        <div className={`flex items-center gap-2 text-[9px] md:text-[10px] font-black italic uppercase tracking-widest px-2 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl border ${
                             order.status === OrderStatus.IN_TRANSIT 
                             ? 'bg-green-500/10 text-green-400 border-green-500/20 shadow-glow-green' 
                             : (order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ACCEPTED) 
@@ -328,19 +341,19 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                             ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-glow-violet'
                             : 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-glow-blue'
                         }`}>
-                        <Clock size={12} strokeWidth={3} />
+                        <Clock size={10} md:size={12} strokeWidth={3} />
                         {telemetry.etaMins} min
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] text-white/30 font-black italic uppercase tracking-tighter">
-                        <MapPin size={12} />
+                        <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-[10px] text-white/30 font-black italic uppercase tracking-tighter">
+                        <MapPin size={10} md:size={12} />
                         {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
                         </div>
 
                         {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE) && arrivalTimerSeconds > 0 && (
-                        <div className={`ml-auto flex items-center gap-2 text-[10px] font-black italic px-3 py-1.5 rounded-xl border animate-pulse ${
+                        <div className={`w-full md:w-auto mt-1 md:mt-0 flex items-center gap-2 text-[9px] md:text-[10px] font-black italic px-2 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl border animate-pulse ${
                             arrivalTimerSeconds > 720 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
                             }`}>
-                            <Clock size={12} strokeWidth={3} className={arrivalTimerSeconds > 720 ? 'animate-spin-slow' : ''} />
+                            <Clock size={10} md:size={12} strokeWidth={3} className={arrivalTimerSeconds > 720 ? 'animate-spin-slow' : ''} />
                             TEMPO: {formatTime(arrivalTimerSeconds)} / 15:00
                         </div>
                         )}

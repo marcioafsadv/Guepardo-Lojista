@@ -590,7 +590,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}
-                    <div className="bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
+                    <div className="bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
                          style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}>
                     
                     {/* Status Summary & Search */}
