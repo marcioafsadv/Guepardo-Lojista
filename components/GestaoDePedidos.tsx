@@ -657,15 +657,17 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             <button
                 onClick={() => setIsFormCollapsed(!isFormCollapsed)}
                 className={`
-                    absolute top-1/2 -translate-y-1/2 z-[60]
-                    w-8 h-20 bg-brand-gradient-premium border border-white/10 
+                    fixed md:absolute top-1/2 -translate-y-1/2 z-[60]
+                    w-8 md:w-8 h-16 md:h-20 bg-brand-gradient-premium border border-white/10 
                     rounded-r-2xl flex items-center justify-center text-white
                     shadow-[5px_0_15px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300
-                    ${isFormCollapsed ? 'left-0' : 'left-[504px]'}
+                    pointer-events-auto
+                    ${isFormCollapsed ? 'left-0' : 'md:left-[504px] left-[calc(100%-32px)] md:left-auto'}
                 `}
+                style={!isFormCollapsed && window.innerWidth < 768 ? { left: 'calc(100% - 32px)' } : {}}
                 title={isFormCollapsed ? "Abrir Formulário" : "Fechar Formulário"}
             >
-                {isFormCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} className="translate-x-[-1px]" />}
+                {isFormCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} className="md:translate-x-[-1px]" />}
             </button>
 
 
