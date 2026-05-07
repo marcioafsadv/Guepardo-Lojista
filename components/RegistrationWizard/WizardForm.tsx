@@ -200,8 +200,8 @@ const WizardForm: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-transparent flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl p-8 md:p-10 relative overflow-hidden">
+        <div className="min-h-screen bg-transparent flex items-center justify-center p-2 md:p-4">
+            <div className="w-full max-w-2xl p-4 md:p-10 relative overflow-hidden">
                 {/* Progress Bar (Hidden on Welcome) */}
                 {currentStep > 0 && (
                     <div className="mb-10">

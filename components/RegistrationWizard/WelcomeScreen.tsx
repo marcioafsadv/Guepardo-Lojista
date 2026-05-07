@@ -70,20 +70,20 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
             />
 
             {/* ── CONTEÚDO PRINCIPAL ── */}
-            <div className="relative z-10 flex flex-col min-h-screen px-6">
+            <div className="relative z-10 flex flex-col min-h-[100dvh] px-6">
 
                 {/* Hero Logo — orgânico, sem card */}
-                <div className="flex flex-col items-center pt-16 pb-6">
+                <div className="flex flex-col items-center pt-6 md:pt-16 pb-4 md:pb-6">
                     <img
                         src="/cheetah-icon.png"
                         alt="Guepardo Delivery"
-                        className="w-60 object-contain"
+                        className="w-32 md:w-60 object-contain"
                         style={{
                             filter: 'drop-shadow(0 16px 48px rgba(200,80,10,0.65)) drop-shadow(0 4px 12px rgba(0,0,0,0.7))',
                         }}
                     />
                     <p
-                        className="mt-2 text-2xl font-black uppercase tracking-wider"
+                        className="mt-2 text-xl md:text-2xl font-black uppercase tracking-wider"
                         style={{ color: 'white', textShadow: '0 2px 12px rgba(200,80,10,0.7)' }}
                     >
                         Guepardo <span style={{ color: '#FF8C28' }}>Delivery</span>
@@ -97,19 +97,19 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                 </div>
 
                 {/* Divider com brilho */}
-                <div className="w-full flex items-center gap-3 mb-8">
+                <div className="w-full flex items-center gap-3 mb-4 md:mb-8">
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(to right, transparent, rgba(255,140,40,0.35))' }} />
                     <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#FF8C28', boxShadow: '0 0 8px 2px rgba(255,140,40,0.6)' }} />
                     <div className="flex-1 h-px" style={{ background: 'linear-gradient(to left, transparent, rgba(255,140,40,0.35))' }} />
                 </div>
 
                 {/* Headline */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-black text-white tracking-tight leading-tight">
+                <div className="mb-4 md:mb-8">
+                    <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight">
                         Bem-vindo<br />
                         <span style={{ color: '#FF8C28' }}>de volta!</span>
                     </h1>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    <p className="text-xs md:text-sm mt-1 md:mt-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
                         Acesse o painel do seu estabelecimento.
                     </p>
                 </div>
@@ -135,7 +135,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                                 boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
                                 color: 'white'
                             }}
-                            className="w-full h-14 rounded-2xl pl-5 pr-4 text-sm font-medium text-white placeholder-white/20 outline-none transition-all focus:border-[#FF8C28]/60"
+                            className="w-full h-12 md:h-14 rounded-2xl pl-5 pr-4 text-xs md:text-sm font-medium text-white placeholder-white/20 outline-none transition-all focus:border-[#FF8C28]/60"
                             onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,140,40,0.6)')}
                             onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,140,40,0.2)')}
                         />
@@ -160,7 +160,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
                                     color: 'white'
                                 }}
-                                className="w-full h-14 rounded-2xl pl-5 pr-14 text-sm font-medium text-white placeholder-white/20 outline-none transition-all focus:border-[#FF8C28]/60"
+                                className="w-full h-12 md:h-14 rounded-2xl pl-5 pr-14 text-xs md:text-sm font-medium text-white placeholder-white/20 outline-none transition-all focus:border-[#FF8C28]/60"
                                 onFocus={e => (e.currentTarget.style.borderColor = 'rgba(255,140,40,0.6)')}
                                 onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,140,40,0.2)')}
                             />
@@ -189,7 +189,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                     <button
                         onClick={handleLoginSubmit}
                         disabled={isLoading}
-                        className="w-full h-14 rounded-2xl font-black text-white text-base uppercase tracking-widest mt-2 transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center"
+                        className="w-full h-12 md:h-14 rounded-2xl font-black text-white text-base uppercase tracking-widest mt-1 md:mt-2 transition-all active:scale-[0.98] disabled:opacity-60 flex items-center justify-center"
                         style={{
                             background: 'linear-gradient(135deg, #FF7A20 0%, #E55B00 100%)',
                             boxShadow: '0 8px 32px rgba(229,91,0,0.4), 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,180,80,0.3)',
@@ -221,8 +221,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
                 </div>
 
                 {/* Rodapé */}
-                <div className="mt-auto pt-12 pb-8 text-center">
-                    <p className="text-[10px] tracking-widest" style={{ color: 'rgba(255,255,255,0.15)' }}>
+                <div className="mt-auto pt-6 md:pt-12 pb-4 md:pb-8 text-center">
+                    <p className="text-[9px] md:text-[10px] tracking-widest" style={{ color: 'rgba(255,255,255,0.15)' }}>
                         © 2026 Guepardo Delivery · Todos os direitos reservados
                     </p>
                 </div>
