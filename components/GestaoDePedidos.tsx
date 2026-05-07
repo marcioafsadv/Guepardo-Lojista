@@ -9,7 +9,7 @@ import { ChatMultilateralModal } from './ChatMultilateralModal';
 import { CancellationModal } from './CancellationModal';
 import {
     Clock, MapPin, AlertCircle, Lock, LockOpen, PackageCheck, Send, Loader2, MessageCircle, Zap,
-    ChevronRight, ChevronLeft, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike
+    ChevronRight, ChevronLeft, ChevronUp, ChevronDown, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike
 } from 'lucide-react';
 import { ActiveOrderCard } from './ActiveOrderCard';
 import { geocodeAddress } from '../utils/geocoding';
