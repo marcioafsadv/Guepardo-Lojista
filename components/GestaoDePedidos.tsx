@@ -106,7 +106,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [isFormCollapsed, setIsFormCollapsed] = useState(false);
     const [enrichedDraftStops, setEnrichedDraftStops] = useState<any[]>([]);
     const [mainDestStopNumber, setMainDestStopNumber] = useState<number>(1);
+    const [isDetailCollapsed, setIsDetailCollapsed] = useState(false);
     const [selectedOrderForChat, setSelectedOrderForChat] = useState<Order | null>(null);
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     // Effect to clear unread messages when chat opens
     useEffect(() => {
@@ -132,6 +134,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
     const handleCloseDrawer = () => {
         setShowDetailDrawer(false);
+        setIsDetailCollapsed(false);
         setTimeout(() => setActiveOrder(null), 300);
     };
     
@@ -692,8 +695,46 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
             {/* --- ORDER DETAILS DRAWER (Floating right side) --- */}
             {activeOrder && (
-                <div className={`fixed inset-0 md:inset-auto md:top-0 md:right-0 md:h-full z-[1001] flex items-center md:pr-8 pointer-events-none transition-all duration-500 ${showDetailDrawer ? 'bg-black/60 backdrop-blur-sm pointer-events-auto' : 'bg-transparent'}`}>
-                     <div className={`pointer-events-auto w-full md:w-[450px] h-full md:h-[90vh] bg-[#121212] border-t md:border border-white/5 shadow-2xl rounded-t-[2.5rem] md:rounded-[3rem] overflow-hidden transition-all duration-500 transform ${showDetailDrawer ? 'translate-y-0 md:translate-x-0 opacity-100' : 'translate-y-full md:translate-x-full md:translate-y-0 opacity-0'}`}>
+                <div className={`fixed inset-0 md:inset-auto md:top-0 md:right-0 md:h-full z-[1001] flex items-center md:pr-8 pointer-events-none transition-all duration-500 ${showDetailDrawer ? (isDetailCollapsed ? 'bg-transparent' : 'bg-black/60 backdrop-blur-sm pointer-events-auto') : 'bg-transparent'}`}>
+                     
+                     {/* Toggle Button for Detail Drawer (Mobile/Desktop) */}
+                     <button
+                        onClick={(e) => { e.stopPropagation(); setIsDetailCollapsed(!isDetailCollapsed); }}
+                        className={`
+                            fixed md:absolute z-[1010] pointer-events-auto
+                            bg-brand-gradient-premium border border-white/10 text-white
+                            shadow-2xl transition-all duration-500 ease-in-out
+                            flex items-center justify-center
+                            ${showDetailDrawer ? 'opacity-100' : 'opacity-0 translate-x-full'}
+                            ${isDetailCollapsed 
+                                ? 'bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 rounded-2xl md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-auto md:right-0 md:w-8 md:h-20 md:rounded-l-2xl md:translate-x-0' 
+                                : 'top-4 right-16 w-10 h-10 rounded-full md:top-1/2 md:-translate-y-1/2 md:right-[450px] md:w-8 md:h-20 md:rounded-l-2xl md:translate-x-0'}
+                        `}
+                        title={isDetailCollapsed ? "Expandir Detalhes" : "Recolher Detalhes"}
+                     >
+                        {isDetailCollapsed ? (
+                            <div className="flex items-center gap-2 md:block">
+                                <ChevronUp size={18} className="md:hidden" />
+                                <ChevronLeft size={18} className="hidden md:block" />
+                                <span className="text-[10px] font-black uppercase tracking-widest md:hidden">Ver Detalhes</span>
+                            </div>
+                        ) : (
+                            <>
+                                <ChevronDown size={18} className="md:hidden" />
+                                <ChevronRight size={18} className="hidden md:block" />
+                            </>
+                        )}
+                     </button>
+
+                     <div className={`
+                        pointer-events-auto w-full md:w-[450px] h-full md:h-[90vh] bg-[#121212] 
+                        border-t md:border border-white/5 shadow-2xl rounded-t-[2.5rem] md:rounded-[3rem] 
+                        overflow-hidden transition-all duration-500 transform
+                        ${showDetailDrawer ? 'opacity-100' : 'opacity-0'}
+                        ${isDetailCollapsed 
+                            ? 'translate-y-[calc(100%-60px)] md:translate-x-full md:translate-y-0' 
+                            : 'translate-y-0 md:translate-x-0'}
+                     `}>
                         <OrderServiceDetail
                             order={activeOrder}
                             storeProfile={storeProfile}
