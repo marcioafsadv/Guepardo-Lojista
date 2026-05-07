@@ -2044,7 +2044,7 @@ function App() {
     return (
         <div className="h-full w-full flex bg-transparent font-sans overflow-hidden">
 
-            {/* GLOBAL SIDEBAR */}
+            {/* GLOBAL SIDEBAR (Desktop only — Mobile renders as bottom nav inside GlobalSidebar) */}
             <GlobalSidebar
                 currentView={currentView}
                 onChangeView={setCurrentView}
@@ -2053,8 +2053,8 @@ function App() {
                 onToggleStatus={toggleStoreStatus}
             />
 
-            {/* MAIN CONTENT AREA */}
-            <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+            {/* MAIN CONTENT AREA — pb-16 on mobile to clear the bottom nav bar */}
+            <main className="flex-1 flex flex-col h-full overflow-hidden relative pb-16 md:pb-0">
 
                 {/* GLOBAL HEADER */}
                 <Header 

@@ -5,7 +5,22 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/cheetah-scooter.png" />
   <link rel="manifest" href="/manifest.json" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Viewport: cover entire screen including notches -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- PWA: iOS (Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Guepardo" />
+  <link rel="apple-touch-icon" href="/cheetah-scooter.png" />
+
+  <!-- PWA: Android (Chrome) -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#FF6B00" />
+
+  <!-- SEO -->
+  <meta name="description" content="Painel de gestão para estabelecimentos da Guepardo Delivery" />
   <title>Painel - Savana do Guepardo</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link
@@ -89,15 +104,23 @@
       padding: 0;
       width: 100%;
       height: 100%;
+      height: 100dvh; /* Dynamic viewport height (handles mobile browser bars) */
       overflow: hidden;
+      /* Mobile UX improvements */
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      overscroll-behavior-y: none;
+      -webkit-font-smoothing: antialiased;
     }
 
     #root {
       width: 100%;
       height: 100%;
+      height: 100dvh;
       position: relative;
       overflow: hidden;
       background-color: transparent !important;
+
     }
 
     /* Custom scrollbar for history */

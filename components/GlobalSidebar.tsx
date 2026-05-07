@@ -18,16 +18,86 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
 
   const navItems = [
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-    { id: 'operational', label: 'Chamar Guepardo', icon: MapPin },
+    { id: 'operational', label: 'Guepardo', icon: MapPin },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'wallet', label: 'Carteira', icon: Zap },
     { id: 'history', label: 'Histórico', icon: History },
-    { id: 'settings', label: 'Configurações', icon: Settings },
+    { id: 'settings', label: 'Config', icon: Settings },
   ];
 
-  return (
-    <nav className={`${isExpanded ? 'w-64' : 'w-20'} bg-brand-gradient-premium border-r border-white/10 flex flex-col py-6 z-50 shrink-0 h-full transition-all duration-300 shadow-xl relative`}>
-      
+  // ─── MOBILE: Bottom Navigation Bar ───────────────────────────────────────────
+  const MobileBottomNav = () => (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+      style={{
+        background: 'linear-gradient(180deg, #1a0900 0%, #0a0400 100%)',
+        borderTop: '1px solid rgba(255,107,0,0.2)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        boxShadow: '0 -4px 30px rgba(0,0,0,0.6)',
+      }}
+    >
+      <div className="flex items-stretch justify-around h-16">
+        {navItems.map((item) => {
+          const isActive = currentView === item.id;
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onChangeView(item.id as AppView)}
+              className="relative flex flex-col items-center justify-center flex-1 gap-0.5 transition-all duration-200 active:scale-90"
+            >
+              {/* Active top indicator */}
+              {isActive && (
+                <span
+                  className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-b-full"
+                  style={{ background: '#FF6B00', boxShadow: '0 0 8px rgba(255,107,0,0.8)' }}
+                />
+              )}
+
+              {/* Badge for active orders */}
+              <div className="relative">
+                <Icon
+                  size={22}
+                  strokeWidth={isActive ? 2.5 : 1.8}
+                  style={{
+                    color: isActive ? '#FF6B00' : 'rgba(255,255,255,0.4)',
+                    filter: isActive ? 'drop-shadow(0 0 6px rgba(255,107,0,0.6))' : 'none',
+                    transition: 'all 0.2s',
+                  }}
+                />
+                {item.id === 'operational' && hasActiveOrders && (
+                  <span
+                    className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 animate-pulse"
+                    style={{
+                      background: '#FF6B00',
+                      borderColor: '#0a0400',
+                      boxShadow: '0 0 6px rgba(255,107,0,0.8)',
+                    }}
+                  />
+                )}
+              </div>
+
+              <span
+                className="text-[10px] font-bold leading-none"
+                style={{
+                  color: isActive ? '#FF6B00' : 'rgba(255,255,255,0.35)',
+                  letterSpacing: '0.03em',
+                }}
+              >
+                {item.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+
+  // ─── DESKTOP: Vertical Sidebar (unchanged) ───────────────────────────────────
+  const DesktopSidebar = () => (
+    <nav
+      className={`${isExpanded ? 'w-64' : 'w-20'} hidden md:flex bg-brand-gradient-premium border-r border-white/10 flex-col py-6 z-50 shrink-0 h-full transition-all duration-300 shadow-xl relative`}
+    >
       {/* BRAND LOGO AREA */}
       <div className={`px-4 mb-6 flex items-center transition-all duration-300 ${isExpanded ? 'justify-start ml-2' : 'justify-center'}`}>
         <div className="flex items-center gap-4">
@@ -47,7 +117,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
       </div>
 
       {/* Toggle Button */}
-      <button 
+      <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="absolute -right-3 top-24 w-6 h-6 bg-white rounded-full border border-white/10 flex items-center justify-center text-guepardo-rust shadow-md hover:scale-110 transition-transform z-[60]"
       >
@@ -66,7 +136,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
               {isActive && (
                 <div className="absolute -left-3 w-1.5 h-8 bg-[#FF6B00] rounded-r-full shadow-[0_0_12px_rgba(255,107,0,0.5)] animate-pulse" />
               )}
-              
+
               <button
                 onClick={() => onChangeView(item.id as AppView)}
                 className={`
@@ -93,7 +163,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
 
                 {isExpanded && (
                   <span className={`font-bold text-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300 ${isActive ? 'text-white' : 'text-white/70'}`}>
-                    {item.label}
+                    {item.label === 'Guepardo' ? 'Chamar Guepardo' : item.label}
                   </span>
                 )}
               </button>
@@ -101,45 +171,52 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
           );
         })}
       </div>
-      
+
       {/* BOTTOM MERCHANT WIDGET */}
       <div className={`mt-auto px-3 border-t border-white/10 pt-6 pb-2 transition-all duration-300 ${isExpanded ? 'opacity-100' : 'flex flex-col items-center'}`}>
-        <div 
-            onClick={() => onToggleStatus?.(isOpen ? 'fechada' : 'aberta')}
-            className={`cursor-pointer transition-all duration-300 group ${isExpanded ? 'flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-2 hover:bg-black/60 shadow-lg' : 'w-12 h-12 flex items-center justify-center'}`}
+        <div
+          onClick={() => onToggleStatus?.(isOpen ? 'fechada' : 'aberta')}
+          className={`cursor-pointer transition-all duration-300 group ${isExpanded ? 'flex items-center gap-3 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-2 hover:bg-black/60 shadow-lg' : 'w-12 h-12 flex items-center justify-center'}`}
         >
-            {/* Status Avatar/Icon */}
-            <div className={`shrink-0 rounded-full transition-all duration-500 overflow-hidden flex items-center justify-center ${isExpanded ? 'w-10 h-10' : 'w-12 h-12'} ${isOpen ? 'bg-green-500/10 border-2 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-red-500/10 border-2 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.3)]'}`}>
-                {storeProfile.logo_url ? (
-                  <img 
-                    src={storeProfile.logo_url} 
-                    alt={storeProfile.name} 
-                    className={`w-full h-full object-cover ${isOpen ? 'animate-pulse-slow' : ''}`}
-                  />
-                ) : (
-                  <Store size={isExpanded ? 20 : 24} className={isOpen ? 'text-green-500 animate-pulse-slow' : 'text-red-500'} />
-                )}
-                {!isExpanded && (
-                  <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-black animate-pulse ${isOpen ? 'bg-green-500 shadow-[0_0_8px_#22C55E]' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`}></div>
-                )}
-            </div>
-
-            {isExpanded && (
-              <>
-                <div className="flex-1 flex flex-col min-w-0">
-                  <span className="text-white font-black text-sm leading-none truncate tracking-tight">{storeProfile.name}</span>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className={`text-[8px] font-black uppercase tracking-wider ${isOpen ? 'text-green-500' : 'text-red-500'}`}>
-                      {isOpen ? 'Loja aberta' : 'Loja fechada'}
-                    </span>
-                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                  </div>
-                </div>
-                <ChevronDown size={14} className={`text-white/20 group-hover:text-white transition-all duration-300 ${!isOpen && 'rotate-180'}`} />
-              </>
+          {/* Status Avatar/Icon */}
+          <div className={`shrink-0 rounded-full transition-all duration-500 overflow-hidden flex items-center justify-center ${isExpanded ? 'w-10 h-10' : 'w-12 h-12'} ${isOpen ? 'bg-green-500/10 border-2 border-green-500/40 shadow-[0_0_15px_rgba(34,197,94,0.3)]' : 'bg-red-500/10 border-2 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.3)]'}`}>
+            {storeProfile.logo_url ? (
+              <img
+                src={storeProfile.logo_url}
+                alt={storeProfile.name}
+                className={`w-full h-full object-cover ${isOpen ? 'animate-pulse-slow' : ''}`}
+              />
+            ) : (
+              <Store size={isExpanded ? 20 : 24} className={isOpen ? 'text-green-500 animate-pulse-slow' : 'text-red-500'} />
             )}
+            {!isExpanded && (
+              <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-black animate-pulse ${isOpen ? 'bg-green-500 shadow-[0_0_8px_#22C55E]' : 'bg-red-500 shadow-[0_0_8px_#EF4444]'}`}></div>
+            )}
+          </div>
+
+          {isExpanded && (
+            <>
+              <div className="flex-1 flex flex-col min-w-0">
+                <span className="text-white font-black text-sm leading-none truncate tracking-tight">{storeProfile.name}</span>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className={`text-[8px] font-black uppercase tracking-wider ${isOpen ? 'text-green-500' : 'text-red-500'}`}>
+                    {isOpen ? 'Loja aberta' : 'Loja fechada'}
+                  </span>
+                  <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                </div>
+              </div>
+              <ChevronDown size={14} className={`text-white/20 group-hover:text-white transition-all duration-300 ${!isOpen && 'rotate-180'}`} />
+            </>
+          )}
         </div>
       </div>
     </nav>
+  );
+
+  return (
+    <>
+      <DesktopSidebar />
+      <MobileBottomNav />
+    </>
   );
 };
