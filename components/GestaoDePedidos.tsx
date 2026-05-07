@@ -690,8 +690,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
             {/* --- ORDER DETAILS DRAWER (Floating right side) --- */}
             {activeOrder && (
-                <div className="fixed top-0 right-0 h-full z-[1001] flex items-center pr-8 pointer-events-none">
-                     <div className={`pointer-events-auto w-[450px] h-[90vh] bg-[#121212] border border-white/5 shadow-2xl rounded-[3rem] overflow-hidden transition-all duration-500 transform ${showDetailDrawer ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'}`}>
+                <div className={`fixed inset-0 md:inset-auto md:top-0 md:right-0 md:h-full z-[1001] flex items-center md:pr-8 pointer-events-none transition-all duration-500 ${showDetailDrawer ? 'bg-black/60 backdrop-blur-sm pointer-events-auto' : 'bg-transparent'}`}>
+                     <div className={`pointer-events-auto w-full md:w-[450px] h-full md:h-[90vh] bg-[#121212] border-t md:border border-white/5 shadow-2xl rounded-t-[2.5rem] md:rounded-[3rem] overflow-hidden transition-all duration-500 transform ${showDetailDrawer ? 'translate-y-0 md:translate-x-0 opacity-100' : 'translate-y-full md:translate-x-full md:translate-y-0 opacity-0'}`}>
                         <OrderServiceDetail
                             order={activeOrder}
                             storeProfile={storeProfile}

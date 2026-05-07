@@ -51,11 +51,11 @@ const OrderContent: React.FC<{
             </div>
 
             {/* Content Scrollable */}
-            <div className={`flex-1 overflow-y-auto px-6 py-4 space-y-6 scrollbar-guepardo`}>
+            <div className={`flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-4 md:space-y-6 scrollbar-guepardo`}>
 
                 {/* Status Large */}
                 <div className="text-center">
-                    <h2 className={`text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
+                    <h2 className={`text-xl md:text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
                     {order.clientPhone && (
                         <div className="flex items-center justify-center gap-2 mt-0.5 text-gray-500 dark:text-gray-400">
                             <Phone size={12} />
@@ -98,55 +98,55 @@ const OrderContent: React.FC<{
                 )}
 
                 {/* Order Number (Previously Security PIN) */}
-                <div className={`bg-brand-gradient-premium border border-white/10 rounded-3xl p-6 text-center shadow-[0_15px_30px_rgba(211,84,0,0.2)]`}>
-                    <span className="text-[10px] font-black text-white/60 uppercase tracking-[0.3em] block mb-2">Número do Pedido</span>
-                    <span className={`text-5xl font-mono font-black tracking-[0.2em] text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]`}>
+                <div className={`bg-brand-gradient-premium border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 text-center shadow-[0_15px_30px_rgba(211,84,0,0.2)]`}>
+                    <span className="text-[9px] md:text-[10px] font-black text-white/60 uppercase tracking-[0.3em] block mb-1 md:mb-2">Número do Pedido</span>
+                    <span className={`text-3xl md:text-5xl font-mono font-black tracking-[0.1em] md:tracking-[0.2em] text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]`}>
                         #{order.display_id || order.id.slice(-4)}
                     </span>
                 </div>
 
                 {/* Financials & Source (Grid) */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
                     {/* VALOR */}
-                    <div className={`rounded-2xl p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Banknote size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
-                            <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor do Pedido</span>
+                    <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-2 mb-1 md:mb-2">
+                            <Banknote size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor Pedido</span>
                         </div>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
 
                     {/* FRETE */}
-                    <div className={`rounded-2xl p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Truck size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
-                            <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor do Frete</span>
+                    <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-2 mb-1 md:mb-2">
+                            <Truck size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor Frete</span>
                         </div>
-                        <span className={`text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.estimatedPrice) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.estimatedPrice) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     </div>
 
                     {/* PAGAMENTO */}
-                    <div className={`rounded-2xl p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Wallet size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
-                            <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Pagamento</span>
+                    <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-2 mb-1 md:mb-2">
+                            <Wallet size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Pagamento</span>
                         </div>
-                        <div className={`flex items-center gap-2 font-black text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {getPaymentIcon(order.paymentMethod)}
-                            <span>{order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}</span>
+                            <span className="truncate">{order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}</span>
                         </div>
                     </div>
 
                     {/* SOLICITAÇÃO (ORIGEM) */}
-                    <div className={`rounded-2xl p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Share2 size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
-                            <span className={`text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Solicitado via</span>
+                    <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+                        <div className="flex items-center gap-2 mb-1 md:mb-2">
+                            <Share2 size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Solicitado via</span>
                         </div>
-                        <div className={`flex items-center gap-2 font-black text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {order.requestSource === 'WHATSAPP' ? <MessageCircle size={14} className="text-green-500" /> :
-                                order.requestSource === 'PHONE' ? <Phone size={14} className="text-blue-500" /> :
-                                    <Globe size={14} className="text-orange-500" />}
+                        <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {order.requestSource === 'WHATSAPP' ? <MessageCircle size={12} md:size={14} className="text-green-500" /> :
+                                order.requestSource === 'PHONE' ? <Phone size={12} md:size={14} className="text-blue-500" /> :
+                                    <Globe size={12} md:size={14} className="text-orange-500" />}
                             <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
                                 order.requestSource === 'PHONE' ? 'Telefone' : 'Site'}</span>
                         </div>
