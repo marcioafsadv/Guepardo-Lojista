@@ -169,7 +169,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
       {/* --- COLLAPSED HEADER --- */}
       <div className="flex justify-between items-start">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-black/40 text-white/30 text-[9px] font-black uppercase tracking-[0.2em] border border-white/5">
               #{order.display_id || order.id.slice(-4)}
@@ -215,13 +215,13 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
           </div>
         </div>
 
-        <div className="text-right flex flex-col items-end justify-between min-h-[40px] md:min-h-[60px]">
+        <div className="text-right flex flex-col items-end justify-between min-h-[44px] md:min-h-[60px] shrink-0">
           <div className={`font-black italic text-white tracking-tighter leading-none transition-all duration-300 ${isExpanded ? 'text-lg md:text-2xl' : 'text-base md:text-xl'}`}>
             R$ {(order.deliveryValue || 0).toFixed(2)}
           </div>
           
           <div className={`w-6 h-6 md:w-8 md:h-8 rounded-full bg-white/5 flex items-center justify-center text-white/20 group-hover/card:text-guepardo-accent group-hover/card:bg-guepardo-accent/10 transition-all duration-300 ${isExpanded ? 'rotate-180 bg-guepardo-accent/20 text-guepardo-accent' : ''}`}>
-            <ChevronDown size={14} md:size={18} />
+            <ChevronDown size={14} />
           </div>
         </div>
       </div>
