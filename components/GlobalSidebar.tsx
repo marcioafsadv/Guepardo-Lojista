@@ -101,7 +101,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
       {/* BRAND LOGO AREA */}
       <div className={`px-4 mb-6 flex items-center transition-all duration-300 ${isExpanded ? 'justify-start ml-2' : 'justify-center'}`}>
         <div className="flex items-center gap-4">
-          <img src="/lojista-icon.png" alt="Guepardo" className={`${isExpanded ? 'h-14' : 'h-12'} w-auto object-contain shrink-0 drop-shadow-lg transition-all duration-300`} />
+          <img src="/cheetah-scooter.png" alt="Guepardo" className={`${isExpanded ? 'h-14' : 'h-12'} w-auto object-contain shrink-0 drop-shadow-lg transition-all duration-300`} />
           {isExpanded && (
             <div className="flex flex-col items-start whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300 pr-2">
               <span className="text-white font-black italic text-2xl leading-none tracking-tighter">GUEPARDO</span>

@@ -19,7 +19,7 @@ export const SplashScreen: React.FC = () => {
             {/* Logo hero — ocupa ~45% da largura */}
             <div className="flex flex-col items-center flex-1 justify-center w-full px-6">
                 <img
-                    src="/lojista-icon.png"
+                    src="/cheetah-scooter.png"
                     alt="Guepardo Delivery"
                     className="w-[45vw] max-w-[220px] object-contain"
                     style={{
