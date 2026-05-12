@@ -383,7 +383,7 @@ export const TrackingPage: React.FC = () => {
                     {/* Store Contact & Order ID Overlay */}
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => window.open(`https://wa.me/5511999999999`, '_blank')}
+                            onClick={() => window.open(`https://wa.me/5511983382090`, '_blank')}
                             className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 py-4 px-6 rounded-[24px] flex items-center justify-center gap-3 font-bold text-xs transition-all active:scale-95"
                         >
                             <MessageCircle size={18} />

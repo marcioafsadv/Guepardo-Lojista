@@ -68,7 +68,7 @@ const AwaitingApproval: React.FC<AwaitingApprovalProps> = ({
 
                         <div className="grid grid-cols-2 gap-3">
                             <button 
-                                onClick={() => window.open('https://wa.me/5511999999999', '_blank')}
+                                onClick={() => window.open('https://wa.me/5511983382090', '_blank')}
                                 className="py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-black text-[#A8A29E] hover:text-white text-[11px] transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
                             >
                                 <Phone className="w-4 h-4" /> Suporte

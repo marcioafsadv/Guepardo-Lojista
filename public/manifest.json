@@ -13,13 +13,13 @@
   "categories": ["business", "food"],
   "icons": [
     {
-      "src": "/cheetah-scooter.png",
+      "src": "/lojista-icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/cheetah-icon.png",
+      "src": "/lojista-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
