@@ -382,9 +382,12 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 >
                 <MessageSquare size={20} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
                 {unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full border-2 border-[#1a0900] shadow-[0_0_10px_rgba(255,165,0,0.5)] animate-bounce flex items-center justify-center">
-                    <span className="text-[7px] font-black text-white">{unreadCount}</span>
+                  <div className="absolute -top-1 -right-1 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-orange-500 rounded-full animate-ping opacity-75"></div>
+                    <div className="relative w-5 h-5 bg-orange-500 rounded-full border-2 border-[#1a0900] shadow-[0_0_15px_rgba(255,165,0,0.6)] flex items-center justify-center animate-pulse">
+                      <span className="text-[8px] font-black text-white">{unreadCount}</span>
                     </div>
+                  </div>
                 )}
                 </button>
                 

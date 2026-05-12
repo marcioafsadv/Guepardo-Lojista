@@ -7,9 +7,11 @@ interface ChatMultilateralModalProps {
   order: Order;
   onClose: () => void;
   theme?: string;
+  unreadMessages?: Partial<Record<ChatRoomType, number>>;
+  setUnreadMessages?: (updater: (prev: Partial<Record<ChatRoomType, number>>) => Partial<Record<ChatRoomType, number>>) => void;
 }
 
-export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ onClose, order, theme }) => {
+export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ onClose, order, theme, unreadMessages = {}, setUnreadMessages }) => {
   const isOpen = !!order;
   const [activeTab, setActiveTab] = useState<ChatRoomType>('STORE_COURIER');
   const [message, setMessage] = useState('');
@@ -77,7 +79,16 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, activeTab]);
+    
+    // Clear unread for active tab
+    if (setUnreadMessages && unreadMessages[activeTab]) {
+      setUnreadMessages(prev => {
+        const next = { ...prev };
+        delete next[activeTab];
+        return next;
+      });
+    }
+  }, [messages, activeTab, setUnreadMessages]);
 
   const handleSend = async () => {
     if (!message.trim() || !order) return;
@@ -131,23 +142,35 @@ export const ChatMultilateralModal: React.FC<ChatMultilateralModalProps> = ({ on
         <div className="px-6 py-4 bg-[#1A0900] flex gap-3">
           <button
             onClick={() => setActiveTab('STORE_CENTRAL')}
-            className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 border ${
+            className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 border relative ${
               activeTab === 'STORE_CENTRAL' 
               ? 'bg-white/10 border-white/20 text-white shadow-xl scale-[1.02]' 
               : 'bg-transparent border-white/5 text-white/20 hover:text-white/40 hover:bg-white/5'
             }`}
           >
             <ShieldCheck size={16} strokeWidth={3} /> Lojista x Central
+            {activeTab !== 'STORE_CENTRAL' && unreadMessages['STORE_CENTRAL'] && (
+              <>
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 rounded-full animate-ping"></div>
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-orange-500 rounded-full shadow-[0_0_10px_rgba(255,102,0,0.8)]"></div>
+              </>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('STORE_COURIER')}
-            className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 border ${
+            className={`flex-1 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 border relative ${
               activeTab === 'STORE_COURIER' 
               ? 'bg-guepardo-accent border-guepardo-accent text-white shadow-[0_10px_20px_rgba(255,102,0,0.2)] scale-[1.02]' 
               : 'bg-transparent border-white/5 text-white/20 hover:text-white/40 hover:bg-white/5'
             }`}
           >
             <Store size={16} strokeWidth={3} /> Lojista x Entregador
+            {activeTab !== 'STORE_COURIER' && unreadMessages['STORE_COURIER'] && (
+              <>
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-white rounded-full animate-ping"></div>
+                <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
+              </>
+            )}
           </button>
         </div>
 

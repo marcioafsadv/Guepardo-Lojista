@@ -19,7 +19,7 @@ import { WalletView } from './components/WalletView';
 import WizardForm from './components/RegistrationWizard/WizardForm';
 import AwaitingApproval from './components/AwaitingApproval';
 import { useAuth } from './contexts/AuthContext';
-import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings } from './types';
+import { Order, OrderStatus, Courier, StoreProfile, OrderEvent, Customer, SavedAddress, StoreSettings, ChatRoomType } from './types';
 import { 
     Zap, Menu, Bell, MapPin, Search, Phone, FileText, ArrowRight, 
     Filter, Users, Clock, Check, ChevronDown, Store, LogOut, Settings,
@@ -98,7 +98,7 @@ function App() {
     const [historyFilter, setHistoryFilter] = useState('all');
     const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
-    const [unreadMessages, setUnreadMessages] = useState<Record<string, number>>({});
+    const [unreadMessages, setUnreadMessages] = useState<Record<string, Partial<Record<ChatRoomType, number>>>>({});
     const [openChatId, setOpenChatId] = useState<string | null>(null);
     const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
     const [settings, setSettings] = useState<StoreSettings>({
@@ -727,6 +727,7 @@ function App() {
                 (payload) => {
                     const orderId = payload.new.order_id;
                     const senderType = payload.new.sender_type;
+                    const roomType = payload.new.room_type as ChatRoomType;
 
                     if (senderType === 'STORE') return;
 
@@ -734,10 +735,16 @@ function App() {
                     const isOurOrder = ordersRef.current.some(o => o.id === orderId);
                     if (!isOurOrder) return;
 
-                    setUnreadMessages(prev => ({
-                        ...prev,
-                        [orderId]: (prev[orderId] || 0) + 1
-                    }));
+                    setUnreadMessages(prev => {
+                        const orderUnread = prev[orderId] || {};
+                        return {
+                            ...prev,
+                            [orderId]: {
+                                ...orderUnread,
+                                [roomType]: (orderUnread[roomType] || 0) + 1
+                            }
+                        };
+                    });
 
                     playAlert('beep');
                 }

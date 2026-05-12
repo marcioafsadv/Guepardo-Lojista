@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Order, OrderStatus, Courier, StoreProfile, Customer, RouteStats, StoreSettings, AddressComponents } from '../types';
+import { Order, OrderStatus, Courier, StoreProfile, Customer, RouteStats, StoreSettings, AddressComponents, ChatRoomType } from '../types';
 import { DeliveryForm } from './DeliveryForm';
 import { LeafletMap } from './LeafletMap';
 import { PickupValidationModal } from './PickupValidationModal';
@@ -44,8 +44,8 @@ interface GestaoDePedidosProps {
     mapboxToken?: string;
     balance?: number;
     onSelectView?: (view: any) => void;
-    unreadMessages: Record<string, number>;
-    setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+    unreadMessages: Record<string, Partial<Record<ChatRoomType, number>>>;
+    setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, Partial<Record<ChatRoomType, number>>>>>;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -114,9 +114,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         if (selectedOrderForChat) {
             setUnreadMessages(prev => {
                 if (!prev[selectedOrderForChat.id]) return prev;
-                const next = { ...prev };
-                delete next[selectedOrderForChat.id];
-                return next;
+                
+                // When opening the chat, we'll clear the room that the user is likely to see first.
+                // However, the modal itself will now handle clearing specific rooms as the user switches tabs.
+                return prev; 
             });
         }
     }, [selectedOrderForChat?.id, setUnreadMessages]);
@@ -637,7 +638,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 onConfirmReturn={onConfirmReturn}
                                 onMarkAsReady={onMarkAsReady}
                                 routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
-                                unreadCount={unreadMessages[order.id] || 0}
+                                unreadCount={Object.values(unreadMessages[order.id] || {}).reduce((a, b) => a + (b || 0), 0)}
                             />
                         ))}
 
@@ -771,8 +772,15 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             {isChatOpen && selectedOrderForChat && (
                 <ChatMultilateralModal
                     order={selectedOrderForChat}
-                    onClose={() => setIsChatOpen(false)}
+                    onClose={() => setSelectedOrderForChat(null)}
                     theme={theme}
+                    unreadMessages={unreadMessages[selectedOrderForChat.id] || {}}
+                    setUnreadMessages={(updater) => {
+                        setUnreadMessages(prev => ({
+                            ...prev,
+                            [selectedOrderForChat.id]: typeof updater === 'function' ? updater(prev[selectedOrderForChat.id] || {}) : updater
+                        }));
+                    }}
                 />
             )}
         </div>
