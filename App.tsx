@@ -727,12 +727,18 @@ function App() {
                 (payload) => {
                     const orderId = payload.new.order_id;
                     const senderType = payload.new.sender_type;
-                    const roomType = payload.new.room_type as ChatRoomType;
+                    
+                    // Fallback for room_type if missing or null
+                    let roomType = payload.new.room_type as ChatRoomType;
+                    if (!roomType) {
+                        if (senderType === 'CENTRAL') roomType = 'STORE_CENTRAL';
+                        else roomType = 'STORE_COURIER';
+                    }
 
                     if (senderType === 'STORE') return;
 
                     // Security & Performance: Only alert if the order belongs to this store's active list
-                    const isOurOrder = ordersRef.current.some(o => o.id === orderId);
+                    const isOurOrder = ordersRef.current.some(o => String(o.id) === String(orderId));
                     if (!isOurOrder) return;
 
                     setUnreadMessages(prev => {
