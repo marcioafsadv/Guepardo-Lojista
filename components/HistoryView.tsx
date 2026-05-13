@@ -280,6 +280,39 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                             >
                                 <div className="absolute -right-20 -top-20 w-40 h-40 bg-orange-500/5 rounded-full blur-[60px] group-hover:bg-orange-500/10 transition-all duration-700"></div>
 
+                                <div className="flex flex-col lg:hidden w-full px-2 mb-2">
+                                    <div className="relative flex justify-between items-center w-full max-w-[280px]">
+                                        <div className="absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 bg-white/5"></div>
+                                        {order.status !== OrderStatus.CANCELED && (
+                                            <div 
+                                                className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 bg-orange-500/40 transition-all duration-700"
+                                                style={{ 
+                                                    width: `${Math.max(0, (['PENDING', 'ACCEPTED', 'ARRIVED_AT_STORE', 'IN_TRANSIT', 'DELIVERED'].indexOf(
+                                                        (order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) ? 'ARRIVED_AT_STORE' : 
+                                                        (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_TRANSIT || order.status === OrderStatus.RETURNING) ? 'IN_TRANSIT' : 
+                                                        order.status
+                                                    ) / 4) * 100)}%` 
+                                                }}
+                                            ></div>
+                                        )}
+                                        {['Solicitado', 'Aceito', 'Na Loja', 'Em Rota', 'Entregue'].map((label, idx) => {
+                                            const statusOrder = ['PENDING', 'ACCEPTED', 'ARRIVED_AT_STORE', 'IN_TRANSIT', 'DELIVERED'];
+                                            const currentStatus = (order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) ? 'ARRIVED_AT_STORE' : 
+                                                                (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.IN_TRANSIT || order.status === OrderStatus.RETURNING) ? 'IN_TRANSIT' : 
+                                                                order.status;
+                                            const currentIdx = statusOrder.indexOf(currentStatus);
+                                            const isActive = idx === currentIdx;
+                                            const isDone = idx < currentIdx;
+                                            
+                                            return (
+                                                <div key={label} className="relative z-10 flex flex-col items-center">
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-orange-500 ring-4 ring-orange-500/20 scale-125' : isDone ? 'bg-orange-500' : 'bg-white/10'}`}></div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 <div className="flex items-center justify-between lg:flex-col lg:items-start lg:min-w-[120px]">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-white/30 uppercase tracking-widest mb-1 flex items-center gap-1">

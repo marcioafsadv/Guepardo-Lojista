@@ -23,6 +23,57 @@ const OrderContent: React.FC<{
 }> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, theme, isExpanded = true }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
 
+    const steps = [
+        { key: 'CREATED', label: 'Solicitado', status: [OrderStatus.PENDING, OrderStatus.SCHEDULED] },
+        { key: 'ACCEPTED', label: 'Aceito', status: [OrderStatus.ACCEPTED] },
+        { key: 'STORE', label: 'Na Loja', status: [OrderStatus.TO_STORE, OrderStatus.ARRIVED_AT_STORE] },
+        { key: 'TRANSIT', label: 'Em Rota', status: [OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING] },
+        { key: 'DONE', label: 'Concluído', status: [OrderStatus.DELIVERED] }
+    ];
+
+    const currentStepIndex = steps.findIndex(s => s.status.includes(order.status));
+    const isCanceled = order.status === OrderStatus.CANCELED;
+
+    const renderStepper = () => (
+        <div className="px-4 py-6">
+            <div className="relative flex justify-between items-center w-full max-w-sm mx-auto">
+                {/* Background Line */}
+                <div className={`absolute top-1/2 left-0 right-0 h-0.5 -translate-y-1/2 ${isDark ? 'bg-white/10' : 'bg-gray-100'}`}></div>
+                
+                {/* Active Progress Line */}
+                {!isCanceled && (
+                    <div 
+                        className="absolute top-1/2 left-0 h-0.5 -translate-y-1/2 bg-orange-500 transition-all duration-700"
+                        style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+                    ></div>
+                )}
+
+                {steps.map((step, index) => {
+                    const isCompleted = !isCanceled && index < currentStepIndex;
+                    const isActive = !isCanceled && index === currentStepIndex;
+                    const isFuture = !isCanceled && index > currentStepIndex;
+                    
+                    return (
+                        <div key={step.key} className="relative z-10 flex flex-col items-center gap-2">
+                            <div className={`
+                                w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500
+                                ${isActive ? 'bg-orange-500 text-white scale-125 shadow-[0_0_15px_rgba(249,115,22,0.5)] animate-pulse' : ''}
+                                ${isCompleted ? 'bg-orange-500 text-white' : ''}
+                                ${isFuture ? (isDark ? 'bg-gray-800 text-white/20' : 'bg-gray-100 text-gray-400') : ''}
+                                ${isCanceled ? 'bg-red-500/20 text-red-500' : ''}
+                            `}>
+                                {isCompleted ? <CheckCheck size={14} /> : (isActive ? <div className="w-2 h-2 bg-white rounded-full"></div> : <div className={`w-1.5 h-1.5 rounded-full ${isFuture ? (isDark ? 'bg-white/10' : 'bg-gray-300') : 'bg-white'}`}></div>)}
+                            </div>
+                            <span className={`text-[8px] font-black uppercase tracking-widest ${isActive ? 'text-orange-500' : (isDark ? 'text-white/30' : 'text-gray-400')}`}>
+                                {step.label}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+
     return (
         <div className={`flex flex-col h-full w-full ${isEmbedded ? 'bg-transparent' : 'absolute inset-0 z-20 transition-all duration-300'} ${!isEmbedded && (isExpanded ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}`}>
 
@@ -55,6 +106,7 @@ const OrderContent: React.FC<{
 
                 {/* Status Large */}
                 <div className="text-center">
+                    {renderStepper()}
                     <h2 className={`text-xl md:text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
                     {order.clientPhone && (
                         <div className="flex items-center justify-center gap-2 mt-0.5 text-gray-500 dark:text-gray-400">
