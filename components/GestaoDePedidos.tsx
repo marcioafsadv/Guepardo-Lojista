@@ -112,15 +112,13 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // Effect to clear unread messages when chat opens
     useEffect(() => {
         if (selectedOrderForChat) {
+            console.log("💬 [GestaoDePedidos] Chat opened for order:", selectedOrderForChat.id, "Unread:", unreadMessages[selectedOrderForChat.id]);
             setUnreadMessages(prev => {
                 if (!prev[selectedOrderForChat.id]) return prev;
-                
-                // When opening the chat, we'll clear the room that the user is likely to see first.
-                // However, the modal itself will now handle clearing specific rooms as the user switches tabs.
                 return prev; 
             });
         }
-    }, [selectedOrderForChat?.id, setUnreadMessages]);
+    }, [selectedOrderForChat?.id, unreadMessages, setUnreadMessages]);
 
     // Bulk Actions State
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);

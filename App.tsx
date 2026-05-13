@@ -170,6 +170,7 @@ function App() {
 
     const playAlert = useCallback((type: keyof typeof SOUNDS = 'cheetah') => {
         const soundPath = SOUNDS[type] || SOUNDS.default;
+        console.log("🔊 [App] Playing sound:", type, "Path:", soundPath);
         const audio = new Audio(soundPath);
         audio.play().catch(e => console.warn('Could not play sound:', e));
     }, []);
@@ -715,6 +716,21 @@ function App() {
             .subscribe();
 
         // 3. Unread Messages Listener (Global)
+                    playAlert('beep');
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(deliveryChannel);
+            supabase.removeChannel(profilesChannel);
+        };
+    }, [session?.user, pollData, playAlert, processDeliveryRecord, mapSupabaseStatusToLocal, syncId]);
+
+    // 4. Unread Messages Listener (Isolated to avoid frequent re-subscriptions)
+    useEffect(() => {
+        if (!session?.user) return;
+
         const messageChannel = supabase
             .channel(`unread-messages-${session.user.id}`)
             .on(
@@ -728,18 +744,21 @@ function App() {
                     const orderId = payload.new.order_id;
                     const senderType = payload.new.sender_type;
                     
-                    // Fallback for room_type if missing or null
+                    console.log("💬 [CHAT_REALTIME] Lojista received message for order:", orderId, "from", senderType);
+                    
+                    if (senderType === 'STORE') return;
+
+                    // Use Ref to check if order belongs to us without triggering re-renders
+                    const isOurOrder = ordersRef.current.some(o => String(o.id) === String(orderId));
+                    console.log("💬 [CHAT_REALTIME] Is our order?", isOurOrder, "Active orders in Ref:", ordersRef.current.map(o => o.id));
+
+                    if (!isOurOrder) return;
+
                     let roomType = payload.new.room_type as ChatRoomType;
                     if (!roomType) {
                         if (senderType === 'CENTRAL') roomType = 'STORE_CENTRAL';
                         else roomType = 'STORE_COURIER';
                     }
-
-                    if (senderType === 'STORE') return;
-
-                    // Security & Performance: Only alert if the order belongs to this store's active list
-                    const isOurOrder = ordersRef.current.some(o => String(o.id) === String(orderId));
-                    if (!isOurOrder) return;
 
                     setUnreadMessages(prev => {
                         const orderUnread = prev[orderId] || {};
@@ -758,11 +777,9 @@ function App() {
             .subscribe();
 
         return () => {
-            supabase.removeChannel(deliveryChannel);
-            supabase.removeChannel(profilesChannel);
             supabase.removeChannel(messageChannel);
         };
-    }, [session?.user, pollData, playAlert, processDeliveryRecord, mapSupabaseStatusToLocal, syncId]);
+    }, [session?.user?.id]); // Minimal dependencies
 
     // Initial load and insurance polling (Dynamic Interval)
     useEffect(() => {
