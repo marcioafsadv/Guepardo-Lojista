@@ -715,12 +715,6 @@ function App() {
             )
             .subscribe();
 
-        // 3. Unread Messages Listener (Global)
-                    playAlert('beep');
-                }
-            )
-            .subscribe();
-
         return () => {
             supabase.removeChannel(deliveryChannel);
             supabase.removeChannel(profilesChannel);
