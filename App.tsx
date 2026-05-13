@@ -1951,7 +1951,7 @@ function App() {
 
         return (
             <div className="flex flex-col h-full bg-gray-50 dark:bg-guepardo-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
-                <div className="p-8 pb-4">
+                <div className="p-4 md:p-8 pb-4">
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                         <Users className="text-guepardo-accent" /> Base de Clientes
                     </h2>
@@ -1967,9 +1967,9 @@ function App() {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 pt-0">
-                    <div className="bg-white dark:bg-guepardo-gray-800 rounded-xl border border-gray-200 dark:border-guepardo-gray-700 shadow-sm overflow-hidden">
-                        <table className="w-full text-left border-collapse">
+                <div className="flex-1 overflow-y-auto p-4 md:p-8 pt-0">
+                    <div className="bg-white dark:bg-guepardo-gray-800 rounded-xl border border-gray-200 dark:border-guepardo-gray-700 shadow-sm overflow-x-auto scrollbar-thin">
+                        <table className="w-full text-left border-collapse min-w-[700px]">
                             <thead className="bg-gray-50 dark:bg-guepardo-gray-900 border-b border-gray-200 dark:border-guepardo-gray-700">
                                 <tr>
                                     <th className="p-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cliente</th>
