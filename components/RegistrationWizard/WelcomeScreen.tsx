@@ -70,7 +70,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStart, onLogin }) => {
             />
 
             {/* ── CONTEÚDO PRINCIPAL ── */}
-            <div className="relative z-10 flex flex-col min-h-[100dvh] px-6">
+            <div className="relative z-10 flex flex-col min-h-[100dvh] px-6 w-full max-w-md mx-auto justify-center">
 
                 {/* Hero Logo — orgânico, sem card */}
                 <div className="flex flex-col items-center pt-6 md:pt-16 pb-4 md:pb-6">

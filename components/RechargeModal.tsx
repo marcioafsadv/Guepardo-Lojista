@@ -107,9 +107,11 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setStep('PROCESSING');
 
         try {
+            const finalAmount = activeMethod === 'PIX' ? Number(amount) + 1.99 : Number(amount);
+
             const body: any = { 
                 storeId, 
-                amount, 
+                amount: finalAmount, 
                 description: 'Recarga de Saldo - Guepardo',
                 billingType: activeMethod === 'CREDIT_CARD' ? 'CREDIT_CARD' : 'PIX'
             };
@@ -120,7 +122,7 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                     number: cardData.number.replace(/\D/g, ''),
                     holderName: cardData.name,
                     expiryMonth: expiryMonth,
-                    expiryYear: '20' + expiryYear,
+                    expiryYear: expiryYear.length === 2 ? '20' + expiryYear : expiryYear,
                     ccv: cardData.cvv
                 };
                 body.creditCardHolderInfo = {
@@ -137,7 +139,19 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                 body
             });
 
-            if (invokeError) throw invokeError;
+            // Melhor tratamento de erro para capturar a mensagem real da Edge Function
+            if (invokeError) {
+                let errorMessage = invokeError.message;
+                try {
+                    // Tentar extrair erro se a resposta for JSON stringificada no erro
+                    const parsedError = JSON.parse(invokeError.message);
+                    errorMessage = parsedError.error || parsedError.message || errorMessage;
+                } catch (e) {
+                    // Se não for JSON, o Supabase as vezes coloca a resposta em data mesmo com erro
+                    if (data?.error) errorMessage = data.error;
+                }
+                throw new Error(errorMessage);
+            }
 
             if (data?.success) {
                 if (activeMethod === 'PIX') {
@@ -153,11 +167,13 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                     setTimeout(() => handleClose(), 5000);
                 }
             } else {
-                throw new Error(data?.message || data?.error || "Erro ao processar pagamento");
+                throw new Error(data?.error || data?.message || "Erro ao processar pagamento");
             }
         } catch (err: any) {
             console.error("Erro no pagamento:", err);
-            setError("Erro: " + (err.message || "Tente novamente mais tarde."));
+            // Mostrar mensagem de erro amigável removendo prefixos técnicos se houver
+            const friendlyError = err.message?.replace("EDGE FUNCTION RETURNED A NON-2XX STATUS CODE", "Erro no servidor");
+            setError(friendlyError || "Tente novamente mais tarde.");
             setStep(activeMethod === 'CREDIT_CARD' ? 'CARD_INFO' : 'SELECT_METHOD');
         } finally {
             setLoading(false);
@@ -175,23 +191,25 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
             const { data, error: invokeError } = await supabase.functions.invoke('asaas-create-charge', {
                 body: { 
                     storeId, 
-                    amount,
+                    amount: Number(amount),
                     billingType: 'MANUAL'
                 }
             });
 
-            // No caso de erro 4xx/5xx, o Supabase pode retornar o erro no campo invokeError
-            // Mas o corpo da resposta (JSON) pode estar em 'data'
             if (invokeError || (data && data.success === false)) {
-                const finalError = data?.error || invokeError?.message || "Erro desconhecido";
-                throw new Error(finalError);
+                let errorMessage = data?.error || invokeError?.message || "Erro desconhecido";
+                try {
+                    const parsed = JSON.parse(errorMessage);
+                    errorMessage = parsed.error || parsed.message || errorMessage;
+                } catch(e) {}
+                throw new Error(errorMessage);
             }
 
             setStep('SUCCESS');
             setTimeout(() => handleClose(), 5000);
         } catch (err: any) {
             console.error("Erro ao informar recarga manual:", err);
-            setError("Erro ao registrar: " + (err.message || "Tente novamente mais tarde."));
+            setError(err.message || "Tente novamente mais tarde.");
         } finally {
             setLoading(false);
         }
@@ -318,7 +336,19 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
                                     </div>
                                 )}
                                 {activeTab === 'AUTOMATED' ? (
-                                    <button onClick={() => handleGeneratePayment()} className="w-full bg-guepardo-accent hover:bg-guepardo-accent-hover text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95 uppercase">{method === 'PIX' ? 'Gerar PIX' : 'Dados do Cartão'}</button>
+                                    <div className="space-y-4">
+                                        {method === 'PIX' && (
+                                            <div className="bg-white/5 border border-white/5 p-4 rounded-2xl flex justify-between items-center italic">
+                                                <span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Total a pagar:</span>
+                                                <span className="text-xl font-black text-white">
+                                                    {(Number(amount) + 1.99).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </span>
+                                            </div>
+                                        )}
+                                        <button onClick={() => handleGeneratePayment()} className="w-full bg-guepardo-accent hover:bg-guepardo-accent-hover text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95 uppercase">
+                                            {method === 'PIX' ? 'Gerar PIX' : 'Dados do Cartão'}
+                                        </button>
+                                    </div>
                                 ) : (
                                     <button onClick={handleManualInform} disabled={loading} className="w-full bg-guepardo-accent hover:bg-guepardo-accent-hover text-white py-6 rounded-2xl font-black italic text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3">
                                         {loading ? <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <>INFORMAR TRANSFERÊNCIA <Check size={24} /></>}

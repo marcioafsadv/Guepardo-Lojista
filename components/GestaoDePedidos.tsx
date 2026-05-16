@@ -569,7 +569,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             </div>
 
             {/* --- LEFT OVERLAY (Form + Monitoring) --- */}
-            <div className={`absolute top-0 left-0 h-full md:p-6 p-2 flex flex-col gap-4 md:gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'md:w-[528px] w-full opacity-100 translate-x-0'}`}>
+            <div className={`absolute top-0 left-0 h-full md:p-6 p-2 flex flex-col gap-4 md:gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'md:w-[380px] lg:w-[450px] xl:w-[528px] w-full opacity-100 translate-x-0'}`}>
                 <div className="pointer-events-auto flex flex-col gap-4 md:gap-6 h-full overflow-hidden">
                     {/* Delivery Form */}
                     <DeliveryForm
@@ -663,7 +663,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     rounded-r-2xl flex items-center justify-center text-white
                     shadow-[5px_0_15px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300
                     pointer-events-auto
-                    ${isFormCollapsed ? 'left-0' : 'md:left-[504px] left-[calc(100%-32px)] md:left-auto'}
+                    ${isFormCollapsed ? 'left-0' : 'left-[calc(100%-32px)] md:left-[356px] lg:left-[426px] xl:left-[504px]'}
                 `}
                 style={!isFormCollapsed && window.innerWidth < 768 ? { left: 'calc(100% - 32px)' } : {}}
                 title={isFormCollapsed ? "Abrir Formulário" : "Fechar Formulário"}
@@ -706,7 +706,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                             ${showDetailDrawer ? 'opacity-100' : 'opacity-0 translate-x-full'}
                             ${isDetailCollapsed 
                                 ? 'bottom-6 left-1/2 -translate-x-1/2 w-48 h-12 rounded-2xl md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-auto md:right-0 md:w-8 md:h-20 md:rounded-l-2xl md:translate-x-0' 
-                                : 'top-4 right-16 w-10 h-10 rounded-full md:top-1/2 md:-translate-y-1/2 md:right-[450px] md:w-8 md:h-20 md:rounded-l-2xl md:translate-x-0'}
+                                : 'top-4 right-16 w-10 h-10 rounded-full md:top-1/2 md:-translate-y-1/2 md:right-[380px] lg:right-[450px] md:w-8 md:h-20 md:rounded-l-2xl md:translate-x-0'}
                         `}
                         title={isDetailCollapsed ? "Expandir Detalhes" : "Recolher Detalhes"}
                      >
@@ -725,7 +725,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                      </button>
 
                      <div className={`
-                        pointer-events-auto w-full md:w-[450px] h-full md:h-[90vh] bg-[#121212] 
+                        pointer-events-auto w-full md:w-[380px] lg:w-[450px] h-full md:h-[90vh] bg-[#121212] 
                         border-t md:border border-white/5 shadow-2xl rounded-t-[2.5rem] md:rounded-[3rem] 
                         overflow-hidden transition-all duration-500 transform
                         ${showDetailDrawer ? 'opacity-100' : 'opacity-0'}
