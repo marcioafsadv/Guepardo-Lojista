@@ -75,7 +75,7 @@ const WizardForm: React.FC = () => {
                     const fileName = `${authData.user!.id}/${namePrefix}_${Date.now()}.${fileExt}`;
                     
                     const { data: uploadData, error: uploadError } = await supabase.storage
-                        .from('logos')
+                        .from('store-assets')
                         .upload(fileName, file);
                     
                     if (uploadError) {
@@ -84,7 +84,7 @@ const WizardForm: React.FC = () => {
                     }
                     
                     const { data: { publicUrl } } = supabase.storage
-                        .from('logos')
+                        .from('store-assets')
                         .getPublicUrl(fileName);
                     return publicUrl;
                 };

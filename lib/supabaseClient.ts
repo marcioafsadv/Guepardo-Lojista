@@ -23,3 +23,26 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         timeout: 30000
     }
 });
+
+export const uploadStoreAsset = async (file: File, storeId: string, type: 'logo' | 'facade'): Promise<string | null> => {
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${storeId}_${type}_${Date.now()}.${fileExt}`;
+        const filePath = `${storeId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('store-assets')
+            .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+            console.error('Error uploading asset:', uploadError);
+            return null;
+        }
+
+        const { data } = supabase.storage.from('store-assets').getPublicUrl(filePath);
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Exception during upload:', error);
+        return null;
+    }
+};
