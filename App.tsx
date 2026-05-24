@@ -1058,7 +1058,7 @@ function App() {
                     deliveryValue: s.deliveryValue || '0',
                     paymentMethod: s.paymentMethod || 'PIX',
                     changeFor: s.paymentMethod === 'CASH' && s.changeFor ? parseFloat(s.changeFor) : null,
-                    isReturnRequired: false,
+                    isReturnRequired: s.paymentMethod === 'CARD',
                     customerNote: ''
                 }))
             ];
@@ -1223,7 +1223,7 @@ function App() {
             }
 
             // Update local state
-            const mappedOrders: Order[] = (createdDataList || []).map(createdData => {
+            const mappedOrders: Order[] = (createdDataList || []).map((createdData, index) => {
                 const sourceData = payloads.find(p => p.id === createdData.id);
                 return {
                     id: createdData.id,

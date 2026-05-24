@@ -151,11 +151,12 @@ export const DeliveryForm = ({
 
   // AUTO-TRIGGER RETURN FOR CARD PAYMENTS
   useEffect(() => {
-    if (paymentMethod === 'CARD') {
+    const hasCardPayment = paymentMethod === 'CARD' || additionalStops.some(s => s.paymentMethod === 'CARD');
+    if (hasCardPayment) {
       setIsReturnRequired(true);
     }
     // Note: We don't auto-disable if switching away from CARD, to respect manual user choice
-  }, [paymentMethod]);
+  }, [paymentMethod, additionalStops]);
 
   // ── CÁLCULO DE FRETE & BATCHING (Centralizado) ────────────────────────
   // Distância exata em metros fornecida pela API de rotas
