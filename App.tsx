@@ -106,7 +106,7 @@ function App() {
         closeTime: "22:00",
         isStoreOpen: true,
         deliveryRadiusKm: 5,
-        baseFreight: 7.50,
+        baseFreight: 7.00,
         returnFeeActive: true,
         prepTimeMinutes: 15,
         tierGoals: { bronze: 3, silver: 5, gold: 10 },
@@ -422,8 +422,8 @@ function App() {
                 if (data && data.length > 0) {
                     const minFee = data.find(s => s.key === 'min_delivery_fee')?.value;
                     if (minFee !== undefined) {
-                        setSettings(prev => ({ ...prev, baseFreight: parseFloat(minFee) }));
-                        console.log('✅ [PRICING] Loaded min_delivery_fee from DB:', minFee);
+                        setSettings(prev => ({ ...prev, baseFreight: 7.00 }));
+                        console.log('✅ [PRICING] Loaded min_delivery_fee from DB (Forced 7.00):', minFee);
                     }
                 }
             } catch (err) {

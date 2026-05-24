@@ -15,7 +15,7 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, storeProfile, onUpdateProfile }) => {
     const { signOut } = useAuth();
     // Local state for form handling before save
-    const [localSettings, setLocalSettings] = useState<StoreSettings>(settings);
+    const [localSettings, setLocalSettings] = useState<StoreSettings>({ ...settings, baseFreight: 7.00 });
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
@@ -332,14 +332,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         <div>
                             <label className="block text-sm font-bold text-gray-900 dark:text-white mb-2">Estimativa de Frete (R$)</label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R$</span>
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 font-bold">R$</span>
                                 <input
-                                    type="number"
-                                    min="0"
-                                    step="0.50"
-                                    value={localSettings.baseFreight}
-                                    onChange={(e) => handleChange('baseFreight', parseFloat(e.target.value))}
-                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg pl-10 pr-4 py-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none font-mono transition-colors duration-300"
+                                    type="text"
+                                    value="7,00"
+                                    disabled
+                                    className="w-full bg-gray-100 dark:bg-guepardo-gray-800 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg pl-10 pr-4 py-3 text-gray-400 dark:text-gray-500 font-mono cursor-not-allowed transition-colors duration-300"
                                 />
                             </div>
                         </div>
