@@ -44,6 +44,7 @@ interface GestaoDePedidosProps {
     mapboxToken?: string;
     balance?: number;
     onSelectView?: (view: any) => void;
+    onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
     unreadMessages: Record<string, Partial<Record<ChatRoomType, number>>>;
     setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, Partial<Record<ChatRoomType, number>>>>>;
 }
@@ -81,6 +82,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onToggleMapTheme,
     balance = 0,
     onSelectView,
+    onToggleStatus,
     unreadMessages,
     setUnreadMessages
 }) => {
@@ -588,6 +590,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         externalTargetId={targetCourierId}
                         onClearSelection={() => setTargetCourierId('')}
                         onNavigateToWallet={() => onSelectView?.('wallet')}
+                        storeStatus={storeProfile?.status}
+                        onToggleStatus={onToggleStatus}
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}

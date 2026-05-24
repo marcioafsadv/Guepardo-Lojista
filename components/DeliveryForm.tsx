@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
 import { BalanceAlertModal } from './BalanceAlertModal';
+import { StoreClosedAlertModal } from './StoreClosedAlertModal';
 import { classifyClient } from '../utils/clientClassifier';
 import {
   calculateFreight,
@@ -39,6 +40,8 @@ interface DeliveryFormProps {
   onClearSelection?: () => void;
   onAdditionalStopsChange?: (stops: any[]) => void;
   onNavigateToWallet?: () => void;
+  storeStatus?: string;
+  onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
 }
 
 export const DeliveryForm = ({
@@ -57,10 +60,13 @@ export const DeliveryForm = ({
   onClearSelection,
   onAdditionalStopsChange,
   onNavigateToWallet,
-  balance = 0
+  balance = 0,
+  storeStatus = 'fechada',
+  onToggleStatus
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const [showBalanceAlert, setShowBalanceAlert] = useState(false);
+  const [showStoreClosedAlert, setShowStoreClosedAlert] = useState(false);
 
   // Client & Payment
   const [clientName, setClientName] = useState('');
@@ -198,6 +204,13 @@ export const DeliveryForm = ({
     }
 
     const fullAddress = `${street}, ${number}${complement ? ' - ' + complement : ''} - ${neighborhood}, ${cityState}`;
+
+    // --- NEW: STORE STATUS VALIDATION ---
+    if (storeStatus !== 'aberta') {
+      console.warn("❌ [DeliveryForm] Store is closed, aborting submit");
+      setShowStoreClosedAlert(true);
+      return;
+    }
 
     // --- NEW: BALANCE VALIDATION ---
     if (balance < totalFreight) {
@@ -1156,6 +1169,12 @@ export const DeliveryForm = ({
           }}
           requiredAmount={totalFreight}
           currentBalance={balance}
+        />
+
+        <StoreClosedAlertModal
+          isOpen={showStoreClosedAlert}
+          onClose={() => setShowStoreClosedAlert(false)}
+          onActivateStore={() => onToggleStatus?.('aberta')}
         />
       </div> {/* end collapsible */}
     </div>
