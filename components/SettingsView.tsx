@@ -367,7 +367,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                     <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform ${localSettings.returnFeeActive ? 'translate-x-4' : 'translate-x-0'}`} />
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-400">Cobrar 50% do valor se houver devolução (maquininha/troca).</p>
+                            <p className="text-xs text-gray-400">Cobrar taxa de retorno (apenas KM rodado) se houver devolução (maquininha/troca).</p>
                         </div>
                     </div>
                 </section>

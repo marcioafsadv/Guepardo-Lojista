@@ -1047,7 +1047,7 @@ export const DeliveryForm = ({
                   <ArrowLeftRight size={16} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-tight mb-1">Entrega com Retorno (+50%)</p>
+                  <p className="text-[10px] font-black text-white uppercase tracking-[0.2em] leading-tight mb-1">Entrega com Retorno</p>
                   <p className="text-[10px] text-guepardo-accent font-black italic uppercase tracking-tighter">O motoboy deverá voltar ao estabelecimento.</p>
                 </div>
               </div>

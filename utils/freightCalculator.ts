@@ -40,8 +40,8 @@ export const APP_BATCH_FIXED = 0.50;
 /** Parcela fixa da taxa de batching que vai ao Entregador (R$) */
 export const COURIER_BATCH_FIXED = 2.50;
 
-/** Taxa base para retorno — 50% da taxa principal */
-export const RETURN_BASE_FEE = 4.00;
+/** Taxa base para retorno — removida por solicitação do cliente (era 50% da taxa principal, R$ 4,00) */
+export const RETURN_BASE_FEE = 0.00;
 
 /** Fração da PARTE VARIÁVEL (km) que vai ao entregador (87,5%) */
 export const COURIER_VARIABLE_SHARE = 0.875;
