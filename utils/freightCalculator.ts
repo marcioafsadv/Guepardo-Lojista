@@ -4,29 +4,29 @@
  * Modelo de precificação linear metro a metro, sem arredondamento de KM.
  *
  * ── Parâmetros Brutos (Cliente) ─────────────────────────────────
- *   Pedido Simples:   Taxa base R$ 8,00 + R$ 1,32 por km (R$ 0,00132/metro)
+ *   Pedido Simples:   Taxa base R$ 7,00 + R$ 1,32 por km (R$ 0,00132/metro)
  *   Parada Adicional: Sem taxa fixa. Somente R$ 1,32/km sobre distância adicional.
  *   Retorno à Loja:   Sem taxa fixa. Somente R$ 1,32/km sobre distância de retorno.
  *
  * ── Split de Receita ────────────────────────────────────────────
- *   Taxa Base (R$ 8,00): R$ 1,00 fixo para o App | R$ 7,00 fixo para o Entregador
+ *   Taxa Base (R$ 7,00): R$ 1,00 fixo para o App | R$ 6,00 fixo para o Entregador
  *   Variáveis (km):      12,5% para o App         | 87,5% para o Entregador
  *
  * ── Fórmula Principal ───────────────────────────────────────────
- *   Vtotal = 8,00 + (MetrosPercorridos × 0,00132)
+ *   Vtotal = 7,00 + (MetrosPercorridos × 0,00132)
  *   Somar todos os metros da rota: Loja → C1 → C2 → (Retorno)
  */
 
 // ── Constantes ─────────────────────────────────────────────────
 
 /** Taxa de partida bruta para pedido simples (R$) */
-export const FREIGHT_BASE_SIMPLE = 8.00;
+export const FREIGHT_BASE_SIMPLE = 7.00;
 
 /** Parcela fixa da taxa base que vai ao App (R$) */
 export const APP_BASE_FIXED = 1.00;
 
 /** Parcela fixa da taxa base que vai ao Entregador (R$) */
-export const COURIER_BASE_FIXED = 7.00;
+export const COURIER_BASE_FIXED = 6.00;
 
 /** Tarifa por metro rodado — bruta (R$/metro) = 1,32 / 1000 */
 export const FREIGHT_RATE_PER_METER = 0.00132;
@@ -91,10 +91,10 @@ function splitVariable(variableFee: number): { courierPart: number; appPart: num
  * @param distanceMeters - Distância exata em metros retornada pela API de rotas
  *
  * @example
- * // 1.000 metros (1 km) → R$ 9,32 bruto
+ * // 1.000 metros (1 km) → R$ 8,32 bruto
  * calculateFreight(1000)
- * // storeFee = 8,00 + 1,32 = 9,32
- * // courierFee = 7,00 + (1,32 × 0,875) = 7,00 + 1,155 = 8,155 ≈ R$ 8,16
+ * // storeFee = 7,00 + 1,32 = 8,32
+ * // courierFee = 6,00 + (1,32 × 0,875) = 6,00 + 1,155 = 7,155 ≈ R$ 7,16
  * // centralProfit = 1,00 + (1,32 × 0,125) = 1,00 + 0,165 = 1,165 ≈ R$ 1,17
  */
 export const calculateFreight = (distanceMeters: number): FreightResult => {

@@ -171,7 +171,7 @@ export const DeliveryForm = ({
 
   const baseFreightResult = isBatching
     ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
-    : calculateFreight(distanceMeters);           // Base R$8,00 + R$1,32/km
+    : calculateFreight(distanceMeters);           // Base R$7,00 + R$1,32/km
 
   const baseFreight = baseFreightResult.storeFee;
   const baseCourierEarnings = baseFreightResult.courierFee;
