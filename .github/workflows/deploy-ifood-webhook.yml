@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - 'supabase/functions/ifood-webhook/**'
+      - 'supabase/config.toml'
 
 jobs:
   deploy:
