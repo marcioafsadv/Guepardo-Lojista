@@ -1,5 +1,4 @@
-[project]
-id = "eviukbluwrwcblwhkzwz"
+project_id = "eviukbluwrwcblwhkzwz"
 
 [api]
 enabled = true
@@ -47,6 +46,3 @@ enabled = false
 port = 54327
 vector_port = 54328
 backend = "postgres"
-
-[functions.ifood-webhook]
-verify_jwt = false
