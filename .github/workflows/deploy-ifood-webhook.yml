@@ -1,0 +1,31 @@
+name: Deploy iFood Webhook Edge Function
+
+on:
+  # Disparo manual pela interface do GitHub
+  workflow_dispatch:
+  # Também dispara automaticamente ao fazer push em main
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/functions/ifood-webhook/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy ifood-webhook Edge Function
+        run: |
+          supabase functions deploy ifood-webhook \
+            --no-verify-jwt \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
