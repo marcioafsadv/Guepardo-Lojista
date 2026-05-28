@@ -32,11 +32,12 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ or
   if (!isOpen) return null;
 
   const handleChange = (index: number, value: string) => {
-    // Strict digit only validation
-    if (!/^\d*$/.test(value)) return;
+    // Alphanumeric validation (letters and numbers)
+    if (!/^[a-zA-Z0-9]*$/.test(value)) return;
 
+    const upperValue = value.toUpperCase();
     const newCode = [...code];
-    newCode[index] = value;
+    newCode[index] = upperValue;
     setCode(newCode);
 
     // Auto-focus next
@@ -52,7 +53,7 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ or
       // CHECK: If validCodes is provided, check if fullCode is in it.
       // ELSE: Check against correctCode.
       const isValid = validCodes && validCodes.length > 0
-        ? validCodes.includes(fullCode)
+        ? validCodes.map(c => c.toUpperCase()).includes(fullCode.toUpperCase())
         : false;
 
       if (isValid) {
@@ -101,8 +102,9 @@ export const PickupValidationModal: React.FC<PickupValidationModalProps> = ({ or
                 key={index}
                 ref={(el) => { inputsRef.current[index] = el; }}
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
+                inputMode="text"
+                pattern="[a-zA-Z0-9]*"
+                autoCapitalize="characters"
                 maxLength={1}
                 className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none transition-all bg-white dark:bg-guepardo-gray-900 text-gray-900 dark:text-white ${error
                   ? 'border-red-500 bg-red-50 text-red-600 animate-shake'
