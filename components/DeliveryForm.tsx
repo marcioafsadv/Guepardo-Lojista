@@ -88,16 +88,23 @@ export const DeliveryForm = ({
         if (order.clientName) setClientName(order.clientName);
         if (order.clientPhone) setClientPhone(order.clientPhone);
         if (order.deliveryValue) setDeliveryValue(String(order.deliveryValue)); // Ensure it's a string
-        if (order.destination) {
-          // If address looks like a street, try to set street name
+        
+        // Use structured fields if present
+        if (order.addressStreet) setStreet(order.addressStreet);
+        if (order.addressNumber) setNumber(order.addressNumber);
+        if (order.addressNeighborhood) setNeighborhood(order.addressNeighborhood);
+        if (order.addressComplement) setComplement(order.addressComplement);
+        if (order.addressCity) setCityState(order.addressCity);
+        if (order.addressCep) setCep(order.addressCep);
+
+        // Fallback to parsing destination string
+        if (!order.addressStreet && order.destination) {
           const parts = order.destination.split(',');
           if (parts.length > 0) setStreet(parts[0].trim());
           if (parts.length > 1) {
             const numPart = parts[1].trim().match(/\d+/);
             if (numPart) setNumber(numPart[0]);
           }
-          // Attempt to parse other address components if available in order.destination
-          // This is a basic attempt and might need more robust parsing for real-world addresses
           const fullAddress = order.destination;
           const complementMatch = fullAddress.match(/complemento:\s*([^,]+)/i);
           if (complementMatch) setComplement(complementMatch[1].trim());
