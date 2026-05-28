@@ -223,8 +223,8 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         const clientPhone = orderDetails.customer?.phone?.number || "";
         const phoneSuffix = clientPhone.length >= 4 ? clientPhone.slice(-4) : "";
 
-        // Valor total e valor cobrado na porta
-        const orderValue = orderDetails.payments?.pending || orderDetails.payments?.value || 0;
+        // Valor total do pedido no iFood
+        const orderValue = orderDetails.total?.orderAmount || orderDetails.payments?.prepaid || orderDetails.payments?.value || 0;
 
         // Determina o horário agendado apenas se for agendamento
         const parsedScheduledTime = (() => {
