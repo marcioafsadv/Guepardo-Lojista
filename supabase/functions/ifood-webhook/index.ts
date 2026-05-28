@@ -251,6 +251,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         const { error: insertError } = await supabaseAdmin
           .from("deliveries")
           .insert({
+            id: crypto.randomUUID(),
             store_id: store.id,
             status: "pending", // Pedido entra como Pendente para aceite manual
             customer_name: orderDetails.customer?.name || "Cliente iFood",
