@@ -160,15 +160,13 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
       debugLogs.push("ℹ️ Evento do tipo KEEPALIVE recebido. Pulando processamento de pedido.");
       continue;
     }
-
     try {
-      // FORÇADO: Redireciona todos os pedidos iFood apenas para o merchant da Guepardo Delivery
-      const targetMerchantId = "5810f9ac-c56e-41e3-82cc-f803f66c4529";
-      debugLogs.push(`🔍 [Redirecionamento Forçado] Buscando loja Guepardo Delivery com ifood_merchant_id: ${targetMerchantId}...`);
+      // DINÂMICO: Busca a loja correspondente ao merchantId recebido do iFood
+      debugLogs.push(`🔍 Buscando loja cadastrada com ifood_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
         .select("id, lat, lng, fantasy_name, company_name, address")
-        .eq("ifood_merchant_id", targetMerchantId)
+        .eq("ifood_merchant_id", merchantId)
         .single();
 
       if (storeError) {
