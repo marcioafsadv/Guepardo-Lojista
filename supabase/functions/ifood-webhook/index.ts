@@ -11,6 +11,7 @@ const supabaseAdmin = createClient(
 // 2. Obtém as credenciais do iFood do ambiente
 const IFOOD_CLIENT_ID = Deno.env.get("IFOOD_CLIENT_ID") || "";
 const IFOOD_CLIENT_SECRET = Deno.env.get("IFOOD_CLIENT_SECRET") || "";
+const IFOOD_BASE_URL = Deno.env.get("IFOOD_API_URL") || "https://merchant-api.ifood.com.br";
 
 // Cache local simples em memória para o token de acesso iFood (dura até 1 hora)
 let cachedToken: string | null = null;
@@ -35,7 +36,7 @@ async function getIFoodAccessToken(): Promise<string> {
   params.append("clientId", IFOOD_CLIENT_ID);
   params.append("clientSecret", IFOOD_CLIENT_SECRET);
 
-  const response = await fetch("https://merchant-api.ifood.com.br/authentication/v1.0/oauth/token", {
+  const response = await fetch(`${IFOOD_BASE_URL}/authentication/v1.0/oauth/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -64,7 +65,7 @@ async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
   
   console.log(`✉️ Enviando confirmação (ack) para ${eventIds.length} eventos no iFood...`);
   try {
-    const ackResp = await fetch("https://merchant-api.ifood.com.br/order/v1.0/events/acknowledgment", {
+    const ackResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/events/acknowledgment`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
@@ -86,7 +87,7 @@ async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
  */
 async function fetchIFoodOrderDetails(accessToken: string, orderId: string): Promise<any> {
   console.log(`🔍 Buscando detalhes do pedido ${orderId} no iFood...`);
-  const response = await fetch(`https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}`, {
+  const response = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}`, {
     headers: {
       "Authorization": `Bearer ${accessToken}`,
     },
@@ -287,13 +288,13 @@ Deno.serve(async (req: Request) => {
       let bodyData = null;
 
       if (action === "confirmOrder") {
-        ifoodEndpoint = `https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}/confirm`;
+        ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/confirm`;
       } else if (action === "dispatchOrder") {
-        ifoodEndpoint = `https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}/dispatch`;
+        ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/dispatch`;
       } else if (action === "readyToPickup") {
-        ifoodEndpoint = `https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}/readyToPickup`;
+        ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/readyToPickup`;
       } else if (action === "cancelOrder") {
-        ifoodEndpoint = `https://merchant-api.ifood.com.br/order/v1.0/orders/${orderId}/requestCancellation`;
+        ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/requestCancellation`;
         bodyData = {
           reason: reason || "Lojista solicitou o cancelamento",
           cancellationCode: "501" // Código iFood padrão para problemas operacionais / solicitação do lojista
