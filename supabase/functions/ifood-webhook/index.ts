@@ -121,12 +121,17 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
 
   for (const event of events) {
     const eventId = event.id;
-    const code = event.code;
-    const orderId = String(event.correlationId || "").toLowerCase();
+    const code = event.fullCode || event.code;
+    const orderId = String(event.orderId || event.correlationId || "").toLowerCase();
     const merchantId = String(event.merchantId || "").toLowerCase();
     eventIdsToAck.push(eventId);
 
     debugLogs.push(`📦 Evento iFood recebido: ${code} (Pedido: ${orderId}, Merchant: ${merchantId})`);
+
+    if (code === "KEEPALIVE") {
+      debugLogs.push("ℹ️ Evento do tipo KEEPALIVE recebido. Pulando processamento de pedido.");
+      continue;
+    }
 
     try {
       debugLogs.push(`🔍 Buscando loja com ifood_merchant_id: ${merchantId}...`);
@@ -147,7 +152,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`✅ Loja encontrada: ${store.fantasy_name || store.id}`);
 
       // 2. Tratar eventos específicos
-      if (code === "ORDER_CREATED" || code === "PLACED") {
+      if (code === "ORDER_CREATED" || code === "PLACED" || code === "PLC") {
         debugLogs.push(`🔍 Buscando detalhes do pedido ${orderId} no iFood...`);
         let orderDetails;
         try {
@@ -296,7 +301,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
       } 
-      else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED") {
+      else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN") {
         // Pedido cancelado no iFood
         const { error: cancelError } = await supabaseAdmin
           .from("deliveries")
@@ -358,6 +363,7 @@ Deno.serve(async (req: Request) => {
     // Lê o corpo da requisição de forma segura para evitar erros com JSON vazio
     const requestText = await req.text();
     const payload = requestText ? JSON.parse(requestText) : {};
+    console.log("📥 Incoming Webhook Payload:", JSON.stringify(payload));
 
     // Se o payload for vazio (teste de conexão do iFood), retorna 200 OK
     if (Object.keys(payload).length === 0) {
@@ -440,11 +446,14 @@ Deno.serve(async (req: Request) => {
     }
 
     // Verificação 2: É um webhook recebido diretamente do iFood?
-    // O iFood envia um Array de eventos no body
-    if (Array.isArray(payload)) {
+    // O iFood envia um Array de eventos no body para polling, ou um objeto único para webhooks normais
+    const isSingleEvent = payload && typeof payload === "object" && payload.id && (payload.orderId || payload.correlationId || payload.code || payload.fullCode);
+
+    if (Array.isArray(payload) || isSingleEvent) {
+      const eventsList = Array.isArray(payload) ? payload : [payload];
       const debugLogs: string[] = [];
       // Processa os eventos e aguarda a conclusão antes de retornar
-      await processIFoodEvents(payload, debugLogs);
+      await processIFoodEvents(eventsList, debugLogs);
       
       return new Response(JSON.stringify({ received: true, logs: debugLogs }), {
         status: 202,
