@@ -3,7 +3,7 @@ import { StoreSettings, StoreProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { geocodeAddress } from '../utils/geocoding';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2 } from 'lucide-react';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -19,6 +19,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
+
+    // Password change state
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+    const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Profile state
     const [profileData, setProfileData] = useState({
@@ -141,6 +147,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
             console.error("Geocoding error:", error);
         } finally {
             setIsGeocoding(false);
+        }
+    };
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPasswordMessage(null);
+
+        if (newPassword.length < 6) {
+            setPasswordMessage({ type: 'error', text: 'A senha deve ter no mínimo 6 caracteres.' });
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordMessage({ type: 'error', text: 'As senhas não coincidem.' });
+            return;
+        }
+
+        setIsUpdatingPassword(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            setPasswordMessage({ type: 'success', text: 'Senha atualizada com sucesso!' });
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            console.error('Error updating password:', error);
+            setPasswordMessage({ type: 'error', text: error.message || 'Falha ao atualizar a senha.' });
+        } finally {
+            setIsUpdatingPassword(false);
         }
     };
 
@@ -493,6 +528,62 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                             <p className="text-xs text-gray-500 mt-2 flex items-center gap-1"><Volume2 size={12} /> Som tocado ao "Chegar na Loja"</p>
                         </div>
                     </div>
+                </section>
+
+                {/* 4.5. ALTERAR SENHA */}
+                <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                    <h3 className="text-base md:text-lg font-bold text-guepardo-accent mb-4 md:mb-6 flex items-center gap-2">
+                        <Lock size={18} /> Alterar Senha de Acesso
+                    </h3>
+                    
+                    <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-md">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Nova Senha</label>
+                            <input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                placeholder="Digite a nova senha"
+                                required
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">Confirmar Nova Senha</label>
+                            <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                placeholder="Confirme a nova senha"
+                                required
+                            />
+                        </div>
+
+                        {passwordMessage && (
+                            <div className={`p-3 rounded-lg text-sm font-semibold ${
+                                passwordMessage.type === 'success' 
+                                    ? 'bg-green-500/10 text-green-500 border border-green-500/20' 
+                                    : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            }`}>
+                                {passwordMessage.text}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                            className={`w-full sm:w-auto px-6 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${
+                                !isUpdatingPassword && newPassword && confirmPassword
+                                    ? 'bg-guepardo-accent text-guepardo-gray-900 hover:brightness-110 shadow-lg shadow-guepardo-accent/20'
+                                    : 'bg-gray-200 dark:bg-guepardo-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                            {isUpdatingPassword ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            {isUpdatingPassword ? 'Atualizando...' : 'Atualizar Senha'}
+                        </button>
+                    </form>
                 </section>
 
                 {/* 5. SUPORTE */}

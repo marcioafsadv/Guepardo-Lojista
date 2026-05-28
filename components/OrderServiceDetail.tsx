@@ -308,8 +308,8 @@ const OrderContent: React.FC<{
                     <Printer size={16} /> Imprimir
                 </button>
 
-                {/* Ação de Aceitar Pedido do iFood se estiver Pendente */}
-                {order.requestSource === 'IFOOD' && order.status === OrderStatus.PENDING && (
+                {/* Ação de Aceitar Pedido do iFood se estiver Pendente e não aceito */}
+                {order.requestSource === 'IFOOD' && order.status === OrderStatus.PENDING && !order.acceptedAt && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();

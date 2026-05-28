@@ -47,7 +47,7 @@ BEGIN
     );
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger AFTER INSERT para gravar o log após a loja ser inserida (garantindo FK de store_id válida)
 DROP TRIGGER IF EXISTS on_store_created_log_welcome_transaction ON public.stores;
