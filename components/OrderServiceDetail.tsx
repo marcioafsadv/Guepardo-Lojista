@@ -23,6 +23,7 @@ const OrderContent: React.FC<{
     isExpanded?: boolean;
 }> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, theme, isExpanded = true }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
+    const [isAccepting, setIsAccepting] = React.useState(false);
 
     const steps = [
         { key: 'CREATED', label: 'Solicitado', status: [OrderStatus.PENDING, OrderStatus.SCHEDULED] },
@@ -311,15 +312,32 @@ const OrderContent: React.FC<{
                 {/* Ação de Aceitar Pedido do iFood se estiver Pendente e não aceito */}
                 {order.requestSource === 'IFOOD' && order.status === OrderStatus.PENDING && !order.acceptedAt && (
                     <button
-                        onClick={(e) => {
+                        disabled={isAccepting}
+                        onClick={async (e) => {
                             e.stopPropagation();
                             if (onAcceptIFoodOrder) {
-                                onAcceptIFoodOrder(order.id);
+                                setIsAccepting(true);
+                                try {
+                                    await onAcceptIFoodOrder(order.id);
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setIsAccepting(false);
+                                }
                             }
                         }}
-                        className="flex-[2] h-12 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(220,38,38,0.3)] transform active:scale-95 animate-pulse"
+                        className={`flex-[2] h-12 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(220,38,38,0.3)] transform ${isAccepting ? 'opacity-70 cursor-not-allowed' : 'active:scale-95 animate-pulse'}`}
                     >
-                        <ShoppingBag size={18} /> Aceitar Pedido iFood
+                        {isAccepting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Aceitando...
+                            </>
+                        ) : (
+                            <>
+                                <ShoppingBag size={18} /> Aceitar Pedido iFood
+                            </>
+                        )}
                     </button>
                 )}
 
