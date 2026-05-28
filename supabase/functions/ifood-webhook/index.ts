@@ -120,7 +120,10 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
   const eventIdsToAck: string[] = [];
 
   for (const event of events) {
-    const { id: eventId, code, correlationId: orderId, merchantId } = event;
+    const eventId = event.id;
+    const code = event.code;
+    const orderId = String(event.correlationId || "").toLowerCase();
+    const merchantId = String(event.merchantId || "").toLowerCase();
     eventIdsToAck.push(eventId);
 
     debugLogs.push(`📦 Evento iFood recebido: ${code} (Pedido: ${orderId}, Merchant: ${merchantId})`);
