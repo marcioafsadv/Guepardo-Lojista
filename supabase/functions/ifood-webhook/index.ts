@@ -129,7 +129,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`🔍 Buscando loja com ifood_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng, fantasy_name")
+        .select("id, lat, lng, fantasy_name, company_name, address")
         .eq("ifood_merchant_id", merchantId)
         .single();
 
@@ -246,6 +246,12 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           scheduledAt: orderDetails.delivery?.deliveredBy ? new Date(orderDetails.delivery.deliveredBy).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null
         };
 
+        // Formata o endereço da loja a partir do objeto address
+        const storeStreet = store.address?.street || "";
+        const storeNumber = store.address?.number || "";
+        const storeCity = store.address?.city || "";
+        const storeAddressFormatted = storeStreet ? `${storeStreet}, ${storeNumber} - ${storeCity}` : "Endereço da Loja";
+
         // Insere o pedido como Pendente
         debugLogs.push("💾 Inserindo registro do pedido na tabela deliveries...");
         const { error: insertError } = await supabaseAdmin
@@ -253,6 +259,8 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           .insert({
             id: crypto.randomUUID(),
             store_id: store.id,
+            store_name: store.fantasy_name || store.company_name || "Guepardo Delivery",
+            store_address: storeAddressFormatted,
             status: "pending", // Pedido entra como Pendente para aceite manual
             customer_name: orderDetails.customer?.name || "Cliente iFood",
             customer_address: formattedAddress,
@@ -262,7 +270,10 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
             items: itemsPayload,
             external_source: "IFOOD",
             external_order_id: orderId,
-            external_metadata: orderDetails
+            external_metadata: orderDetails,
+            payment_method: payMethod,
+            delivery_value: orderValue,
+            delivery_distance: 0
           });
 
         if (insertError) {
