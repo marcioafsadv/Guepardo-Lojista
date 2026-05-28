@@ -341,8 +341,10 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    return new Response(JSON.stringify({ error: "Formato de payload inválido" }), {
-      status: 400,
+    // Se o payload não é uma ação e nem um array de eventos, assumimos que é uma requisição de teste/handshake do iFood
+    console.log("ℹ️ Recebida requisição genérica de handshake/teste. Retornando HTTP 200 OK.");
+    return new Response(JSON.stringify({ success: true, message: "Handshake successful" }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
 
