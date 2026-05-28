@@ -226,6 +226,15 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         // Valor total e valor cobrado na porta
         const orderValue = orderDetails.payments?.pending || orderDetails.payments?.value || 0;
 
+        // Determina o horário agendado apenas se for agendamento
+        const parsedScheduledTime = (() => {
+          if (orderDetails.orderTiming !== "SCHEDULED") return null;
+          const dtStr = orderDetails.delivery?.deliveryDateTime;
+          if (!dtStr) return null;
+          const d = new Date(dtStr);
+          return isNaN(d.getTime()) ? null : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        })();
+
         // Constrói objeto de items compatível com o Guepardo Lojista
         const itemsPayload = {
           displayId: orderDetails.displayId || orderId.slice(-4),
@@ -243,7 +252,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           clientPhone: clientPhone,
           requestSource: "IFOOD",
           isBatch: false,
-          scheduledAt: orderDetails.delivery?.deliveredBy ? new Date(orderDetails.delivery.deliveredBy).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null
+          scheduledAt: parsedScheduledTime
         };
 
         // Formata o endereço da loja a partir do objeto address
