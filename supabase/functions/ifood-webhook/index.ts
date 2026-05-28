@@ -298,6 +298,26 @@ Deno.serve(async (req: Request) => {
       const { action, orderId, reason } = payload;
       console.log(`🎮 Ação solicitada via Frontend: ${action} para pedido ${orderId}`);
       
+      if (action === "setupTestStore") {
+        console.log("🛠️ Ação de Diagnóstico: Configurando loja de testes no banco...");
+        const { data, error } = await supabaseAdmin
+          .from("stores")
+          .update({ ifood_merchant_id: "5810f9ac-c56e-41e3-82cc-f803f66c4529" })
+          .eq("id", "bcb22ff3-3f46-4402-a094-6a7c9c26db17")
+          .select();
+          
+        if (error) {
+          return new Response(JSON.stringify({ error: error.message }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+        return new Response(JSON.stringify({ success: true, updatedStore: data }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
       const accessToken = await getIFoodAccessToken();
       let ifoodEndpoint = "";
       let bodyData = null;
