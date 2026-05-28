@@ -135,6 +135,7 @@ function App() {
     // --- UTILITIES & MAPPERS ---
     const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
         switch (status.toLowerCase()) {
+            case 'created': return OrderStatus.PENDING;
             case 'pending': return OrderStatus.PENDING;
             case 'scheduled': return OrderStatus.SCHEDULED;
             case 'accepted': return OrderStatus.ACCEPTED;
@@ -1760,26 +1761,35 @@ function App() {
         const order = orders.find(o => o.id === orderId);
         if (!order || order.external_source !== 'IFOOD' || !order.external_order_id) return;
 
+        // 1. Check Balance
+        const totalFreightToDebit = order.storeFreight || 0;
+        if (balance < totalFreightToDebit) {
+            console.warn("❌ [App] Insufficient balance for iFood order accept", { balance, totalFreightToDebit });
+            setShowBalanceAlert(true);
+            return;
+        }
+
         console.log("🚀 [handleAcceptIFoodOrder] Confirming order on iFood...", orderId);
 
-        // 1. Optimistic update
+        // 2. Optimistic update
         setOrders(prev => prev.map(o => {
             if (o.id !== orderId) return o;
             const newEvent: OrderEvent = {
-                status: OrderStatus.ACCEPTED,
+                status: OrderStatus.PENDING,
                 label: "Confirmado no iFood",
                 timestamp: new Date(),
-                description: "Lojista aceitou o pedido do iFood."
+                description: "Lojista aceitou o pedido do iFood e solicitou motoboy."
             };
             return {
                 ...o,
-                status: OrderStatus.ACCEPTED,
+                status: OrderStatus.PENDING,
+                acceptedAt: new Date(),
                 events: [...o.events, newEvent]
             };
         }));
 
         try {
-            // 2. Call Edge Function
+            // 3. Call Edge Function
             const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('ifood-webhook', {
                 body: {
                     action: 'confirmOrder',
@@ -1789,11 +1799,30 @@ function App() {
 
             if (edgeErr) throw edgeErr;
 
-            // 3. Persist to DB
+            // 4. Debit Wallet
+            if (totalFreightToDebit > 0) {
+                console.log("💰 [App] Debiting wallet for iFood order:", totalFreightToDebit);
+                
+                await supabase.from('wallet_transactions').insert({
+                    store_id: session?.user?.id,
+                    amount: totalFreightToDebit,
+                    type: 'PAYMENT',
+                    status: 'CONFIRMED',
+                    description: `Entrega iFood #${order.display_id || order.id.slice(-4)}`,
+                    payment_method: 'WALLET'
+                });
+
+                await supabase.rpc('decrement_wallet_balance', {
+                    row_id: session?.user?.id,
+                    amount: totalFreightToDebit
+                });
+            }
+
+            // 5. Persist to DB
             const { error: dbError } = await supabase
                 .from('deliveries')
                 .update({
-                    status: 'accepted',
+                    status: 'pending',
                     updated_at: new Date().toISOString(),
                     accepted_at: new Date().toISOString()
                 })
@@ -1801,7 +1830,7 @@ function App() {
 
             if (dbError) throw dbError;
 
-            console.log("✅ Order confirmed on iFood and status updated locally:", orderId);
+            console.log("✅ Order confirmed on iFood and status updated locally to pending:", orderId);
         } catch (err) {
             console.error("❌ Error confirming iFood order:", err);
             // Revert optimistic update
@@ -1810,7 +1839,8 @@ function App() {
                 return {
                     ...o,
                     status: OrderStatus.PENDING,
-                    events: o.events.filter(e => e.status !== OrderStatus.ACCEPTED)
+                    acceptedAt: null,
+                    events: o.events.filter(e => e.label !== "Confirmado no iFood")
                 };
             }));
             setNotification({ title: "Erro", message: "Falha ao aceitar pedido no iFood." });

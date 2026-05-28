@@ -110,6 +110,34 @@ async function fetchIFoodOrderDetails(accessToken: string, orderId: string, retr
   return await response.json();
 }
 
+function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Raio da Terra em km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distância em km
+}
+
+async function calculateRouteDistanceMeters(startLat: number, startLng: number, endLat: number, endLng: number): Promise<number> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=false`;
+    const res = await fetch(url);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.routes && data.routes.length > 0) {
+        return data.routes[0].distance; // em metros
+      }
+    }
+  } catch (err) {
+    console.error("⚠️ Falha ao buscar rota OSRM, usando Haversine:", err);
+  }
+  return getHaversineDistance(startLat, startLng, endLat, endLng) * 1000 * 1.2; // Multiplicador de 1.2 para corrigir curvas
+}
+
 /**
  * Processa a lista de eventos recebidos do webhook do iFood
  */
@@ -243,6 +271,36 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           return isNaN(d.getTime()) ? null : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         })();
 
+        // Calcula a distância e taxas de frete
+        let distanceMeters = 0;
+        let storeFee = 7.00;
+        let courierFee = 6.00;
+
+        if (store.lat && store.lng && destLat && destLng) {
+          debugLogs.push(`🗺️ Calculando distância de rota: ${store.lat},${store.lng} -> ${destLat},${destLng}...`);
+          distanceMeters = await calculateRouteDistanceMeters(store.lat, store.lng, destLat, destLng);
+          
+          const variableFee = distanceMeters * 0.00132;
+          storeFee = Number((7.00 + variableFee).toFixed(2));
+
+          let returnFee = 0;
+          let returnCourierEarnings = 0;
+          if (payMethod === "CARD") {
+            const returnVariableFee = distanceMeters * 0.00132; // Sem taxa base
+            returnFee = Number(returnVariableFee.toFixed(2));
+            returnCourierEarnings = Number((returnVariableFee * 0.875).toFixed(2));
+          }
+
+          const courierPart = Number((variableFee * 0.875).toFixed(2));
+          courierFee = Number((6.00 + courierPart + returnCourierEarnings).toFixed(2));
+          
+          storeFee = Number((storeFee + returnFee).toFixed(2));
+
+          debugLogs.push(`✅ Distância: ${(distanceMeters / 1000).toFixed(2)} km. Frete Lojista: R$ ${storeFee.toFixed(2)}. Repasse Entregador: R$ ${courierFee.toFixed(2)}.`);
+        } else {
+          debugLogs.push("⚠️ Coordenadas da loja ou de destino ausentes. Usando valores mínimos de frete.");
+        }
+
         // Constrói objeto de items compatível com o Guepardo Lojista
         const itemsPayload = {
           displayId: orderDetails.displayId || orderId.slice(-4),
@@ -260,7 +318,8 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           clientPhone: clientPhone,
           requestSource: "IFOOD",
           isBatch: false,
-          scheduledAt: parsedScheduledTime
+          scheduledAt: parsedScheduledTime,
+          storeFreight: storeFee
         };
 
         // Formata o endereço da loja a partir do objeto address
@@ -269,8 +328,8 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         const storeCity = store.address?.city || "";
         const storeAddressFormatted = storeStreet ? `${storeStreet}, ${storeNumber} - ${storeCity}` : "Endereço da Loja";
 
-        // Insere o pedido como Pendente
-        debugLogs.push("💾 Inserindo registro do pedido na tabela deliveries...");
+        // Insere o pedido como 'created' (Não dispara busca de entregadores de imediato)
+        debugLogs.push("💾 Inserindo registro do pedido na tabela deliveries com status 'created'...");
         const { error: insertError } = await supabaseAdmin
           .from("deliveries")
           .insert({
@@ -278,19 +337,19 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
             store_id: store.id,
             store_name: store.fantasy_name || store.company_name || "Guepardo Delivery",
             store_address: storeAddressFormatted,
-            status: "pending", // Pedido entra como Pendente para aceite manual
+            status: "created", // IMPORTANTE: status 'created' não dispara busca de motoboy
             customer_name: orderDetails.customer?.name || "Cliente iFood",
             customer_address: formattedAddress,
             customer_phone_suffix: phoneSuffix || null,
-            collection_code: orderDetails.delivery?.pickupCode || orderId.slice(-4),
-            earnings: 0, // Será recalculado ao chamar entregador Guepardo
+            collection_code: orderDetails.collection_code || orderDetails.delivery?.pickupCode || orderId.slice(-4),
+            earnings: courierFee,
             items: itemsPayload,
             external_source: "IFOOD",
             external_order_id: orderId,
             external_metadata: orderDetails,
             payment_method: payMethod,
             delivery_value: orderValue,
-            delivery_distance: 0
+            delivery_distance: Number((distanceMeters / 1000).toFixed(2))
           });
 
         if (insertError) {
