@@ -230,6 +230,7 @@ async function processIFoodEvents(events: any[]) {
       }
     } catch (err: any) {
       console.error(`❌ Falha no processamento do evento ${eventId}:`, err.message);
+      throw new Error(`Falha no evento ${eventId} (${code}): ${err.message} - Stack: ${err.stack}`);
     }
   }
 
