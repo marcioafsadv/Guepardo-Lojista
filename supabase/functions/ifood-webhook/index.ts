@@ -104,33 +104,41 @@ async function fetchIFoodOrderDetails(accessToken: string, orderId: string): Pro
 /**
  * Processa a lista de eventos recebidos do webhook do iFood
  */
-async function processIFoodEvents(events: any[]) {
+async function processIFoodEvents(events: any[], debugLogs: string[]) {
+  debugLogs.push("🔐 Solicitando token de acesso do iFood...");
   const accessToken = await getIFoodAccessToken();
+  debugLogs.push("✅ Token de acesso obtido.");
   const eventIdsToAck: string[] = [];
 
   for (const event of events) {
     const { id: eventId, code, correlationId: orderId, merchantId } = event;
     eventIdsToAck.push(eventId);
 
-    console.log(`📦 Evento iFood recebido: ${code} (Pedido: ${orderId}, Merchant: ${merchantId})`);
+    debugLogs.push(`📦 Evento iFood recebido: ${code} (Pedido: ${orderId}, Merchant: ${merchantId})`);
 
     try {
-      // 1. Localizar a loja dona deste Merchant ID do iFood
+      debugLogs.push(`🔍 Buscando loja com ifood_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng")
+        .select("id, lat, lng, fantasy_name")
         .eq("ifood_merchant_id", merchantId)
         .single();
 
+      if (storeError) {
+        debugLogs.push(`⚠️ Erro na consulta de loja: ${storeError.message}`);
+      }
+
       if (storeError || !store) {
-        console.warn(`⚠️ Nenhuma loja encontrada com o ifood_merchant_id '${merchantId}'. Ignorando evento.`);
+        debugLogs.push(`⚠️ Nenhuma loja encontrada com o ifood_merchant_id '${merchantId}'. Ignorando evento.`);
         continue;
       }
+      debugLogs.push(`✅ Loja encontrada: ${store.fantasy_name || store.id}`);
 
       // 2. Tratar eventos específicos
       if (code === "ORDER_CREATED" || code === "PLACED") {
-        // Novo pedido criado no iFood
+        debugLogs.push(`🔍 Buscando detalhes do pedido ${orderId} no iFood...`);
         const orderDetails = await fetchIFoodOrderDetails(accessToken, orderId);
+        debugLogs.push(`✅ Detalhes do pedido obtidos do iFood.`);
 
         // Mapeia método de pagamento
         let payMethod: "PIX" | "CARD" | "CASH" = "PIX";
@@ -189,6 +197,7 @@ async function processIFoodEvents(events: any[]) {
         };
 
         // Insere o pedido como Pendente
+        debugLogs.push("💾 Inserindo registro do pedido na tabela deliveries...");
         const { error: insertError } = await supabaseAdmin
           .from("deliveries")
           .insert({
@@ -206,8 +215,10 @@ async function processIFoodEvents(events: any[]) {
           });
 
         if (insertError) {
+          debugLogs.push(`❌ Erro ao salvar pedido no Supabase: ${insertError.message}`);
           console.error(`❌ Erro ao salvar pedido do iFood no Supabase:`, insertError.message);
         } else {
+          debugLogs.push("✅ Pedido do iFood salvo com sucesso no banco.");
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
       } 
@@ -229,13 +240,16 @@ async function processIFoodEvents(events: any[]) {
         }
       }
     } catch (err: any) {
+      debugLogs.push(`❌ Falha interna no loop do evento ${eventId}: ${err.message}`);
       console.error(`❌ Falha no processamento do evento ${eventId}:`, err.message);
       throw new Error(`Falha no evento ${eventId} (${code}): ${err.message} - Stack: ${err.stack}`);
     }
   }
 
   // Envia confirmação (Acknowledge) para que o iFood remova esses eventos da fila
+  debugLogs.push(`✉️ Confirmando recebimento de ${eventIdsToAck.length} eventos no iFood...`);
   await acknowledgeEvents(accessToken, eventIdsToAck);
+  debugLogs.push("✅ Confirmação enviada.");
 }
 
 // 3. Servidor HTTP do Deno serve a Edge Function
@@ -334,10 +348,11 @@ Deno.serve(async (req: Request) => {
     // Verificação 2: É um webhook recebido diretamente do iFood?
     // O iFood envia um Array de eventos no body
     if (Array.isArray(payload)) {
+      const debugLogs: string[] = [];
       // Processa os eventos e aguarda a conclusão antes de retornar
-      await processIFoodEvents(payload);
+      await processIFoodEvents(payload, debugLogs);
       
-      return new Response(JSON.stringify({ received: true }), {
+      return new Response(JSON.stringify({ received: true, logs: debugLogs }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
