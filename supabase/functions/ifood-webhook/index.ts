@@ -85,8 +85,8 @@ async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
 /**
  * Busca os detalhes completos de um pedido no iFood
  */
-async function fetchIFoodOrderDetails(accessToken: string, orderId: string): Promise<any> {
-  console.log(`🔍 Buscando detalhes do pedido ${orderId} no iFood...`);
+async function fetchIFoodOrderDetails(accessToken: string, orderId: string, retryCount = 0): Promise<any> {
+  console.log(`🔍 Buscando detalhes do pedido ${orderId} no iFood (Tentativa ${retryCount + 1})...`);
   const response = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}`, {
     headers: {
       "Authorization": `Bearer ${accessToken}`,
@@ -95,6 +95,15 @@ async function fetchIFoodOrderDetails(accessToken: string, orderId: string): Pro
 
   if (!response.ok) {
     const errText = await response.text();
+    
+    // Se for 404 (OrderNotFound) e tivermos menos de 5 tentativas, aguarda e tenta novamente
+    if (response.status === 404 && retryCount < 5) {
+      const waitTime = (retryCount + 1) * 2000; // 2s, 4s, 6s, 8s, 10s
+      console.log(`⚠️ Pedido ${orderId} não encontrado no iFood (404). Aguardando ${waitTime/1000}s para tentar novamente...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return fetchIFoodOrderDetails(accessToken, orderId, retryCount + 1);
+    }
+
     throw new Error(`Erro ao buscar detalhes do pedido no iFood: HTTP ${response.status} - ${errText}`);
   }
 
