@@ -347,19 +347,19 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                             ? 'bg-violet-500/10 text-violet-400 border-violet-500/20 shadow-glow-violet'
                             : 'bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-glow-blue'
                         }`}>
-                        <Clock size={10} md:size={12} strokeWidth={3} />
-                        {telemetry.etaMins} min
+                          <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" strokeWidth={3} />
+                          {telemetry.etaMins} min
                         </div>
                         <div className="flex items-center gap-1 md:gap-2 text-[9px] md:text-[10px] text-white/30 font-black italic uppercase tracking-tighter">
-                        <MapPin size={10} md:size={12} />
-                        {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
+                          <MapPin className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                          {telemetry.distKm?.toFixed(1) || '0.0'} km {telemetry.label}
                         </div>
 
                         {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE) && arrivalTimerSeconds > 0 && (
                         <div className={`w-full md:w-auto mt-1 md:mt-0 flex items-center gap-2 text-[9px] md:text-[10px] font-black italic px-2 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl border animate-pulse ${
                             arrivalTimerSeconds > 720 ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-orange-500/10 text-orange-400 border-orange-500/20'
                             }`}>
-                            <Clock size={10} md:size={12} strokeWidth={3} className={arrivalTimerSeconds > 720 ? 'animate-spin-slow' : ''} />
+                            <Clock className={`w-2.5 h-2.5 md:w-3 md:h-3 ${arrivalTimerSeconds > 720 ? 'animate-spin-slow' : ''}`} strokeWidth={3} />
                             TEMPO: {formatTime(arrivalTimerSeconds)} / 15:00
                         </div>
                         )}

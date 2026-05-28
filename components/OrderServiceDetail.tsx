@@ -163,7 +163,7 @@ const OrderContent: React.FC<{
                     {/* VALOR */}
                     <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
                         <div className="flex items-center gap-2 mb-1 md:mb-2">
-                            <Banknote size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <Banknote className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor Pedido</span>
                         </div>
                         <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -172,7 +172,7 @@ const OrderContent: React.FC<{
                     {/* FRETE */}
                     <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
                         <div className="flex items-center gap-2 mb-1 md:mb-2">
-                            <Truck size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <Truck className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor Frete</span>
                         </div>
                         <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.estimatedPrice) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
@@ -181,7 +181,7 @@ const OrderContent: React.FC<{
                     {/* PAGAMENTO */}
                     <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
                         <div className="flex items-center gap-2 mb-1 md:mb-2">
-                            <Wallet size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <Wallet className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Pagamento</span>
                         </div>
                         <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -193,14 +193,14 @@ const OrderContent: React.FC<{
                     {/* SOLICITAÇÃO (ORIGEM) */}
                     <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
                         <div className="flex items-center gap-2 mb-1 md:mb-2">
-                            <Share2 size={12} md:size={14} className={isDark ? 'text-white/20' : 'text-gray-400'} />
+                            <Share2 className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Solicitado via</span>
                         </div>
                         <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {order.requestSource === 'WHATSAPP' ? <MessageCircle size={12} md:size={14} className="text-green-500" /> :
-                                order.requestSource === 'PHONE' ? <Phone size={12} md:size={14} className="text-blue-500" /> :
-                                order.requestSource === 'IFOOD' ? <ShoppingBag size={12} md:size={14} className="text-red-500" /> :
-                                    <Globe size={12} md:size={14} className="text-orange-500" />}
+                            {order.requestSource === 'WHATSAPP' ? <MessageCircle className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-green-500" /> :
+                                order.requestSource === 'PHONE' ? <Phone className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-blue-500" /> :
+                                order.requestSource === 'IFOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-red-500" /> :
+                                    <Globe className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-orange-500" />}
                             <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
                                 order.requestSource === 'PHONE' ? 'Telefone' :
                                 order.requestSource === 'IFOOD' ? 'iFood' : 'Site'}</span>

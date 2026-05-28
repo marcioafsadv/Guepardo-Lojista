@@ -321,7 +321,9 @@ function App() {
             batch_id: d.batch_id,
             stopNumber: d.stop_number || items.stopNumber,
             courier: courierData,
-            scheduled_at: items.scheduledAt || null
+            scheduled_at: items.scheduledAt || null,
+            external_order_id: d.external_order_id,
+            external_source: d.external_source
         };
     }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
@@ -607,10 +609,11 @@ function App() {
                     filter: `store_id=eq.${session.user.id}`
                 },
                 async (payload) => {
-                    console.log("📦 [REALTIME] Delivery Change:", payload.eventType, payload.new.id);
+                    const newRecord = payload.new as any;
+                    console.log("📦 [REALTIME] Delivery Change:", payload.eventType, newRecord?.id);
                     
                     if (payload.eventType === 'INSERT') {
-                        const newOrder = await processDeliveryRecord(payload.new);
+                        const newOrder = await processDeliveryRecord(newRecord);
                         setOrders(prev => [newOrder, ...prev]);
                         playAlert('cheetah');
                     } 
@@ -620,13 +623,13 @@ function App() {
                         // PERFORMANCE WIN: Rely on REPLICA IDENTITY FULL instead of fetching the whole record again.
                         // However, if some columns are missing from payload.new (due to RLS or DB config), 
                         // we gracefully fallback but log it for optimization.
-                        let fullRecord = payload.new;
+                        let fullRecord = newRecord;
                         
                         // Heuristic: If crucial fields like 'customer_name' are missing from payload.new, 
                         // then REPLICA IDENTITY is likely NOT FULL.
-                        if (!fullRecord.customer_name) {
+                        if (!fullRecord?.customer_name) {
                             console.warn("⚠️ [REALTIME_LATENCY] Payload is incomplete. REPLICA IDENTITY FULL might be disabled. Falling back to fetch...");
-                            const { data, error } = await supabase.from('deliveries').select('*').eq('id', payload.new.id).single();
+                            const { data, error } = await supabase.from('deliveries').select('*').eq('id', newRecord.id).single();
                             if (!error && data) fullRecord = data;
                         }
 
@@ -1060,7 +1063,8 @@ function App() {
                     paymentMethod: s.paymentMethod || 'PIX',
                     changeFor: s.paymentMethod === 'CASH' && s.changeFor ? parseFloat(s.changeFor) : null,
                     isReturnRequired: s.paymentMethod === 'CARD',
-                    customerNote: ''
+                    customerNote: '',
+                    scheduled_at: undefined
                 }))
             ];
 
@@ -1758,14 +1762,34 @@ function App() {
     };
 
     const handleAcceptIFoodOrder = async (orderId: string) => {
+        console.log("👉 [handleAcceptIFoodOrder] Called with orderId:", orderId);
         const order = orders.find(o => o.id === orderId);
-        if (!order || order.external_source !== 'IFOOD' || !order.external_order_id) return;
+        if (!order) {
+            console.warn("❌ [handleAcceptIFoodOrder] Order not found in local state:", orderId);
+            return;
+        }
+        console.log("👉 [handleAcceptIFoodOrder] Found order details:", {
+            id: order.id,
+            external_source: order.external_source,
+            external_order_id: order.external_order_id,
+            requestSource: order.requestSource,
+            status: order.status
+        });
+        if (order.external_source !== 'IFOOD' || !order.external_order_id) {
+            console.warn("❌ [handleAcceptIFoodOrder] Order is not a valid iFood order or lacks external_order_id:", {
+                external_source: order.external_source,
+                external_order_id: order.external_order_id
+            });
+            return;
+        }
 
         // 1. Check Balance
         const totalFreightToDebit = order.storeFreight || 0;
-        if (balance < totalFreightToDebit) {
-            console.warn("❌ [App] Insufficient balance for iFood order accept", { balance, totalFreightToDebit });
-            setShowBalanceAlert(true);
+        const currentBalance = realStoreProfile?.wallet_balance || 0;
+        if (currentBalance < totalFreightToDebit) {
+            console.warn("❌ [App] Insufficient balance for iFood order accept", { currentBalance, totalFreightToDebit });
+            setNotification({ title: "Saldo Insuficiente", message: "Recarregue sua carteira para aceitar este pedido do iFood." });
+            setTimeout(() => setNotification(null), 5000);
             return;
         }
 

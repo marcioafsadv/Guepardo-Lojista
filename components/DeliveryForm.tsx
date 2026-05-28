@@ -456,7 +456,7 @@ export const DeliveryForm = ({
       >
         <div className="flex items-center gap-3 md:gap-4">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-guepardo-accent rounded-lg md:rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)] group-hover:shadow-[0_0_25px_rgba(211,84,0,0.6)] transition-all duration-300">
-            <Bike size={18} md:size={22} strokeWidth={2.5} className="group-hover:scale-110 transition-transform" />
+            <Bike className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] group-hover:scale-110 transition-transform" strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
             <span className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Logística Express</span>
