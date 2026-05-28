@@ -162,11 +162,13 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
     }
 
     try {
-      debugLogs.push(`🔍 Buscando loja com ifood_merchant_id: ${merchantId}...`);
+      // FORÇADO: Redireciona todos os pedidos iFood apenas para o merchant da Guepardo Delivery
+      const targetMerchantId = "5810f9ac-c56e-41e3-82cc-f803f66c4529";
+      debugLogs.push(`🔍 [Redirecionamento Forçado] Buscando loja Guepardo Delivery com ifood_merchant_id: ${targetMerchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
         .select("id, lat, lng, fantasy_name, company_name, address")
-        .eq("ifood_merchant_id", merchantId)
+        .eq("ifood_merchant_id", targetMerchantId)
         .single();
 
       if (storeError) {
