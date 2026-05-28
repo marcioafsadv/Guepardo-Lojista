@@ -2314,6 +2314,7 @@ function App() {
                 order={selectedOrderDetails}
                 storeProfile={realStoreProfile || STORE_PROFILE}
                 onClose={() => setSelectedOrderDetails(null)}
+                onAcceptIFoodOrder={handleAcceptIFoodOrder}
                 theme="dark"
             />
 

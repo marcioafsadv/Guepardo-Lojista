@@ -8,10 +8,11 @@ interface OrderDetailsModalProps {
   order: Order | null;
   storeProfile: StoreProfile;
   onClose: () => void;
+  onAcceptIFoodOrder?: (orderId: string) => void;
   theme?: string;
 }
 
-export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, storeProfile, onClose, theme = 'dark' }) => {
+export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, storeProfile, onClose, onAcceptIFoodOrder, theme = 'dark' }) => {
   if (!order) return null;
 
   const isDark = theme === 'dark';
@@ -27,6 +28,7 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, sto
           storeProfile={storeProfile}
           isEmbedded={true}
           onClose={onClose}
+          onAcceptIFoodOrder={onAcceptIFoodOrder}
           theme={theme}
         />
       </div>

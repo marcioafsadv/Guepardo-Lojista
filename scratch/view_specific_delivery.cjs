@@ -4,7 +4,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const options = {
   hostname: 'eviukbluwrwcblwhkzwz.supabase.co',
-  path: '/rest/v1/deliveries?external_order_id=eq.6027d83e-c65e-4fb6-a898-11780e52ac62&select=*',
+  path: '/rest/v1/deliveries?external_order_id=eq.8ba6d334-61c0-4894-be87-1b712b4c1c35&select=*',
   method: 'GET',
   headers: {
     'apikey': supabaseKey,
@@ -30,9 +30,8 @@ const req = https.request(options, (res) => {
           external_source: d.external_source,
           external_order_id: d.external_order_id,
           created_at: d.created_at,
-          items_keys: d.items ? Object.keys(d.items) : null,
           driver_id: d.driver_id,
-          cancellation_reason: d.cancellation_reason
+          scheduled_at: d.items?.scheduledAt || null
         };
         console.log("PEDIDO ENCONTRADO NO BANCO:");
         console.log(JSON.stringify(summary, null, 2));

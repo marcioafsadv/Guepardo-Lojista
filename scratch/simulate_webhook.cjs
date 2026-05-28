@@ -2,10 +2,10 @@ const https = require('https');
 
 const payload = [
   {
-    "id": "event-6027d83e-c65e-4fb6-a898-11780e52ac62",
+    "id": "event-b664a9cf-9494-4dc4-b9fc-6a6527b896fa",
     "code": "PLACED",
-    "correlationId": "6027d83e-c65e-4fb6-a898-11780e52ac62",
-    "merchantId": "5810f9ac-c56e-41e3-82cc-f803f66c4529",
+    "correlationId": "b664a9cf-9494-4dc4-b9fc-6a6527b896fa",
+    "merchantId": "5810F9AC-C56E-41E3-82CC-F803F66C4529", // UPPERCASE!
     "createdAt": new Date().toISOString()
   }
 ];
