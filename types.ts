@@ -112,9 +112,11 @@ export interface Order {
   stopNumber?: number;
 
   // Source & CRM
-  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE';
+  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD';
   clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
   scheduled_at?: string; // e.g., "14:30"
+  external_order_id?: string;
+  external_source?: 'IFOOD';
 }
 
 export interface SavedAddress {

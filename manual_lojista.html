@@ -1,0 +1,2676 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="public/cheetah-scooter.png">
+  <title>Manual do Lojista - Guepardo Delivery</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Chakra+Petch:ital,wght@1,700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --color-primary: #FF6B00;      /* Laranja Guepardo */
+      --color-primary-glow: rgba(255, 107, 0, 0.4);
+      --color-secondary: #FFA433;    /* Laranja Claro */
+      --color-bg-dark: #1a0900;      /* Marrom Escuro */
+      --color-bg-card: #1E1E1E;      /* Cinza Escuro */
+      --color-bg-main: #121212;      /* Fundo Geral */
+      --color-border: rgba(255, 107, 0, 0.15);
+      --color-text: #E5E5E5;
+      --color-text-muted: #A3A3A3;
+      --color-emerald: #10B981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(ellipse at 50% 40%, #4a1c06 0%, #1a0900 65%, #080300 100%) no-repeat fixed;
+      color: var(--color-text);
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Container Principal */
+    .presentation-container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Cabeçalho */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      border-bottom: 1px solid var(--color-border);
+      background: rgba(26, 9, 0, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      height: 40px;
+      filter: drop-shadow(0 0 8px var(--color-primary-glow));
+    }
+
+    .brand h1 {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 22px;
+      font-style: italic;
+      color: #FFF;
+      letter-spacing: 1px;
+    }
+
+    .brand h1 span {
+      color: var(--color-primary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* Botão de Som */
+    .audio-btn {
+      background: rgba(255, 107, 0, 0.1);
+      border: 1px solid var(--color-primary);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: var(--color-primary);
+      position: relative;
+    }
+
+    .audio-btn:hover {
+      background: var(--color-primary);
+      color: #FFF;
+      transform: scale(1.05);
+      box-shadow: 0 0 15px var(--color-primary-glow);
+    }
+
+    .audio-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Notificação de Som */
+    .audio-toast {
+      position: absolute;
+      top: 75px;
+      right: 40px;
+      background: rgba(255, 107, 0, 0.9);
+      color: #FFF;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .audio-toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .btn-register-link {
+      background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(255, 107, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .btn-register-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 107, 0, 0.5);
+    }
+
+    /* Área dos Slides */
+    .slides-viewport {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      min-height: 0;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 40px;
+      padding: 40px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(40px);
+      transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1), transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    .slide.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+    }
+
+    /* Coluna de Texto (Esquerda) */
+    .slide-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+      overflow-y: auto;
+      padding-right: 15px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 107, 0, 0.4) rgba(0, 0, 0, 0.1);
+    }
+
+    /* Custom Scrollbar para a descrição */
+    .slide-info::-webkit-scrollbar {
+      width: 6px;
+    }
+    .slide-info::-webkit-scrollbar-track {
+      background: rgba(0,0,0,0.1);
+    }
+    .slide-info::-webkit-scrollbar-thumb {
+      background: rgba(255, 107, 0, 0.3);
+      border-radius: 3px;
+    }
+
+    .slide-number {
+      font-family: 'Chakra Petch', sans-serif;
+      font-size: 16px;
+      color: var(--color-primary);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .slide-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #FFF;
+      line-height: 1.2;
+      margin-bottom: 20px;
+    }
+
+    .slide-desc {
+      font-size: 15px;
+      line-height: 1.6;
+      color: var(--color-text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* Lista de Funcionalidades */
+    .feature-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 12px;
+      padding: 14px;
+      background: rgba(30, 30, 30, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .feature-item:hover, .feature-item.active {
+      background: rgba(255, 107, 0, 0.08);
+      border-color: rgba(255, 107, 0, 0.3);
+      transform: translateX(5px);
+    }
+
+    .feature-icon {
+      color: var(--color-primary);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .feature-content h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFF;
+      margin-bottom: 4px;
+    }
+
+    .feature-content p {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+
+    /* Coluna do Print (Direita) */
+    .slide-media {
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      overflow: hidden;
+      height: 100%;
+      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6), 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Imagem e Hotspots */
+    .screenshot-wrapper {
+      position: relative;
+      max-height: 90%;
+      max-width: 90%;
+      display: inline-block;
+      border-radius: 8px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.5s ease;
+    }
+
+    .screenshot-img {
+      display: block;
+      width: auto;
+      height: auto;
+      max-width: 100%;
+      max-height: calc(100vh - 220px);
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    /* Alternador de Imagens (Slide 1) */
+    .media-tabs {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      background: rgba(18, 18, 18, 0.85);
+      padding: 4px;
+      border-radius: 30px;
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      z-index: 100;
+    }
+
+    .media-tab {
+      background: transparent;
+      border: none;
+      color: var(--color-text-muted);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .media-tab.active {
+      background: var(--color-primary);
+      color: white;
+      box-shadow: 0 0 10px var(--color-primary-glow);
+    }
+
+    /* Pontos de Destaque (Hotspots) */
+    .hotspot {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: var(--color-primary);
+      border: 2px solid #FFF;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7);
+      animation: pulse-hotspot 2s infinite;
+      z-index: 50;
+      transition: transform 0.2s ease;
+    }
+
+    .hotspot:hover, .hotspot.active {
+      transform: scale(1.25);
+      background: #FFF;
+      border-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+
+    @keyframes pulse-hotspot {
+      0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.7);
+      }
+      70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(255, 107, 0, 0);
+      }
+      100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(255, 107, 0, 0);
+      }
+    }
+
+    /* Detalhes do Hotspot (Painel Flutuante na imagem) */
+    .hotspot-card {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(18, 18, 18, 0.95);
+      border: 1px solid var(--color-primary);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 60;
+      opacity: 0;
+      transform: translateY(15px);
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .hotspot-card.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .hotspot-card-badge {
+      background: var(--color-primary);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .hotspot-card-content h5 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #FFF;
+      margin-bottom: 2px;
+    }
+
+    .hotspot-card-content p {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      line-height: 1.4;
+    }
+
+    .hotspot-card-close {
+      margin-left: auto;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      transition: color 0.2s ease;
+    }
+
+    .hotspot-card-close:hover {
+      color: var(--color-primary);
+    }
+
+    /* Barra de Controle de Rodapé */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      border-top: 1px solid var(--color-border);
+      background: rgba(18, 18, 18, 0.95);
+      z-index: 100;
+    }
+
+    .footer-help {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .footer-help span {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+    }
+
+    /* Paginação por Bolinhas */
+    .dots-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .dot.active {
+      background: var(--color-primary);
+      width: 24px;
+      border-radius: 10px;
+      box-shadow: 0 0 8px var(--color-primary-glow);
+    }
+
+    /* Setas de Controle */
+    .controls-nav {
+      display: flex;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      background: rgba(30, 30, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--color-text);
+      transition: all 0.3s ease;
+    }
+
+    .nav-btn:hover {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      box-shadow: 0 0 12px var(--color-primary-glow);
+      transform: translateY(-2px);
+    }
+
+    .nav-btn:active {
+      transform: translateY(0);
+    }
+
+    .nav-btn.disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* Responsividade */
+    @media (max-width: 1024px) {
+      .slide {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 20px;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .slide-info {
+        height: auto;
+        overflow-y: visible;
+        padding-right: 0;
+        margin-bottom: 20px;
+      }
+
+      .slide-media {
+        height: clamp(350px, 50vh, 500px);
+      }
+
+      header {
+        padding: 15px 20px;
+      }
+
+      footer {
+        padding: 15px 20px;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .footer-help {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .slide-media {
+        height: clamp(280px, 45vh, 400px);
+      }
+
+      .screenshot-img {
+        max-height: 100%;
+      }
+
+      .slide-title {
+        font-size: 22px;
+        margin-bottom: 12px;
+      }
+
+      .slide-desc {
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+
+      .slide-number {
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .feature-list {
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .feature-item {
+        padding: 10px;
+        gap: 8px;
+        border-radius: 8px;
+      }
+
+      .feature-content h4 {
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+
+      .feature-content p {
+        font-size: 11px;
+      }
+
+      /* Abas Horizontais Roláveis no Mobile */
+      .media-tabs {
+        width: calc(100% - 24px);
+        left: 12px;
+        transform: none;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        padding: 6px;
+        gap: 8px;
+        border-radius: 20px;
+      }
+
+      .media-tabs::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+      }
+
+      .media-tab {
+        flex-shrink: 0;
+        padding: 6px 12px;
+        font-size: 11px;
+        border-radius: 15px;
+      }
+
+      /* Ajustes de Rodapé para caber em uma linha */
+      footer {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px;
+        gap: 10px;
+      }
+
+      .dots-nav {
+        gap: 5px;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+      }
+
+      .dot.active {
+        width: 18px;
+      }
+
+      .nav-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 6px;
+      }
+
+      .nav-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .slide-media {
+        height: clamp(240px, 40vh, 320px);
+      }
+
+      .slide-title {
+        font-size: 19px;
+        margin-bottom: 8px;
+      }
+
+      .brand h1 {
+        font-size: 15px;
+        letter-spacing: 0.5px;
+      }
+
+      .brand img {
+        height: 28px;
+      }
+
+      .brand {
+        gap: 6px;
+      }
+
+      .header-actions {
+        gap: 8px;
+      }
+
+      .btn-register-link {
+        padding: 6px 10px;
+        font-size: 11px;
+        border-radius: 6px;
+      }
+
+      .audio-btn {
+        width: 32px;
+        height: 32px;
+      }
+
+      .audio-btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .audio-toast {
+        top: 60px;
+        right: 10px;
+        padding: 6px 12px;
+        font-size: 11px;
+      }
+    }
+
+    /* Estilos Especiais da Capa (Slide 0) */
+    .slide.slide-cover {
+      grid-template-columns: 1fr;
+      padding: 30px;
+    }
+    .slide-cover .slide-media {
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      height: 100% !important;
+    }
+    .slide-cover .screenshot-wrapper {
+      max-width: 95%;
+      max-height: 95%;
+      box-shadow: none;
+      border: none;
+    }
+    .slide-cover .screenshot-img {
+      max-height: calc(100vh - 220px) !important;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.9);
+      border: 1px solid rgba(255, 107, 0, 0.25);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Elemento de áudio escondido -->
+  <audio id="cheetah-audio" src="Rugido do Guepardo - Principal.mpeg"></audio>
+
+  <div class="presentation-container">
+    
+    <!-- Cabeçalho -->
+    <header>
+      <div class="brand">
+        <img src="public/cheetah-scooter.png" alt="Guepardo Logo">
+        <h1>GUEPARDO <span>DELIVERY</span></h1>
+      </div>
+      <div class="header-actions">
+        <!-- Toast de Áudio -->
+        <div id="audio-toast" class="audio-toast">
+          <span>🐆</span> Guepardo na escuta!
+        </div>
+        <!-- Botão de Som -->
+        <button id="toggle-audio-btn" class="audio-btn" title="Tocar rugido do Guepardo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </button>
+        <a href="https://guepardodelivery-estabelecimento.com/" target="_blank" class="btn-register-link">Quero me Cadastrar</a>
+      </div>
+    </header>
+
+    <!-- Visualizador de Slides -->
+    <div class="slides-viewport">
+      
+      <!-- SLIDE 0: Capa -->
+      <div class="slide active slide-cover" id="slide-0">
+        <div class="slide-media">
+          <div class="screenshot-wrapper">
+            <img src="public/manual/capa.png" class="screenshot-img" alt="Capa Guepardo Delivery">
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 1: Cadastro -->
+      <div class="slide" id="slide-1">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 01</div>
+            <h2 class="slide-title">Entrada & Cadastro da Empresa</h2>
+            <p class="slide-desc">
+              Começar a usar a Guepardo Delivery é simples e rápido. Acesse o portal da sua loja e preencha as informações básicas para iniciar sua jornada logística.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(1, 1)">
+                <div class="feature-icon">🔑</div>
+                <div class="feature-content">
+                  <h4>Acesso ao Painel</h4>
+                  <p>Insira seu email e senha cadastrados para entrar na plataforma administrativa.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(1, 2)">
+                <div class="feature-icon">📂</div>
+                <div class="feature-content">
+                  <h4>Dados & Documentação</h4>
+                  <p>Preencha os dados e anexe os documentos. **A logo e a fachada são de suma importância**, pois serão exibidas no app do entregador para facilitar a localização da loja.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(1, 3)">
+                <div class="feature-icon">📍</div>
+                <div class="feature-content">
+                  <h4>Cadastro de Endereço</h4>
+                  <p>Informe o CEP e endereço correto da loja. Isso é **essencial para geolocalização correta no mapa**, possibilitando criar pedidos a partir deste ponto.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(1, 4)">
+                <div class="feature-icon">🔒</div>
+                <div class="feature-content">
+                  <h4>Acesso e Segurança</h4>
+                  <p>Defina o Nome do Responsável administrador, email e crie a senha para finalizar o cadastro com segurança.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide1Media('login')">1. Login</button>
+            <button class="media-tab" onclick="switchSlide1Media('dados')">2. Dados & Docs</button>
+            <button class="media-tab" onclick="switchSlide1Media('endereco')">3. Endereço</button>
+            <button class="media-tab" onclick="switchSlide1Media('acesso')">4. Acesso & Senha</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide1-wrapper">
+            <!-- Imagem de Login -->
+            <img id="slide1-img" src="public/manual/cadastro_1_login.png" class="screenshot-img" alt="Tela de Login">
+            
+            <!-- Hotspots de Login (Ativo por padrão) -->
+            <div class="hotspot" id="hs-1-1" style="top: 61%; left: 49%;" onclick="showHotspotCard(1, 1, 'Acesso ao Painel', 'Insira seu e-mail e senha. Se ainda não possuir credenciais, clique em \'Cadastre-se agora\' no canto inferior direito.')">1</div>
+          </div>
+
+          <!-- Card de Informação do Hotspot -->
+          <div id="card-1" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-1">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-1">Acesso ao Painel</h5>
+              <p id="card-desc-1">Passe o mouse ou selecione um destaque.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(1)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 2: Painel Operacional -->
+      <div class="slide" id="slide-2">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 02</div>
+            <h2 class="slide-title">Painel Operacional (Dashboard)</h2>
+            <p class="slide-desc">
+              Gerencie suas vendas com precisão. O painel central oferece indicadores em tempo real para controle absoluto do faturamento e comportamento das entregas.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(2, 1)">
+                <div class="feature-icon">📊</div>
+                <div class="feature-content">
+                  <h4>Métricas Gerais de Desempenho</h4>
+                  <p>Acompanhe vendas realizadas, faturamento bruto, ticket médio e novos clientes cadastrados.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(2, 2)">
+                <div class="feature-icon">📈</div>
+                <div class="feature-content">
+                  <h4>Gráfico de Demanda por Horário</h4>
+                  <p>Visualize as curvas de fluxo de pedidos ao longo do dia para planejar sua cozinha ou despacho.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(2, 3)">
+                <div class="feature-icon">💳</div>
+                <div class="feature-content">
+                  <h4>Mix e Canal de Pagamento</h4>
+                  <p>Identifique a distribuição de cartões e Pix (atualmente a preferência absoluta).</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(2, 4)">
+                <div class="feature-icon">👑</div>
+                <div class="feature-content">
+                  <h4>Fidelização de Clientes</h4>
+                  <p>Ranking dos consumidores que mais realizam compras frequentes na sua loja.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(2, 5)">
+                <div class="feature-icon">📅</div>
+                <div class="feature-content">
+                  <h4>Filtros de Período</h4>
+                  <p>Visualize informações selecionando períodos pré-definidos (Hoje, 7 dias, 30 dias) ou configure de forma Personalizada.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(2, 6)">
+                <div class="feature-icon">📥</div>
+                <div class="feature-content">
+                  <h4>Exportação de Relatórios</h4>
+                  <p>Exporte relatórios gerenciais consolidados em Word, PDF ou envie diretamente para Impressão.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide2Media('operacional')">1. Painel Geral</button>
+            <button class="media-tab" onclick="switchSlide2Media('filtros')">2. Filtros & Exportação</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide2-wrapper">
+            <img id="slide2-img" src="public/manual/painel_3_operacional.png" class="screenshot-img" alt="Painel Operacional">
+            
+            <!-- Hotspots do Dashboard (Ativos por padrão) -->
+            <div class="hotspot" id="hs-2-1" style="top: 21%; left: 34%;" onclick="showHotspotCard(2, 1, 'Métricas Principais', 'Visualização direta de Vendas Realizadas, Faturamento Total (com indicação de taxas), Ticket Médio e Novos Clientes com crescimento percentual comparativo.')">1</div>
+            <div class="hotspot" id="hs-2-2" style="top: 61%; left: 38%;" onclick="showHotspotCard(2, 2, 'Fluxo de Pedidos', 'Um gráfico interativo mostrando os picos de pedidos por hora, permitindo à sua loja se preparar para os horários de maior fluxo.')">2</div>
+            <div class="hotspot" id="hs-2-3" style="top: 61%; left: 80%;" onclick="showHotspotCard(2, 3, 'Mix de Pagamentos', 'Gráfico consolidando as modalidades financeiras usadas, demonstrando o poder do Pix e volume financeiro detalhado por canal.')">3</div>
+            <div class="hotspot" id="hs-2-4" style="top: 92%; left: 38%;" onclick="showHotspotCard(2, 4, 'Clientes Fiéis', 'Painel identificando os clientes recorrentes e gerando inteligência sobre o seu público-alvo para ações de marketing.')">4</div>
+            <div class="hotspot" id="hs-2-5" style="top: 6%; left: 84%;" onclick="showHotspotCard(2, 5, 'Filtros e Relatórios', 'Filtre dados e exporte relatórios consolidados do painel.')">5</div>
+          </div>
+
+          <div id="card-2" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-2">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-2">Métricas de Controle</h5>
+              <p id="card-desc-2">Clique nos números para ver o que cada métrica representa.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(2)">✕</div>
+          </div>
+        </div>
+      </div>
+        <!-- SLIDE 3: Chamar Guepardo -->
+      <div class="slide" id="slide-3">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 03</div>
+            <h2 class="slide-title">Chamar Guepardo (Criar Pedido)</h2>
+            <p class="slide-desc">
+              Agilidade extrema para despachar. Digite os dados da rota, adicione paradas extras e escolha as condições ideais. O sistema calcula tudo instantaneamente no mapa.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(3, 1)">
+                <div class="feature-icon">💵</div>
+                <div class="feature-content">
+                  <h4>Formas de Pagamento (Condições)</h4>
+                  <p>Selecione Pix, Cartão ou Dinheiro. **Importante:** para Cartão e Dinheiro, o retorno do entregador à loja para devolução da máquina ou dinheiro é **obrigatório**.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(3, 2)">
+                <div class="feature-icon">📍</div>
+                <div class="feature-content">
+                  <h4>Múltiplas Paradas (Mais Lucro)</h4>
+                  <p>Clique em **"Adicionar Outra Parada (+)"** para rotas com vários destinos. A taxa é R$ 3,00 por parada adicional + R$ 1,34 por km. Muito mais lucro para a sua loja!</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(3, 3)">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-content">
+                  <h4>Roteirização Inteligente</h4>
+                  <p>Fique tranquilo: o sistema roteiriza automaticamente **até 4 entregas** simultâneas de forma otimizada, reduzindo custos e tempos de entrega.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(3, 4)">
+                <div class="feature-icon">🛵</div>
+                <div class="feature-content">
+                  <h4>Direcionar Entregador</h4>
+                  <p>Selecione o entregador disponível mais próximo clicando no mapa ou direcionando diretamente pela lista de entregadores ativos.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide3Media('chamar')">1. Novo Chamado</button>
+            <button class="media-tab" onclick="switchSlide3Media('paradas')">2. Adicionar Paradas</button>
+            <button class="media-tab" onclick="switchSlide3Media('roteiro')">3. Roteirização (Até 4)</button>
+            <button class="media-tab" onclick="switchSlide3Media('direcionar')">4. Direcionar Entregador</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide3-wrapper">
+            <img id="slide3-img" src="public/manual/pedido_4_chamar.png" class="screenshot-img" alt="Chamar Guepardo">
+            
+            <!-- Hotspots de Criar Chamado (Ativos por padrão) -->
+            <div class="hotspot" id="hs-3-1" style="top: 42%; left: 68%;" onclick="showHotspotCard(3, 1, 'Forma de Pagamento', 'Escolha entre Pix, Cartão ou Dinheiro. Para Cartão (Maq.) e Dinheiro, o entregador retorna obrigatoriamente à loja.')">1</div>
+            <div class="hotspot" id="hs-3-2" style="top: 48%; left: 50%;" onclick="showHotspotCard(3, 2, 'Adicionar Paradas', 'Clique no botão \'Adicionar Outra Parada (+)\' para incluir múltiplos clientes em sequência e otimizar a sua logística.')">2</div>
+          </div>
+
+          <div id="card-3" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-3">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-3">Configurar Rota</h5>
+              <p id="card-desc-3">Clique nos números para detalhar as funções do formulário.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(3)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 4: Monitoramento -->
+      <div class="slide" id="slide-4">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 04</div>
+            <h2 class="slide-title">Monitoramento em Tempo Real</h2>
+            <p class="slide-desc">
+              Monitore a viagem do seu pedido do início ao fim. O painel de monitoramento fornece dados sobre o entregador, status do andamento e estimativa de coleta.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(4, 1)">
+                <div class="feature-icon">👤</div>
+                <div class="feature-content">
+                  <h4>Identificação do Entregador</h4>
+                  <p>Veja o nome, foto e a placa do veículo do entregador que aceitou a corrida para garantir segurança na retirada.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(4, 2)">
+                <div class="feature-icon">⏳</div>
+                <div class="feature-content">
+                  <h4>Tempo Estimado e Botão de Pronto</h4>
+                  <p>Acompanhe o tempo de deslocamento do entregador até a loja. Marque "Pedido Pronto" para notificá-lo que o produto pode ser retirado.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(4, 3)">
+                <div class="feature-icon">📋</div>
+                <div class="feature-content">
+                  <h4>Ficha Completa do Pedido</h4>
+                  <p>Acesse o número do pedido (#2223), valores da mercadoria e frete, forma de pagamento e canal pelo qual foi gerado.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(4, 4)">
+                <div class="feature-icon">🕒</div>
+                <div class="feature-content">
+                  <h4>Histórico do Fluxo</h4>
+                  <p>Linha do tempo atualizada automaticamente registrando a hora de criação, aceite e coletas do pedido.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <div class="screenshot-wrapper">
+            <img src="public/manual/pedido_5_monitoramento.png" class="screenshot-img" alt="Monitoramento de Pedidos">
+            
+            <div class="hotspot" id="hs-4-1" style="top: 61%; left: 21%;" onclick="showHotspotCard(4, 1, 'Dados do Entregador', 'Você visualiza a foto, nome (ex: Márcio Augusto Ferreira da Silva) e a placa/modelo da moto (ex: FAWSJ08) do entregador que está a caminho da sua loja.')">1</div>
+            <div class="hotspot" id="hs-4-2" style="top: 69%; left: 21%;" onclick="showHotspotCard(4, 2, 'Controle de Coleta', 'Informa o tempo estimado de chegada (ex: 12 Min). O botão verde \'Pedido Pronto\' notifica o entregador que a mercadoria está pronta para retirada na loja.')">2</div>
+            <div class="hotspot" id="hs-4-3" style="top: 29%; left: 88%;" onclick="showHotspotCard(4, 3, 'Resumo Financeiro e Pedido', 'Painel lateral direito mostra o ID (#2223), valor dos produtos (R$ 35,00), frete (R$ 12,76), forma de pagamento (PIX) e se foi solicitado via Site/API.')">3</div>
+            <div class="hotspot" id="hs-4-4" style="top: 76%; left: 88%;" onclick="showHotspotCard(4, 4, 'Timeline do Pedido', 'Histórico completo de fluxo da entrega com data e hora exata em que cada ação foi tomada, garantindo auditoria de tempos.')">4</div>
+          </div>
+
+          <div id="card-4" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-4">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-4">Status em Tempo Real</h5>
+              <p id="card-desc-4">Clique nos números para verificar os detalhes da tela de monitoramento.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(4)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 5: Código de Coleta Seguro -->
+      <div class="slide" id="slide-5">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 05</div>
+            <h2 class="slide-title">Código de Coleta Seguro</h2>
+            <p class="slide-desc">
+              Garanta a segurança máxima de cada entrega. O aplicativo do entregador exibe um código temporário de 4 dígitos que deve ser validado por você antes de entregar a mercadoria física.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(5, 1)">
+                <div class="feature-icon">🛡️</div>
+                <div class="feature-content">
+                  <h4>Autenticação no App do Entregador</h4>
+                  <p>O entregador recebe e visualiza o código temporário em seu próprio aplicativo ao chegar no local de coleta.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(5, 2)">
+                <div class="feature-icon">🔑</div>
+                <div class="feature-content">
+                  <h4>Validação Obrigatória</h4>
+                  <p>Digite o código fornecido pelo entregador no seu painel para liberar o início oficial da rota logística.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(5, 3)">
+                <div class="feature-icon">🔒</div>
+                <div class="feature-content">
+                  <h4>Prevenção contra Golpes</h4>
+                  <p>Evite fraudes e desvios de pacotes garantindo que apenas o motorista correto do sistema possa levar a encomenda.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <div class="screenshot-wrapper">
+            <img src="public/manual/pedido_5_codigo.png" class="screenshot-img" alt="Código de Coleta Seguro">
+            
+            <div class="hotspot" id="hs-5-1" style="top: 61%; left: 50%;" onclick="showHotspotCard(5, 1, 'Código de Coleta', 'O código temporário de 4 dígitos é gerado no aplicativo do entregador e deve ser fornecido por ele à sua loja.')">1</div>
+            <div class="hotspot" id="hs-5-2" style="top: 78%; left: 50%;" onclick="showHotspotCard(5, 2, 'Confirmação e Início', 'Validação no painel lojista que confirma o código e inicia a entrega com segurança jurídica e rastreabilidade total.')">2</div>
+            <div class="hotspot" id="hs-5-3" style="top: 22%; left: 50%;" onclick="showHotspotCard(5, 3, 'Prevenção de Fraudes', 'Impede a entrega para motoristas errados ou golpistas que fingem ser do aplicativo, assegurando a integridade do produto.')">3</div>
+          </div>
+
+          <div id="card-5" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-5">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-5">Autenticação</h5>
+              <p id="card-desc-5">Clique nos pontos de destaque para ver a dinâmica de validação.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(5)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 6: Rastreamento do Cliente Final -->
+      <div class="slide" id="slide-6">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 06</div>
+            <h2 class="slide-title">Rastreamento do Cliente Final</h2>
+            <p class="slide-desc">
+              Transparência que fideliza. O cliente final acompanha todo o trajeto do entregador em tempo real por um mapa interativo, reduzindo a ansiedade e chamados de suporte.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(6, 1)">
+                <div class="feature-icon">📍</div>
+                <div class="feature-content">
+                  <h4>Localização no Mapa ao Vivo</h4>
+                  <p>O cliente acompanha a moto se deslocando na tela, sabendo exatamente onde seu produto está.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(6, 2)">
+                <div class="feature-icon">👤</div>
+                <div class="feature-content">
+                  <h4>Segurança e Identificação</h4>
+                  <p>O cliente visualiza a foto, nome e veículo do entregador para recebê-lo com tranquilidade.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(6, 3)">
+                <div class="feature-icon">⏳</div>
+                <div class="feature-content">
+                  <h4>Tempo Estimado de Chegada</h4>
+                  <p>Estimativa de tempo atualizada conforme a rota e o tráfego atual de trânsito.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <div class="screenshot-wrapper">
+            <img src="public/manual/pedido_6_rastreio.png" class="screenshot-img" alt="Rastreamento do Cliente">
+            
+            <div class="hotspot" id="hs-6-1" style="top: 40%; left: 50%;" onclick="showHotspotCard(6, 1, 'Posição do Entregador', 'O mapa mostra o trajeto detalhado e a posição exata da motocicleta no mapa em tempo real.')">1</div>
+            <div class="hotspot" id="hs-6-2" style="top: 88%; left: 45%;" onclick="showHotspotCard(6, 2, 'Dados do Entregador', 'Informações de contato e identificação do entregador para segurança e suporte do destinatário.')">2</div>
+            <div class="hotspot" id="hs-6-3" style="top: 78%; left: 50%;" onclick="showHotspotCard(6, 3, 'Status de Deslocamento', 'Indicação da etapa atual e o tempo estimado de chegada (ETA) atualizado de forma dinâmica.')">3</div>
+          </div>
+
+          <div id="card-6" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-6">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-6">Rastreio no Mapa</h5>
+              <p id="card-desc-6">Clique nos pontos de destaque para ver a experiência do cliente final.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(6)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 7: Base de Clientes (CRM) -->
+      <div class="slide" id="slide-7">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 07</div>
+            <h2 class="slide-title">Base de Clientes (CRM)</h2>
+            <p class="slide-desc">
+              Centralize seu relacionamento. Veja e gerencie sua base de clientes fiéis, consulte o histórico completo de pedidos e fidelize compradores recorrentes.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(7, 1)">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-content">
+                  <h4>Busca e Filtros Rápidos</h4>
+                  <p>Localize qualquer cliente instantaneamente por nome, telefone ou documento cadastrado.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(7, 2)">
+                <div class="feature-icon">👑</div>
+                <div class="feature-content">
+                  <h4>Níveis de Fidelidade</h4>
+                  <p>Monitore a categoria do cliente (Bronze, Prata, Ouro, Diamante) de acordo com a assiduidade na plataforma.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(7, 3)">
+                <div class="feature-icon">📦</div>
+                <div class="feature-content">
+                  <h4>Métricas Individuais</h4>
+                  <p>Acompanhe o número total de pedidos finalizados e o histórico detalhado de cada consumidor.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <div class="screenshot-wrapper">
+            <img src="public/manual/cadastro_3_clientes.png" class="screenshot-img" alt="Base de Clientes CRM">
+            
+            <div class="hotspot" id="hs-7-1" style="top: 12%; left: 30%;" onclick="showHotspotCard(7, 1, 'Barra de Pesquisa', 'Fácil localização de usuários para análise rápida ou autocomplemento de dados em novos pedidos.')">1</div>
+            <div class="hotspot" id="hs-7-2" style="top: 38%; left: 58%;" onclick="showHotspotCard(7, 2, 'Selos de Fidelidade', 'Os selos destacam os clientes mais leais da loja, ajudando na oferta de cupons ou brindes exclusivos.')">2</div>
+            <div class="hotspot" id="hs-7-3" style="top: 38%; left: 74%;" onclick="showHotspotCard(7, 3, 'Contador de Pedidos', 'Quantidade acumulada de pedidos bem-sucedidos do cliente na base de dados do estabelecimento.')">3</div>
+          </div>
+
+          <div id="card-7" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-7">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-7">Clientes & CRM</h5>
+              <p id="card-desc-7">Clique nos números para ver o funcionamento do gerenciamento de clientes.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(7)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 8: Carteira & Recargas -->
+      <div class="slide" id="slide-8">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 08</div>
+            <h2 class="slide-title">Carteira & Recargas</h2>
+            <p class="slide-desc">
+              Controle absoluto das suas finanças de entrega. Acompanhe seu saldo em tempo real, visualize o extrato completo de corridas e faça recargas instantâneas via Pix (manual ou automático).
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(8, 1)">
+                <div class="feature-icon">💰</div>
+                <div class="feature-content">
+                  <h4>Saldo e Lançamentos</h4>
+                  <p>Monitore o saldo disponível para contratação de entregas e confira o extrato consolidado de débitos e créditos.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(8, 3)">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-content">
+                  <h4>Recarga Automática (Taxas)</h4>
+                  <p>Adicione créditos instantaneamente via Pix Asaas (taxa de R$ 1,99) ou Cartão de Crédito (2,99% + R$ 0,49).</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(8, 4)">
+                <div class="feature-icon">💎</div>
+                <div class="feature-content">
+                  <h4>Recarga Manual (Grátis)</h4>
+                  <p>**Recomendado!** Transfira sem taxas via Pix CNPJ (Mercado Pago) e envie no WhatsApp do suporte para ativação imediata.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(8, 6)">
+                <div class="feature-icon">📲</div>
+                <div class="feature-content">
+                  <h4>QR Code de Pagamento</h4>
+                  <p>Copie ou faça a leitura do QR Code gerado pelo Asaas para compensação automática em segundos.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide8Media('dashboard')">1. Meu Saldo</button>
+            <button class="media-tab" onclick="switchSlide8Media('recarga')">2. Automático (Taxas)</button>
+            <button class="media-tab" onclick="switchSlide8Media('manual')">3. Manual (Grátis)</button>
+            <button class="media-tab" onclick="switchSlide8Media('qrcode')">4. QR Code</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide8-wrapper">
+            <img id="slide8-img" src="public/manual/carteira_4_dashboard.png" class="screenshot-img" alt="Minha Carteira">
+            <!-- Hotspots de Saldo (Ativos por padrão para o Dashboard) -->
+            <div class="hotspot" id="hs-8-1" style="top: 25%; left: 32%;" onclick="showHotspotCard(8, 1, 'Saldo em Tempo Real', 'Demonstração clara do saldo atual da sua loja disponível para contratação imediata de entregas.')">1</div>
+            <div class="hotspot" id="hs-8-2" style="top: 60%; left: 50%;" onclick="showHotspotCard(8, 2, 'Histórico Financeiro', 'Extrato detalhando todas as recargas efetuadas e os débitos das corridas realizadas.')">2</div>
+          </div>
+
+          <!-- Card de Informação do Hotspot -->
+          <div id="card-8" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-8">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-8">Saldo e Extrato</h5>
+              <p id="card-desc-8">Passe o mouse ou selecione um destaque.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(8)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 9: Histórico & Relatórios -->
+      <div class="slide" id="slide-9">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 09</div>
+            <h2 class="slide-title">Histórico & Relatórios</h2>
+            <p class="slide-desc">
+              Audite e otimize seu volume de entregas. Acesse a listagem de todos os pedidos realizados, verifique detalhes de rotas e motoristas, e exporte relatórios consolidados de sua performance.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(9, 1)">
+                <div class="feature-icon">📊</div>
+                <div class="feature-content">
+                  <h4>Painel de Histórico Geral</h4>
+                  <p>Monitore o fluxo de entregas em tempo real com filtros por data, status (concluído, cancelado) e entregador.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(9, 2)">
+                <div class="feature-icon">📋</div>
+                <div class="feature-content">
+                  <h4>Detalhamento do Pedido</h4>
+                  <p>Consulte timestamps precisos de aceitação, coleta e conclusão, dados da rota completa, paradas e custos.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(9, 3)">
+                <div class="feature-icon">📥</div>
+                <div class="feature-content">
+                  <h4>Exportação de Relatórios</h4>
+                  <p>Extraia os dados consolidados da sua operação em PDF ou Excel para sua gestão financeira e auditoria de frete.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(9, 8)">
+                <div class="feature-icon">📈</div>
+                <div class="feature-content">
+                  <h4>Desempenho & Gráficos</h4>
+                  <p>Acompanhe faturamento bruto, volume total de pedidos finalizados/cancelados e gráficos de fluxo financeiro.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide9Media('lista')">1. Histórico Geral</button>
+            <button class="media-tab" onclick="switchSlide9Media('detalhes')">2. Detalhes do Pedido</button>
+            <button class="media-tab" onclick="switchSlide9Media('desempenho')">3. Desempenho & Gráficos</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide9-wrapper">
+            <img id="slide9-img" src="public/manual/historico_1_lista.png" class="screenshot-img" alt="Histórico de Pedidos">
+            <!-- Hotspots de Histórico (Ativos por padrão para a Lista) -->
+            <div class="hotspot" id="hs-9-1" style="top: 14%; left: 32%;" onclick="showHotspotCard(9, 1, 'Filtros Avançados', 'Filtre suas buscas por período, entregador específico ou status da entrega (Concluída, Cancelada, Em Andamento).')">1</div>
+            <div class="hotspot" id="hs-9-2" style="top: 14%; left: 64%;" onclick="showHotspotCard(9, 2, 'Métricas Rápidas', 'Acompanhe de relance o faturamento, quantidade de pedidos e valores transacionados na tela de relatórios.')">2</div>
+            <div class="hotspot" id="hs-9-3" style="top: 45%; left: 50%;" onclick="showHotspotCard(9, 3, 'Visão Geral das Corridas', 'Veja a lista de todos os pedidos criados com dados rápidos de entregador, valor da taxa de entrega, quantidade de paradas e status.')">3</div>
+            <div class="hotspot" id="hs-9-7" style="top: 14%; left: 92%;" onclick="showHotspotCard(9, 7, 'Exportação de Dados', 'Exporte a lista completa de pedidos e relatórios financeiros em Excel, CSV ou PDF para conciliação fácil.')">7</div>
+          </div>
+
+          <!-- Card de Informação do Hotspot -->
+          <div id="card-9" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-9">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-9">Histórico de Pedidos</h5>
+              <p id="card-desc-9">Passe o mouse ou selecione um destaque.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(9)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 10: Configurações da Loja -->
+      <div class="slide" id="slide-10">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 10</div>
+            <h2 class="slide-title">Configurações da Loja</h2>
+            <p class="slide-desc">
+              Personalize sua operação logística e interface. Configure seus dados cadastrais, horários de funcionamento, raio de atendimento, tempo de preparo dos pratos, metas de fidelização de clientes e alertas sonoros personalizados.
+            </p>
+            <div class="feature-list">
+              <div class="feature-item" onclick="activateHotspot(10, 1)">
+                <div class="feature-icon">⚙️</div>
+                <div class="feature-content">
+                  <h4>Dados & Funcionamento</h4>
+                  <p>Mantenha atualizados o endereço do estabelecimento, status (aberto/fechado) e raio de atendimento.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(10, 4)">
+                <div class="feature-icon">🛡️</div>
+                <div class="feature-content">
+                  <h4>Logística & Metas (CRM)</h4>
+                  <p>Defina o tempo de preparo de cada pedido, taxa de retorno e as metas por quantidade de pedidos: Bronze (3), Prata (5) e Ouro (10).</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(10, 6)">
+                <div class="feature-icon">🎨</div>
+                <div class="feature-content">
+                  <h4>Interface & Alertas</h4>
+                  <p>Personalize os temas da aplicação/mapa e selecione alertas sonoros exclusivos como o Rugido do Guepardo.</p>
+                </div>
+              </div>
+              <div class="feature-item" onclick="activateHotspot(10, 8)">
+                <div class="feature-icon">💬</div>
+                <div class="feature-content">
+                  <h4>Suporte & Ajuda</h4>
+                  <p>Acesse o suporte técnico especializado diretamente via WhatsApp no número <strong>(11) 98338-2090</strong>.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos botões acima ou nos números piscantes no print para explorar!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <!-- Alternador de Telas -->
+          <div class="media-tabs">
+            <button class="media-tab active" onclick="switchSlide10Media('dados')">1. Dados & Horários</button>
+            <button class="media-tab" onclick="switchSlide10Media('logistica')">2. Logística & Metas</button>
+            <button class="media-tab" onclick="switchSlide10Media('interface')">3. Interface & Suporte</button>
+            <button class="media-tab" onclick="switchSlide10Media('alertas')">4. Alertas Sonoros</button>
+          </div>
+          
+          <div class="screenshot-wrapper" id="slide10-wrapper">
+            <img id="slide10-img" src="public/manual/config_1_dados.png" class="screenshot-img" alt="Configurações da Loja">
+            <!-- Hotspots de Dados (Ativos por padrão para Dados & Horários) -->
+            <div class="hotspot" id="hs-10-1" style="top: 25%; left: 50%;" onclick="showHotspotCard(10, 1, 'Dados da Empresa', 'Cadastre o Nome Fantasia, CEP, Logradouro, Número, Bairro, Cidade e UF do seu estabelecimento. Você também pode recalcular a localização no mapa.')">1</div>
+            <div class="hotspot" id="hs-10-2" style="top: 72%; left: 45%;" onclick="showHotspotCard(10, 2, 'Status e Raio de Atendimento', 'Ative ou desative a loja para receber pedidos. Defina o raio de atendimento do lojista utilizando o controle deslizante em KM.')">2</div>
+            <div class="hotspot" id="hs-10-3" style="top: 85%; left: 45%;" onclick="showHotspotCard(10, 3, 'Horário de Funcionamento', 'Defina com precisão o horário de abertura e fechamento da loja para recebimento automático de chamados.')">3</div>
+          </div>
+
+          <!-- Card de Informação do Hotspot -->
+          <div id="card-10" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-10">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-10">Configurações</h5>
+              <p id="card-desc-10">Passe o mouse ou selecione um destaque.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(10)">✕</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLIDE 11: Contatos & Canais Oficiais -->
+      <div class="slide" id="slide-11">
+        <div class="slide-info">
+          <div>
+            <div class="slide-number">Slide 11</div>
+            <h2 class="slide-title">Contatos & Canais Oficiais</h2>
+            <p class="slide-desc">
+              Fique conectado e fale diretamente com a equipe do Guepardo Delivery através dos nossos canais de atendimento e redes sociais.
+            </p>
+            <div class="feature-list">
+              <a href="http://www.guepardodelivery.com" target="_blank" class="feature-item" style="text-decoration: none; color: inherit;" onclick="activateHotspot(11, 1); event.stopPropagation();">
+                <div class="feature-icon">🌐</div>
+                <div class="feature-content">
+                  <h4>Site Oficial</h4>
+                  <p style="color: var(--color-primary); font-weight: 600; margin: 2px 0 4px 0;">www.guepardodelivery.com</p>
+                  <p>Acesse o portal para mais informações, notícias e novidades da plataforma.</p>
+                </div>
+              </a>
+              <a href="https://www.instagram.com/guepardodelivery2026/" target="_blank" class="feature-item" style="text-decoration: none; color: inherit;" onclick="activateHotspot(11, 2); event.stopPropagation();">
+                <div class="feature-icon">📸</div>
+                <div class="feature-content">
+                  <h4>Instagram</h4>
+                  <p style="color: var(--color-primary); font-weight: 600; margin: 2px 0 4px 0;">@guepardodelivery2026</p>
+                  <p>Siga nossa página para acompanhar promoções, bastidores e atualizações.</p>
+                </div>
+              </a>
+              <a href="https://www.facebook.com/profile.php?id=61589246603492" target="_blank" class="feature-item" style="text-decoration: none; color: inherit;" onclick="activateHotspot(11, 3); event.stopPropagation();">
+                <div class="feature-icon">👤</div>
+                <div class="feature-content">
+                  <h4>Facebook</h4>
+                  <p style="color: var(--color-primary); font-weight: 600; margin: 2px 0 4px 0;">Guepardo Delivery</p>
+                  <p>Curta nossa página e receba informativos oficiais em sua linha do tempo.</p>
+                </div>
+              </a>
+              <a href="https://wa.me/5511983382090" target="_blank" class="feature-item" style="text-decoration: none; color: inherit;" onclick="activateHotspot(11, 4); event.stopPropagation();">
+                <div class="feature-icon">💬</div>
+                <div class="feature-content">
+                  <h4>WhatsApp Suporte</h4>
+                  <p style="color: var(--color-primary); font-weight: 600; margin: 2px 0 4px 0;">(11) 98338-2090</p>
+                  <p>Fale diretamente com nossa central de atendimento para suporte e liberação de saldo.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:12px; color:var(--color-primary); font-weight:600;">Dica: Clique nos canais acima ou nos números piscantes no banner para abrir as páginas correspondentes!</p>
+          </div>
+        </div>
+
+        <div class="slide-media">
+          <div class="screenshot-wrapper" id="slide11-wrapper">
+            <img id="slide11-img" src="public/manual/contatos.png" class="screenshot-img" alt="Canais Oficiais Guepardo Delivery" style="object-fit: contain;">
+            <!-- Hotspots de Contatos -->
+            <div class="hotspot" id="hs-11-1" style="top: 96%; left: 33%;" onclick="window.open('http://www.guepardodelivery.com', '_blank'); showHotspotCard(11, 1, 'Site Oficial', 'Acesse www.guepardodelivery.com para conhecer todos os serviços da nossa plataforma.')">1</div>
+            <div class="hotspot" id="hs-11-2" style="top: 96%; left: 23%;" onclick="window.open('https://www.instagram.com/guepardodelivery2026/', '_blank'); showHotspotCard(11, 2, 'Instagram', 'Siga nossa conta oficial: @guepardodelivery2026 no Instagram.')">2</div>
+            <div class="hotspot" id="hs-11-3" style="top: 96%; left: 52%;" onclick="window.open('https://www.facebook.com/profile.php?id=61589246603492', '_blank'); showHotspotCard(11, 3, 'Facebook', 'Acesse nossa página oficial da Guepardo Delivery no Facebook.')">3</div>
+            <div class="hotspot" id="hs-11-4" style="top: 52%; left: 38%;" onclick="window.open('https://wa.me/5511983382090', '_blank'); showHotspotCard(11, 4, 'WhatsApp Suporte', 'Envie mensagem direta para nossa central de atendimento pelo número (11) 98338-2090.')">4</div>
+          </div>
+
+          <!-- Card de Informação do Hotspot -->
+          <div id="card-11" class="hotspot-card">
+            <div class="hotspot-card-badge" id="card-badge-11">1</div>
+            <div class="hotspot-card-content">
+              <h5 id="card-title-11">Contatos</h5>
+              <p id="card-desc-11">Passe o mouse ou selecione um destaque.</p>
+            </div>
+            <div class="hotspot-card-close" onclick="closeHotspotCard(11)">✕</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Barra de Controle de Rodapé -->
+    <footer>
+      <div class="footer-help">
+        Navegue usando as setas do teclado: <span>←</span> e <span>→</span>
+      </div>
+      
+      <!-- Paginação -->
+      <div class="dots-nav" id="dots-container">
+        <div class="dot active" onclick="goToSlide(0)" title="Capa"></div>
+        <div class="dot" onclick="goToSlide(1)"></div>
+        <div class="dot" onclick="goToSlide(2)"></div>
+        <div class="dot" onclick="goToSlide(3)"></div>
+        <div class="dot" onclick="goToSlide(4)"></div>
+        <div class="dot" onclick="goToSlide(5)"></div>
+        <div class="dot" onclick="goToSlide(6)"></div>
+        <div class="dot" onclick="goToSlide(7)"></div>
+        <div class="dot" onclick="goToSlide(8)"></div>
+        <div class="dot" onclick="goToSlide(9)"></div>
+        <div class="dot" onclick="goToSlide(10)"></div>
+        <div class="dot" onclick="goToSlide(11)"></div>
+      </div>
+
+      <!-- Setas -->
+      <div class="controls-nav">
+        <button id="prev-btn" class="nav-btn disabled" onclick="prevSlide()" title="Slide Anterior">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <button id="next-btn" class="nav-btn" onclick="nextSlide()" title="Próximo Slide">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // Configurações do Slide
+    let currentSlideIndex = 0;
+    const totalSlides = 11;
+    
+    // Status do Áudio
+    const audio = document.getElementById('cheetah-audio');
+    const audioBtn = document.getElementById('toggle-audio-btn');
+    const audioToast = document.getElementById('audio-toast');
+    let isAudioPlaying = false;
+
+    // Slide 1 - Alternância de Imagens
+    let slide1MediaState = 'login'; // 'login', 'dados', 'endereco' ou 'acesso'
+    const slide1Img = document.getElementById('slide1-img');
+    const slide1Wrapper = document.getElementById('slide1-wrapper');
+
+    function switchSlide1Media(type) {
+      if (type === slide1MediaState) return;
+      slide1MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-1 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'login' && tab.innerText.includes('1.')) || 
+            (type === 'dados' && tab.innerText.includes('2.')) ||
+            (type === 'endereco' && tab.innerText.includes('3.')) ||
+            (type === 'acesso' && tab.innerText.includes('4.'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 1
+      const oldHotspots = slide1Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(1);
+
+      if (type === 'login') {
+        slide1Img.src = 'public/manual/cadastro_1_login.png';
+        
+        // Criar hotspot de login
+        const hs = document.createElement('div');
+        hs.className = 'hotspot';
+        hs.id = 'hs-1-1';
+        hs.style.top = '61%';
+        hs.style.left = '49%';
+        hs.innerText = '1';
+        hs.onclick = () => showHotspotCard(1, 1, 'Acesso ao Painel', 'Insira seu e-mail e senha. Se ainda não possuir credenciais, clique em \'Cadastre-se agora\' no canto inferior direito da tela de login.');
+        slide1Wrapper.appendChild(hs);
+      } else if (type === 'dados') {
+        slide1Img.src = 'public/manual/cadastro_2_dados.png';
+
+        // Criar hotspots de dados
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-1-2';
+        hs2.style.top = '32%';
+        hs2.style.left = '50%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(1, 2, 'Dados Cadastrais PJ/PF', 'Preencha CNPJ ou CPF, Razão Social, Nome Fantasia e Telefone para contato oficial do estabelecimento.');
+        
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-1-3';
+        hs3.style.top = '64%';
+        hs3.style.left = '34%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(1, 3, 'Logo da Empresa', 'Anexe a logo da sua marca. Esta informação de imagem é de suma importância, pois aparecerá diretamente no aplicativo do entregador, ajudando-o a identificar seu estabelecimento na chegada.');
+
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-1-4';
+        hs4.style.top = '80%';
+        hs4.style.left = '71%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(1, 4, 'Fachada da Loja', 'Anexe a foto da fachada física da loja. Esta imagem também é exibida para o entregador, facilitando significativamente a localização visual do seu estabelecimento na rua.');
+
+        slide1Wrapper.appendChild(hs2);
+        slide1Wrapper.appendChild(hs3);
+        slide1Wrapper.appendChild(hs4);
+      } else if (type === 'endereco') {
+        slide1Img.src = 'public/manual/cadastro_2_endereco.png';
+
+        // Criar hotspots de endereco
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-1-5';
+        hs5.style.top = '48%';
+        hs5.style.left = '50%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(1, 5, 'Endereço Completo', 'Preencha CEP, Rua, Número, Complemento, Bairro, Cidade e UF da loja.');
+
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-1-6';
+        hs6.style.top = '86%';
+        hs6.style.left = '73%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(1, 6, 'Localização no Mapa', 'De suma importância! O cadastro correto do endereço geolocaliza a loja no mapa. Isso permite cotações de frete precisas e viabiliza que as chamadas partam do ponto exato da loja.');
+
+        slide1Wrapper.appendChild(hs5);
+        slide1Wrapper.appendChild(hs6);
+      } else if (type === 'acesso') {
+        slide1Img.src = 'public/manual/cadastro_2_acesso.png';
+
+        // Criar hotspots de acesso
+        const hs7 = document.createElement('div');
+        hs7.className = 'hotspot';
+        hs7.id = 'hs-1-7';
+        hs7.style.top = '42%';
+        hs7.style.left = '50%';
+        hs7.innerText = '7';
+        hs7.onclick = () => showHotspotCard(1, 7, 'Gestão e Acesso', 'Informe o Nome do Responsável que gerenciará o aplicativo, acompanhado do e-mail de acesso e senha.');
+
+        const hs8 = document.createElement('div');
+        hs8.className = 'hotspot';
+        hs8.id = 'hs-1-8';
+        hs8.style.top = '86%';
+        hs8.style.left = '68%';
+        hs8.innerText = '8';
+        hs8.onclick = () => showHotspotCard(1, 8, 'Finalizar Cadastro', 'Clique em \'Finalizar Cadastro\' para concluir todo o processo e liberar a utilização oficial da plataforma.');
+
+        slide1Wrapper.appendChild(hs7);
+        slide1Wrapper.appendChild(hs8);
+      }
+    }
+
+    // Slide 2 - Alternância de Imagens
+    let slide2MediaState = 'operacional'; // 'operacional' ou 'filtros'
+    const slide2Img = document.getElementById('slide2-img');
+    const slide2Wrapper = document.getElementById('slide2-wrapper');
+
+    function switchSlide2Media(type) {
+      if (type === slide2MediaState) return;
+      slide2MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-2 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'operacional' && tab.innerText.includes('Painel')) || 
+            (type === 'filtros' && tab.innerText.includes('Filtros'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 2
+      const oldHotspots = slide2Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(2);
+
+      if (type === 'operacional') {
+        slide2Img.src = 'public/manual/painel_3_operacional.png';
+        
+        // Criar hotspots de operacional
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-2-1';
+        hs1.style.top = '21%';
+        hs1.style.left = '34%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(2, 1, 'Métricas Principais', 'Visualização direta de Vendas Realizadas, Faturamento Total (com indicação de taxas), Ticket Médio e Novos Clientes com crescimento percentual comparativo.');
+        
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-2-2';
+        hs2.style.top = '61%';
+        hs2.style.left = '38%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(2, 2, 'Fluxo de Pedidos', 'Um gráfico interativo mostrando os picos de pedidos por hora, permitindo à sua loja se preparar para os horários de maior fluxo.');
+
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-2-3';
+        hs3.style.top = '61%';
+        hs3.style.left = '80%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(2, 3, 'Mix de Pagamentos', 'Gráfico consolidando as modalidades financeiras usadas, demonstrando o poder do Pix e volume financeiro detalhado por canal.');
+
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-2-4';
+        hs4.style.top = '92%';
+        hs4.style.left = '38%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(2, 4, 'Clientes Fiéis', 'Painel identificando os clientes recorrentes e gerando inteligência sobre o seu público-alvo para ações de marketing.');
+
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-2-5';
+        hs5.style.top = '6%';
+        hs5.style.left = '84%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(2, 5, 'Filtros e Relatórios', 'Permite filtrar dados por períodos e exportar relatórios nos formatos Word, PDF ou imprimir relatórios gerenciais.');
+
+        slide2Wrapper.appendChild(hs1);
+        slide2Wrapper.appendChild(hs2);
+        slide2Wrapper.appendChild(hs3);
+        slide2Wrapper.appendChild(hs4);
+        slide2Wrapper.appendChild(hs5);
+      } else if (type === 'filtros') {
+        slide2Img.src = 'public/manual/painel_3_filtros.png';
+
+        // Criar hotspots de filtros
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-2-6';
+        hs6.style.top = '50%';
+        hs6.style.left = '35%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(2, 6, 'Filtros de Período', 'Selecione o intervalo de dados desejado: Hoje, Últimos 7 dias, Últimos 30 dias ou configure um período Personalizado para dados de faturamento precisos.');
+
+        const hs7 = document.createElement('div');
+        hs7.className = 'hotspot';
+        hs7.id = 'hs-2-7';
+        hs7.style.top = '50%';
+        hs7.style.left = '78%';
+        hs7.innerText = '7';
+        hs7.onclick = () => showHotspotCard(2, 7, 'Exportação e Impressão', 'Exporte relatórios gerenciais das entregas e faturamento em formatos Word, PDF ou envie diretamente para Impressão.');
+
+        slide2Wrapper.appendChild(hs6);
+        slide2Wrapper.appendChild(hs7);
+      }
+    }
+
+    // Slide 3 - Alternância de Imagens
+    let slide3MediaState = 'chamar'; // 'chamar', 'paradas', 'roteiro' ou 'direcionar'
+    const slide3Img = document.getElementById('slide3-img');
+    const slide3Wrapper = document.getElementById('slide3-wrapper');
+
+    function switchSlide3Media(type) {
+      if (type === slide3MediaState) return;
+      slide3MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-3 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'chamar' && tab.innerText.includes('Chamado')) || 
+            (type === 'paradas' && tab.innerText.includes('Paradas')) ||
+            (type === 'roteiro' && tab.innerText.includes('Roteirização')) ||
+            (type === 'direcionar' && tab.innerText.includes('Direcionar'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 3
+      const oldHotspots = slide3Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(3);
+
+      if (type === 'chamar') {
+        slide3Img.src = 'public/manual/pedido_4_chamar.png';
+        
+        // Criar hotspots de chamar
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-3-1';
+        hs1.style.top = '42%';
+        hs1.style.left = '68%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(3, 1, 'Forma de Pagamento', 'Escolha entre Pix, Cartão ou Dinheiro. Para Cartão (Maq.) e Dinheiro, o entregador retorna obrigatoriamente à loja.');
+        
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-3-2';
+        hs2.style.top = '48%';
+        hs2.style.left = '50%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(3, 2, 'Adicionar Paradas', 'Clique no botão \'Adicionar Outra Parada (+)\' para incluir múltiplos clientes em sequência e otimizar a sua logística.');
+
+        slide3Wrapper.appendChild(hs1);
+        slide3Wrapper.appendChild(hs2);
+      } else if (type === 'paradas') {
+        slide3Img.src = 'public/manual/pedido_4_paradas.png';
+
+        // Criar hotspots de paradas
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-3-3';
+        hs3.style.top = '59%';
+        hs3.style.left = '59%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(3, 3, 'Rota com 2 Paradas', 'Exemplo de rota roteirizada no mapa ligando a Parada 1 e a Parada 2 de forma direta e sequencial.');
+
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-3-4';
+        hs4.style.top = '50%';
+        hs4.style.left = '14%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(3, 4, 'Custo de Paradas Adicionais', 'Cada parada adicional custa R$ 3,00 + R$ 1,34 por km. Muito lucrativo: você cobra a taxa cheia do cliente e paga menos da metade à plataforma.');
+
+        slide3Wrapper.appendChild(hs3);
+        slide3Wrapper.appendChild(hs4);
+      } else if (type === 'roteiro') {
+        slide3Img.src = 'public/manual/pedido_4_roteiro.png';
+
+        // Criar hotspots de roteiro
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-3-5';
+        hs5.style.top = '25%';
+        hs5.style.left = '88%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(3, 5, 'Roteirização Inteligente de até 4 Entregas', 'O sistema organiza e otimiza automaticamente rotas de até 4 entregas simultâneas de forma sequencial inteligente, sem que você precise conhecer as rotas.');
+
+        slide3Wrapper.appendChild(hs5);
+      } else if (type === 'direcionar') {
+        slide3Img.src = 'public/manual/pedido_4_direcionar.png';
+
+        // Criar hotspots de direcionar
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-3-6';
+        hs6.style.top = '29%';
+        hs6.style.left = '50%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(3, 6, 'Direcionamento Direto', 'Selecione e direcione para um entregador específico mais próximo no mapa ou escolha-o diretamente na lista suspensa do painel.');
+
+        slide3Wrapper.appendChild(hs6);
+      }
+    }
+
+
+    // Slide 8 - Alternância de Imagens
+    let slide8MediaState = 'dashboard'; // 'dashboard', 'recarga', 'manual' ou 'qrcode'
+    const slide8Img = document.getElementById('slide8-img');
+    const slide8Wrapper = document.getElementById('slide8-wrapper');
+
+    function switchSlide8Media(type) {
+      if (type === slide8MediaState) return;
+      slide8MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-8 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'dashboard' && tab.innerText.includes('Saldo')) || 
+            (type === 'recarga' && tab.innerText.includes('Automático')) ||
+            (type === 'manual' && tab.innerText.includes('Manual')) ||
+            (type === 'qrcode' && tab.innerText.includes('QR Code'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 8
+      const oldHotspots = slide8Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(8);
+
+      if (type === 'dashboard') {
+        slide8Img.src = 'public/manual/carteira_4_dashboard.png';
+        
+        // Criar hotspots de dashboard
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-8-1';
+        hs1.style.top = '25%';
+        hs1.style.left = '32%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(8, 1, 'Saldo em Tempo Real', 'Demonstração clara do saldo atual da sua loja disponível para contratação imediata de entregas.');
+        
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-8-2';
+        hs2.style.top = '60%';
+        hs2.style.left = '50%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(8, 2, 'Histórico Financeiro', 'Extrato detalhando todas as recargas efetuadas e os débitos das corridas realizadas.');
+
+        slide8Wrapper.appendChild(hs1);
+        slide8Wrapper.appendChild(hs2);
+      } else if (type === 'recarga') {
+        slide8Img.src = 'public/manual/carteira_5_recarga.png';
+
+        // Criar hotspots de recarga
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-8-3';
+        hs3.style.top = '48%';
+        hs3.style.left = '50%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(8, 3, 'Métodos de Recarga Automática', 'Adicione saldo com liberação automática via Pix Asaas (taxa fixa de R$ 1,99) ou Cartão de Crédito (taxa de 2,99% + R$ 0,49).');
+
+        slide8Wrapper.appendChild(hs3);
+      } else if (type === 'manual') {
+        slide8Img.src = 'public/manual/carteira_6_manual.png';
+
+        // Criar hotspots de manual
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-8-4';
+        hs4.style.top = '52%';
+        hs4.style.left = '50%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(8, 4, 'Chave Pix CNPJ (Grátis)', 'Recomendado! Faça transferência para a chave CNPJ: 65.628.033/0001-26 (Mercado Pago). Sem qualquer taxa de intermediação.');
+
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-8-5';
+        hs5.style.top = '68%';
+        hs5.style.left = '50%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(8, 5, 'Suporte via WhatsApp', 'Após transferir, basta enviar o comprovante para o suporte WhatsApp da Guepardo. Os créditos são liberados na mesma hora após conferência rápida.');
+
+        slide8Wrapper.appendChild(hs4);
+        slide8Wrapper.appendChild(hs5);
+      } else if (type === 'qrcode') {
+        slide8Img.src = 'public/manual/carteira_7_qrcode.png';
+
+        // Criar hotspots de QR code
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-8-6';
+        hs6.style.top = '45%';
+        hs6.style.left = '50%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(8, 6, 'Código QR / Copia e Cola', 'Realize o pagamento do QR Code gerado pelo Asaas em seu aplicativo bancário. Observação: cobrança automática possui taxa de R$ 1,99.');
+
+        slide8Wrapper.appendChild(hs6);
+      }
+    }
+
+    // Slide 9 - Alternância de Imagens
+    let slide9MediaState = 'lista'; // 'lista', 'detalhes' ou 'desempenho'
+    const slide9Img = document.getElementById('slide9-img');
+    const slide9Wrapper = document.getElementById('slide9-wrapper');
+
+    function switchSlide9Media(type) {
+      if (type === slide9MediaState) return;
+      slide9MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-9 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'lista' && tab.innerText.includes('Geral')) || 
+            (type === 'detalhes' && tab.innerText.includes('Detalhes')) ||
+            (type === 'desempenho' && tab.innerText.includes('Desempenho'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 9
+      const oldHotspots = slide9Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(9);
+
+      if (type === 'lista') {
+        slide9Img.src = 'public/manual/historico_1_lista.png';
+        
+        // Criar hotspots de lista
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-9-1';
+        hs1.style.top = '14%';
+        hs1.style.left = '32%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(9, 1, 'Filtros Avançados', 'Filtre suas buscas por período, entregador específico ou status da entrega (Concluída, Cancelada, Em Andamento).');
+        
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-9-2';
+        hs2.style.top = '14%';
+        hs2.style.left = '64%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(9, 2, 'Métricas Rápidas', 'Acompanhe de relance o faturamento, quantidade de pedidos e valores transacionados na tela de relatórios.');
+
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-9-3';
+        hs3.style.top = '45%';
+        hs3.style.left = '50%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(9, 3, 'Visão Geral das Corridas', 'Veja a lista de todos os pedidos criados com dados rápidos de entregador, valor da taxa de entrega, quantidade de paradas e status.');
+
+        const hs7 = document.createElement('div');
+        hs7.className = 'hotspot';
+        hs7.id = 'hs-9-7';
+        hs7.style.top = '14%';
+        hs7.style.left = '92%';
+        hs7.innerText = '7';
+        hs7.onclick = () => showHotspotCard(9, 7, 'Exportação de Dados', 'Exporte a lista completa de pedidos e relatórios financeiros em Excel, CSV ou PDF para conciliação fácil.');
+
+        slide9Wrapper.appendChild(hs1);
+        slide9Wrapper.appendChild(hs2);
+        slide9Wrapper.appendChild(hs3);
+        slide9Wrapper.appendChild(hs7);
+      } else if (type === 'detalhes') {
+        slide9Img.src = 'public/manual/historico_2_detalhes.png';
+
+        // Criar hotspots de detalhes
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-9-4';
+        hs4.style.top = '28%';
+        hs4.style.left = '32%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(9, 4, 'Linha do Tempo de Status', 'Monitore o histórico preciso com horário de criação, aceitação, coleta e conclusão pelo entregador.');
+
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-9-5';
+        hs5.style.top = '65%';
+        hs5.style.left = '32%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(9, 5, 'Paradas e Endereços', 'Veja o detalhamento completo dos pontos de coleta e entrega (incluindo retorno), com nomes e contatos dos clientes.');
+
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-9-6';
+        hs6.style.top = '40%';
+        hs6.style.left = '68%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(9, 6, 'Resumo do Entregador e Custos', 'Consulte a identificação do entregador (Nome/Foto), a distância percorrida, método de pagamento selecionado e a taxa detalhada.');
+
+        slide9Wrapper.appendChild(hs4);
+        slide9Wrapper.appendChild(hs5);
+        slide9Wrapper.appendChild(hs6);
+      } else if (type === 'desempenho') {
+        slide9Img.src = 'public/manual/historico_3_desempenho.png';
+
+        // Criar hotspots de desempenho
+        const hs8 = document.createElement('div');
+        hs8.className = 'hotspot';
+        hs8.id = 'hs-9-8';
+        hs8.style.top = '34%';
+        hs8.style.left = '33%';
+        hs8.innerText = '8';
+        hs8.onclick = () => showHotspotCard(9, 8, 'Volume de Transações', 'Demonstra o volume bruto transacionado em entregas no período selecionado (ex: R$ 90,69 acumulados).');
+
+        const hs9 = document.createElement('div');
+        hs9.className = 'hotspot';
+        hs9.id = 'hs-9-9';
+        hs9.style.top = '34%';
+        hs9.style.left = '77%';
+        hs9.innerText = '9';
+        hs9.onclick = () => showHotspotCard(9, 9, 'Total de Pedidos', 'Exibe a quantidade total de pedidos finalizados e cancelados no período (ex: 12 pedidos).');
+
+        const hs10 = document.createElement('div');
+        hs10.className = 'hotspot';
+        hs10.id = 'hs-9-10';
+        hs10.style.top = '62%';
+        hs10.style.left = '33%';
+        hs10.innerText = '10';
+        hs10.onclick = () => showHotspotCard(9, 10, 'Gráfico de Fluxo Financeiro', 'Exibe a relação entre o volume de entregas e a receita gerada ao longo do período selecionado.');
+
+        const hs11 = document.createElement('div');
+        hs11.className = 'hotspot';
+        hs11.id = 'hs-9-11';
+        hs11.style.top = '62%';
+        hs11.style.left = '77%';
+        hs11.innerText = '11';
+        hs11.onclick = () => showHotspotCard(9, 11, 'Gráfico de Performance Mensal', 'Demonstra de forma visual o volume total de entregas por dia, facilitando a identificação dos dias de pico.');
+
+        const hs12 = document.createElement('div');
+        hs12.className = 'hotspot';
+        hs12.id = 'hs-9-12';
+        hs12.style.top = '11%';
+        hs12.style.left = '75%';
+        hs12.innerText = '12';
+        hs12.onclick = () => showHotspotCard(9, 12, 'Filtros Rápidos de Data', 'Escolha entre focar a performance em 7 dias, 30 dias ou selecione um intervalo personalizado de datas.');
+
+        slide9Wrapper.appendChild(hs8);
+        slide9Wrapper.appendChild(hs9);
+        slide9Wrapper.appendChild(hs10);
+        slide9Wrapper.appendChild(hs11);
+        slide9Wrapper.appendChild(hs12);
+      }
+    }
+
+    // Slide 10 - Alternância de Imagens
+    let slide10MediaState = 'dados'; // 'dados', 'logistica', 'interface' ou 'alertas'
+    const slide10Img = document.getElementById('slide10-img');
+    const slide10Wrapper = document.getElementById('slide10-wrapper');
+
+    function switchSlide10Media(type) {
+      if (type === slide10MediaState) return;
+      slide10MediaState = type;
+
+      // Alterar botões ativos
+      const tabs = document.querySelectorAll('#slide-10 .media-tab');
+      tabs.forEach(tab => {
+        if ((type === 'dados' && tab.innerText.includes('Dados')) || 
+            (type === 'logistica' && tab.innerText.includes('Logística')) ||
+            (type === 'interface' && tab.innerText.includes('Interface')) ||
+            (type === 'alertas' && tab.innerText.includes('Alertas'))) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Limpar hotspots antigos do slide 10
+      const oldHotspots = slide10Wrapper.querySelectorAll('.hotspot');
+      oldHotspots.forEach(hs => hs.remove());
+      closeHotspotCard(10);
+
+      if (type === 'dados') {
+        slide10Img.src = 'public/manual/config_1_dados.png';
+        
+        // Criar hotspots de dados
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-10-1';
+        hs1.style.top = '25%';
+        hs1.style.left = '50%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(10, 1, 'Dados da Empresa', 'Cadastre o Nome Fantasia, CEP, Logradouro, Número, Bairro, Cidade e UF do seu estabelecimento. Você também pode recalcular a localização no mapa.');
+        
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-10-2';
+        hs2.style.top = '72%';
+        hs2.style.left = '45%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(10, 2, 'Status e Raio de Atendimento', 'Ative ou desative a loja para receber pedidos. Defina o raio de atendimento do lojista utilizando o controle deslizante em KM.');
+
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-10-3';
+        hs3.style.top = '85%';
+        hs3.style.left = '45%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(10, 3, 'Horário de Funcionamento', 'Defina com precisão o horário de abertura e fechamento da loja para recebimento automático de chamados.');
+
+        slide10Wrapper.appendChild(hs1);
+        slide10Wrapper.appendChild(hs2);
+        slide10Wrapper.appendChild(hs3);
+      } else if (type === 'logistica') {
+        slide10Img.src = 'public/manual/config_2_logistica.png';
+
+        // Criar hotspots de logistica
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-10-4';
+        hs4.style.top = '62%';
+        hs4.style.left = '50%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(10, 4, 'Logística & Taxas', 'Configure o valor base estimado do frete (R$), tempo médio de preparo dos pedidos em minutos, e ative a taxa de retorno (KM) em caso de devolução da maquininha/troca.');
+
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-10-5';
+        hs5.style.top = '82%';
+        hs5.style.left = '50%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(10, 5, 'Gamificação (Metas)', 'Gerencie o nível dos clientes conforme as entregas concluídas: Bronze (mínimo de 3 pedidos), Prata (mínimo de 5 pedidos) e Ouro (mínimo de 10 pedidos necessários) para fidelização CRM.');
+
+        slide10Wrapper.appendChild(hs4);
+        slide10Wrapper.appendChild(hs5);
+      } else if (type === 'interface') {
+        slide10Img.src = 'public/manual/config_3_suporte.png';
+
+        // Criar hotspots de interface
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-10-6';
+        hs6.style.top = '50%';
+        hs6.style.left = '50%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(10, 6, 'Tema da Aplicação e Mapa', 'Customize o tema geral (Claro, Escuro ou Automático) e o estilo de mapa (Claro ou Escuro) para maior conforto visual ao traçar rotas.');
+
+        const hs7 = document.createElement('div');
+        hs7.className = 'hotspot';
+        hs7.id = 'hs-10-7';
+        hs7.style.top = '62%';
+        hs7.style.left = '50%';
+        hs7.innerText = '7';
+        hs7.onclick = () => showHotspotCard(10, 7, 'Configuração de Alertas Sonoros', 'Ajuste o chamado e configure para tocar avisos diferenciados quando o entregador chegar na loja. Escolha entre sons padrão ou o marcante Rugido do Guepardo.');
+
+        const hs8 = document.createElement('div');
+        hs8.className = 'hotspot';
+        hs8.id = 'hs-10-8';
+        hs8.style.top = '80%';
+        hs8.style.left = '50%';
+        hs8.innerText = '8';
+        hs8.onclick = () => showHotspotCard(10, 8, 'Suporte Técnico WhatsApp', 'Canal oficial de atendimento especializado da Guepardo. Em caso de dúvidas ou problemas, clique para enviar mensagem direta para (11) 98338-2090.');
+
+        slide10Wrapper.appendChild(hs6);
+        slide10Wrapper.appendChild(hs7);
+        slide10Wrapper.appendChild(hs8);
+      } else if (type === 'alertas') {
+        slide10Img.src = 'public/manual/config_4_alertas.png';
+
+        // Criar hotspots de alertas dropdown
+        const hs9 = document.createElement('div');
+        hs9.className = 'hotspot';
+        hs9.id = 'hs-10-9';
+        hs9.style.top = '40%';
+        hs9.style.left = '50%';
+        hs9.innerText = '9';
+        hs9.onclick = () => showHotspotCard(10, 9, 'Lista de Sons de Alertas', 'Dropdown de seleção com diversas opções disponíveis: Rugido do Guepardo, Symphony, Guitarra, Beep (Curto), Padrão (Bip), Rugido (Antigo), e Sirene de Aviso.');
+
+        slide10Wrapper.appendChild(hs9);
+      }
+    }
+
+    // Navegação entre slides
+    function updateSlidesView() {
+      // Atualizar classe ativa nos slides
+      for (let i = 0; i <= totalSlides; i++) {
+        const slide = document.getElementById(`slide-${i}`);
+        if (i === currentSlideIndex) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+          // Fechar os cards de hotspots abertos nos outros slides
+          closeHotspotCard(i);
+        }
+      }
+
+      // Atualizar bolinhas da paginação
+      const dots = document.querySelectorAll('.dot');
+      dots.forEach((dot, index) => {
+        if (index === currentSlideIndex) {
+          dot.classList.add('active');
+        } else {
+          dot.classList.remove('active');
+        }
+      });
+
+      // Atualizar botões de setas (habilitado/desabilitado)
+      const prevBtn = document.getElementById('prev-btn');
+      const nextBtn = document.getElementById('next-btn');
+
+      if (currentSlideIndex === 0) {
+        prevBtn.classList.add('disabled');
+      } else {
+        prevBtn.classList.remove('disabled');
+      }
+
+      if (currentSlideIndex === totalSlides) {
+        nextBtn.classList.add('disabled');
+      } else {
+        nextBtn.classList.remove('disabled');
+      }
+    }
+
+    function goToSlide(index) {
+      if (index < 0 || index > totalSlides) return;
+      currentSlideIndex = index;
+      updateSlidesView();
+    }
+
+    function nextSlide() {
+      if (currentSlideIndex < totalSlides) {
+        currentSlideIndex++;
+        updateSlidesView();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlideIndex > 0) {
+        currentSlideIndex--;
+        updateSlidesView();
+      }
+    }
+
+    // Detalhar hotspots nas imagens e sincronizar com a lista de texto
+    function showHotspotCard(slideIdx, hsNumber, title, description) {
+      const card = document.getElementById(`card-${slideIdx}`);
+      const cardBadge = document.getElementById(`card-badge-${slideIdx}`);
+      const cardTitle = document.getElementById(`card-title-${slideIdx}`);
+      const cardDesc = document.getElementById(`card-desc-${slideIdx}`);
+
+      cardBadge.innerText = hsNumber;
+      cardTitle.innerText = title;
+      cardDesc.innerText = description;
+      card.classList.add('show');
+
+      // Adicionar classe ativa no hotspot correspondente
+      const hotspots = document.querySelectorAll(`#slide-${slideIdx} .hotspot`);
+      hotspots.forEach(hs => {
+        if (hs.innerText == hsNumber) {
+          hs.classList.add('active');
+        } else {
+          hs.classList.remove('active');
+        }
+      });
+
+      // Destacar o item correspondente na lista lateral de funcionalidades
+      const featureItems = document.querySelectorAll(`#slide-${slideIdx} .feature-item`);
+      featureItems.forEach((item, index) => {
+        let isMatch = false;
+        if (slideIdx === 1) {
+          if (index === 0 && hsNumber === 1) isMatch = true;
+          else if (index === 1 && (hsNumber === 2 || hsNumber === 3 || hsNumber === 4)) isMatch = true;
+          else if (index === 2 && (hsNumber === 5 || hsNumber === 6)) isMatch = true;
+          else if (index === 3 && (hsNumber === 7 || hsNumber === 8)) isMatch = true;
+        } else if (slideIdx === 8) {
+          if (index === 0 && (hsNumber === 1 || hsNumber === 2)) isMatch = true;
+          else if (index === 1 && hsNumber === 3) isMatch = true;
+          else if (index === 2 && (hsNumber === 4 || hsNumber === 5)) isMatch = true;
+          else if (index === 3 && hsNumber === 6) isMatch = true;
+        } else if (slideIdx === 9) {
+          if (index === 0 && (hsNumber === 1 || hsNumber === 2 || hsNumber === 3)) isMatch = true;
+          else if (index === 1 && (hsNumber === 4 || hsNumber === 5 || hsNumber === 6)) isMatch = true;
+          else if (index === 2 && hsNumber === 7) isMatch = true;
+          else if (index === 3 && (hsNumber === 8 || hsNumber === 9 || hsNumber === 10 || hsNumber === 11 || hsNumber === 12)) isMatch = true;
+        } else if (slideIdx === 10) {
+          if (index === 0 && (hsNumber === 1 || hsNumber === 2 || hsNumber === 3)) isMatch = true;
+          else if (index === 1 && (hsNumber === 4 || hsNumber === 5)) isMatch = true;
+          else if (index === 2 && (hsNumber === 6 || hsNumber === 7 || hsNumber === 9)) isMatch = true;
+          else if (index === 3 && hsNumber === 8) isMatch = true;
+        } else {
+          isMatch = (index + 1 === hsNumber);
+        }
+
+        if (isMatch) {
+          item.classList.add('active');
+          // Rola de forma suave se necessário
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+          item.classList.remove('active');
+        }
+      });
+    }
+
+    function closeHotspotCard(slideIdx) {
+      const card = document.getElementById(`card-${slideIdx}`);
+      if (card) {
+        card.classList.remove('show');
+      }
+
+      const hotspots = document.querySelectorAll(`#slide-${slideIdx} .hotspot`);
+      hotspots.forEach(hs => hs.classList.remove('active'));
+
+      const featureItems = document.querySelectorAll(`#slide-${slideIdx} .feature-item`);
+      featureItems.forEach(item => item.classList.remove('active'));
+    }
+
+    // Ativar hotspot através de clique nos itens de texto
+    function activateHotspot(slideIdx, featureIdx) {
+      // Simula o clique no hotspot correspondente com base no índice
+      const hotspots = document.querySelectorAll(`#slide-${slideIdx} .hotspot`);
+      let foundHs = null;
+      
+      hotspots.forEach(hs => {
+        if (hs.innerText == featureIdx) {
+          foundHs = hs;
+        }
+      });
+
+      if (foundHs) {
+        foundHs.click();
+      } else {
+        // Fallback especial para o slide 1 (caso a imagem correspondente não esteja ativa)
+        if (slideIdx === 1) {
+          if (featureIdx === 1) {
+            switchSlide1Media('login');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-1-1');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 2) {
+            switchSlide1Media('dados');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-1-3'); // foca no logo
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 3) {
+            switchSlide1Media('endereco');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-1-6'); // foca na geolocalização
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 4) {
+            switchSlide1Media('acesso');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-1-8'); // foca em finalizar cadastro
+              if (hs) hs.click();
+            }, 100);
+          }
+        } else if (slideIdx === 2) {
+          // Fallback especial para o slide 2
+          if (featureIdx === 5) {
+            switchSlide2Media('operacional');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-2-5');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 6) {
+            switchSlide2Media('filtros');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-2-7');
+              if (hs) hs.click();
+            }, 100);
+          }
+        } else if (slideIdx === 8) {
+          // Fallback especial para o slide 8
+          if (featureIdx === 1) {
+            switchSlide8Media('dashboard');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-8-1');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 3) {
+            switchSlide8Media('recarga');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-8-3');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 4) {
+            switchSlide8Media('manual');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-8-4');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 6) {
+            switchSlide8Media('qrcode');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-8-6');
+              if (hs) hs.click();
+            }, 100);
+          }
+        } else if (slideIdx === 9) {
+          // Fallback especial para o slide 9
+          if (featureIdx === 1) {
+            switchSlide9Media('lista');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-9-1');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 2) {
+            switchSlide9Media('detalhes');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-9-4');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 3) {
+            switchSlide9Media('lista');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-9-7');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 8) {
+            switchSlide9Media('desempenho');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-9-8');
+              if (hs) hs.click();
+            }, 100);
+          }
+        } else if (slideIdx === 10) {
+          // Fallback especial para o slide 10
+          if (featureIdx === 1) {
+            switchSlide10Media('dados');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-10-1');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 4) {
+            switchSlide10Media('logistica');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-10-4');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 6) {
+            switchSlide10Media('interface');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-10-6');
+              if (hs) hs.click();
+            }, 100);
+          } else if (featureIdx === 8) {
+            switchSlide10Media('interface');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-10-8');
+              if (hs) hs.click();
+            }, 100);
+          }
+        }
+      }
+    }
+
+    // Controle de Teclado
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    // Suporte a gestos Swipe (Mobile)
+    let touchstartX = 0;
+    let touchstartY = 0;
+    let touchendX = 0;
+    let touchendY = 0;
+
+    const viewport = document.querySelector('.slides-viewport');
+    
+    viewport.addEventListener('touchstart', e => {
+      touchstartX = e.changedTouches[0].screenX;
+      touchstartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    viewport.addEventListener('touchend', e => {
+      touchendX = e.changedTouches[0].screenX;
+      touchendY = e.changedTouches[0].screenY;
+      handleGesture();
+    }, { passive: true });
+
+    function handleGesture() {
+      const diffX = touchendX - touchstartX;
+      const diffY = touchendY - touchstartY;
+      
+      // Apenas navega se o movimento horizontal for predominante e maior que 50px
+      if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+        if (diffX < 0) {
+          nextSlide(); // Deslizou para esquerda -> Próximo
+        } else {
+          prevSlide(); // Deslizou para direita -> Anterior
+        }
+      }
+    }
+
+    // Controle do áudio (Rugido do Guepardo)
+    audioBtn.addEventListener('click', () => {
+      if (isAudioPlaying) {
+        audio.pause();
+        audio.currentTime = 0;
+        isAudioPlaying = false;
+        audioBtn.classList.remove('playing');
+        audioBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        `;
+      } else {
+        audio.play().then(() => {
+          isAudioPlaying = true;
+          audioBtn.classList.add('playing');
+          audioBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M9 9v6a3 3 0 0 0 3 3h1.5a3 3 0 0 0 3-3v-3h-3.5"></path>
+              <path d="M10.7 4.7A10 10 0 0 1 22 14v1"></path>
+            </svg>
+          `;
+          
+          // Exibir notificação
+          audioToast.classList.add('show');
+          setTimeout(() => {
+            audioToast.classList.remove('show');
+          }, 3000);
+        }).catch(err => {
+          console.log("Play falhou devido a restrições do navegador:", err);
+        });
+      }
+    });
+
+    // Detectar fim do áudio para restaurar ícone
+    audio.addEventListener('ended', () => {
+      isAudioPlaying = false;
+      audioBtn.classList.remove('playing');
+      audioBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      `;
+    });
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ import { Order, OrderStatus, StoreProfile } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -18,9 +18,10 @@ const OrderContent: React.FC<{
     getPaymentIcon: (method: string) => React.ReactNode;
     onCancelClick?: (order: Order) => void;
     onCallCourier?: (order: Order) => void; // Added onCallCourier prop
+    onAcceptIFoodOrder?: (orderId: string) => void;
     theme?: string;
     isExpanded?: boolean;
-}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, theme, isExpanded = true }) => {
+}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, theme, isExpanded = true }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
 
     const steps = [
@@ -198,9 +199,11 @@ const OrderContent: React.FC<{
                         <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             {order.requestSource === 'WHATSAPP' ? <MessageCircle size={12} md:size={14} className="text-green-500" /> :
                                 order.requestSource === 'PHONE' ? <Phone size={12} md:size={14} className="text-blue-500" /> :
+                                order.requestSource === 'IFOOD' ? <ShoppingBag size={12} md:size={14} className="text-red-500" /> :
                                     <Globe size={12} md:size={14} className="text-orange-500" />}
                             <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
-                                order.requestSource === 'PHONE' ? 'Telefone' : 'Site'}</span>
+                                order.requestSource === 'PHONE' ? 'Telefone' :
+                                order.requestSource === 'IFOOD' ? 'iFood' : 'Site'}</span>
                         </div>
                     </div>
                 </div>
@@ -305,8 +308,23 @@ const OrderContent: React.FC<{
                     <Printer size={16} /> Imprimir
                 </button>
 
+                {/* Ação de Aceitar Pedido do iFood se estiver Pendente */}
+                {order.requestSource === 'IFOOD' && order.status === OrderStatus.PENDING && (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (onAcceptIFoodOrder) {
+                                onAcceptIFoodOrder(order.id);
+                            }
+                        }}
+                        className="flex-[2] h-12 bg-red-600 hover:bg-red-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(220,38,38,0.3)] transform active:scale-95 animate-pulse"
+                    >
+                        <ShoppingBag size={18} /> Aceitar Pedido iFood
+                    </button>
+                )}
+
                 {/* Chamar Motoboy (Primary Action for External Orders) */}
-                {order.requestSource === 'WHATSAPP' && !order.courier && (
+                {(order.requestSource === 'WHATSAPP' || (order.requestSource === 'IFOOD' && order.status !== OrderStatus.PENDING)) && !order.courier && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -365,10 +383,11 @@ interface OrderServiceDetailProps {
     onClose?: () => void;
     isEmbedded?: boolean; // New Prop
     theme?: string;
+    onAcceptIFoodOrder?: (orderId: string) => void;
 }
 
 export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
-    order, storeProfile, onCancelClick, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark'
+    order, storeProfile, onCancelClick, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark', onAcceptIFoodOrder
 }) => {
     // Generate PIN
     const securityPin = order.pickupCode || order.id.slice(-4);
@@ -420,6 +439,7 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                 securityPin={securityPin}
                 getPaymentIcon={getPaymentIcon}
                 onCancelClick={onCancelClick}
+                onAcceptIFoodOrder={onAcceptIFoodOrder}
                 theme={theme}
             />
         );
@@ -504,6 +524,7 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                     window.dispatchEvent(event);
                     onClose?.();
                 }}
+                onAcceptIFoodOrder={onAcceptIFoodOrder}
                 theme={theme}
                 isExpanded={isExpanded} // Pass isExpanded
             />

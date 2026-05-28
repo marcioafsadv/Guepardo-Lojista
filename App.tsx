@@ -1454,6 +1454,19 @@ function App() {
 
             if (error) throw error;
             console.log("✅ Order(s) marked as ready in DB (saved as arrived_pickup):", orderIds);
+
+            // Se for pedido do iFood, notifica a API do iFood
+            if (orderToUpdate.external_source === 'IFOOD' && orderToUpdate.external_order_id) {
+                supabase.functions.invoke('ifood-webhook', {
+                    body: {
+                        action: 'readyToPickup',
+                        orderId: orderToUpdate.external_order_id
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying readyToPickup to iFood:", edgeErr);
+                    else console.log("✅ Notified readyToPickup to iFood");
+                });
+            }
         } catch (err) {
             console.error("❌ Error marking order(s) as ready:", err);
             setNotification({ title: "Erro", message: "Falha ao atualizar status no sistema." });
@@ -1487,6 +1500,19 @@ function App() {
 
             if (error) throw error;
             console.log("✅ Order(s) validated in DB:", orderIds);
+
+            // Se for pedido do iFood, notifica a API do iFood
+            if (orderToUpdate.external_source === 'IFOOD' && orderToUpdate.external_order_id) {
+                supabase.functions.invoke('ifood-webhook', {
+                    body: {
+                        action: 'dispatchOrder',
+                        orderId: orderToUpdate.external_order_id
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying dispatchOrder to iFood:", edgeErr);
+                    else console.log("✅ Notified dispatchOrder to iFood");
+                });
+            }
 
             // AUTO-SHARE TRACKING LINK: Trigger WhatsApp redirect for the first/main order in batch
             if (orderToUpdate.clientPhone) {
@@ -1673,6 +1699,20 @@ function App() {
             const { error: dbError } = await supabase.from('deliveries').update({ status: 'cancelled', cancellation_reason: reason }).eq('id', orderId);
             if (dbError) throw dbError;
 
+            // Se for pedido do iFood, notifica a API do iFood
+            if (order.external_source === 'IFOOD' && order.external_order_id) {
+                supabase.functions.invoke('ifood-webhook', {
+                    body: {
+                        action: 'cancelOrder',
+                        orderId: order.external_order_id,
+                        reason: reason
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying cancelOrder to iFood:", edgeErr);
+                    else console.log("✅ Notified cancelOrder to iFood");
+                });
+            }
+
             // 4.1. Fast Broadcast to Courier
             try {
                 const channel = supabase.channel(`public:deliveries:${orderId}`);
@@ -1716,6 +1756,67 @@ function App() {
         setTimeout(() => setNotification(null), 5000);
     };
 
+    const handleAcceptIFoodOrder = async (orderId: string) => {
+        const order = orders.find(o => o.id === orderId);
+        if (!order || order.external_source !== 'IFOOD' || !order.external_order_id) return;
+
+        console.log("🚀 [handleAcceptIFoodOrder] Confirming order on iFood...", orderId);
+
+        // 1. Optimistic update
+        setOrders(prev => prev.map(o => {
+            if (o.id !== orderId) return o;
+            const newEvent: OrderEvent = {
+                status: OrderStatus.ACCEPTED,
+                label: "Confirmado no iFood",
+                timestamp: new Date(),
+                description: "Lojista aceitou o pedido do iFood."
+            };
+            return {
+                ...o,
+                status: OrderStatus.ACCEPTED,
+                events: [...o.events, newEvent]
+            };
+        }));
+
+        try {
+            // 2. Call Edge Function
+            const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('ifood-webhook', {
+                body: {
+                    action: 'confirmOrder',
+                    orderId: order.external_order_id
+                }
+            });
+
+            if (edgeErr) throw edgeErr;
+
+            // 3. Persist to DB
+            const { error: dbError } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'accepted',
+                    updated_at: new Date().toISOString(),
+                    accepted_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (dbError) throw dbError;
+
+            console.log("✅ Order confirmed on iFood and status updated locally:", orderId);
+        } catch (err) {
+            console.error("❌ Error confirming iFood order:", err);
+            // Revert optimistic update
+            setOrders(prev => prev.map(o => {
+                if (o.id !== orderId) return o;
+                return {
+                    ...o,
+                    status: OrderStatus.PENDING,
+                    events: o.events.filter(e => e.status !== OrderStatus.ACCEPTED)
+                };
+            }));
+            setNotification({ title: "Erro", message: "Falha ao aceitar pedido no iFood." });
+            setTimeout(() => setNotification(null), 4000);
+        }
+    };
 
     const handleReassignOrder = async (orderId: string) => {
         console.log("♻️ [handleReassignOrder] Reassigning order due to timeout:", orderId);
@@ -2145,6 +2246,7 @@ function App() {
                             balance={realStoreProfile?.wallet_balance || 0}
                             onSelectView={setCurrentView}
                             onToggleStatus={toggleStoreStatus}
+                            onAcceptIFoodOrder={handleAcceptIFoodOrder}
                         />
                     )}
 
