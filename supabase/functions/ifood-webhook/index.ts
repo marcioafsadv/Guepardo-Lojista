@@ -351,8 +351,8 @@ Deno.serve(async (req: Request) => {
 
   } catch (error: any) {
     console.error("❌ Falha crítica no Webhook iFood:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }
