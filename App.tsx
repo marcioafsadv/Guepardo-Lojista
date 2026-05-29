@@ -122,7 +122,6 @@ function App() {
     const courierCacheRef = useRef<Map<string, Courier>>(new Map());
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const storeProfileRef = useRef<StoreProfile | null>(null);
-    const ifoodAudioRef = useRef<HTMLAudioElement | null>(null);
 
     // Keep Refs synced
     useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -132,63 +131,6 @@ function App() {
     useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), 3000);
         return () => clearTimeout(timer);
-    }, []);
-
-    // Looping iFood alert effect
-    useEffect(() => {
-        const hasPendingIFood = orders.some(o => 
-            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD') && 
-            o.status === OrderStatus.PENDING && 
-            !o.acceptedAt
-        );
-
-        const tryPlay = () => {
-            if (ifoodAudioRef.current && ifoodAudioRef.current.paused) {
-                console.log("🔊 [iFood Alert] Playing looping notification sound...");
-                ifoodAudioRef.current.play().catch(e => {
-                    console.warn("⚠️ [iFood Alert] Could not autoplay. Waiting for user interaction:", e);
-                });
-            }
-        };
-
-        if (hasPendingIFood) {
-            if (!ifoodAudioRef.current) {
-                const audio = new Audio('/sounds/ifood.mp3');
-                audio.loop = true;
-                ifoodAudioRef.current = audio;
-            }
-            tryPlay();
-            
-            // Listen for any user interaction to bypass autoplay restrictions
-            const handleInteraction = () => {
-                tryPlay();
-                document.removeEventListener('click', handleInteraction);
-                document.removeEventListener('keydown', handleInteraction);
-            };
-            document.addEventListener('click', handleInteraction);
-            document.addEventListener('keydown', handleInteraction);
-
-            return () => {
-                document.removeEventListener('click', handleInteraction);
-                document.removeEventListener('keydown', handleInteraction);
-            };
-        } else {
-            if (ifoodAudioRef.current && !ifoodAudioRef.current.paused) {
-                console.log("🔇 [iFood Alert] Stopping looping notification sound...");
-                ifoodAudioRef.current.pause();
-                ifoodAudioRef.current.currentTime = 0;
-            }
-        }
-    }, [orders]);
-
-    // Cleanup audio on unmount
-    useEffect(() => {
-        return () => {
-            if (ifoodAudioRef.current) {
-                ifoodAudioRef.current.pause();
-                ifoodAudioRef.current = null;
-            }
-        };
     }, []);
 
     // --- UTILITIES & MAPPERS ---
@@ -675,7 +617,9 @@ function App() {
                     if (payload.eventType === 'INSERT') {
                         const newOrder = await processDeliveryRecord(newRecord);
                         setOrders(prev => [newOrder, ...prev]);
-                        if (newOrder.requestSource !== 'IFOOD' && newOrder.external_source !== 'IFOOD') {
+                        if (newOrder.requestSource === 'IFOOD' || newOrder.external_source === 'IFOOD') {
+                            playAlert('ifood');
+                        } else {
                             playAlert('cheetah');
                         }
                     } 
