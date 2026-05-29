@@ -360,6 +360,298 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
       } 
+      else if (code === "CONFIRMED" || code === "CON") {
+        // Pedido confirmado no iFood (aceito pelo lojista ou automaticamente)
+        debugLogs.push(`🔍 Buscando pedido existente com external_order_id: ${orderId}...`);
+        const { data: delivery, error: deliveryError } = await supabaseAdmin
+          .from("deliveries")
+          .select("*")
+          .eq("external_source", "IFOOD")
+          .eq("external_order_id", orderId)
+          .maybeSingle();
+
+        if (deliveryError) {
+          debugLogs.push(`⚠️ Erro ao buscar pedido existente: ${deliveryError.message}`);
+        }
+
+        if (delivery) {
+          if (delivery.status === "created") {
+            debugLogs.push(`📦 Pedido encontrado com status 'created'. Atualizando para 'pending' e debitando carteira...`);
+            const items = delivery.items || {};
+            const totalFreightToDebit = Number(items.storeFreight) || 0;
+            const displayId = items.displayId || delivery.id.slice(-4);
+
+            // 1. Debita saldo da carteira da loja se houver frete
+            if (totalFreightToDebit > 0) {
+              debugLogs.push(`💰 Debitando R$ ${totalFreightToDebit} da carteira da loja ${store.id}...`);
+              
+              const { error: txError } = await supabaseAdmin.from('wallet_transactions').insert({
+                store_id: store.id,
+                amount: totalFreightToDebit,
+                type: 'PAYMENT',
+                status: 'CONFIRMED',
+                description: `Entrega iFood #${displayId}`,
+                payment_method: 'WALLET'
+              });
+
+              if (txError) {
+                debugLogs.push(`❌ Erro ao criar transação de carteira: ${txError.message}`);
+                console.error(`❌ Erro ao criar transação de carteira para iFood:`, txError.message);
+              }
+
+              const { error: balanceError } = await supabaseAdmin.rpc('decrement_wallet_balance', {
+                row_id: store.id,
+                amount: totalFreightToDebit
+              });
+
+              if (balanceError) {
+                debugLogs.push(`❌ Erro ao debitar carteira via RPC: ${balanceError.message}. Tentando fallback direto...`);
+                const { data: currentStore, error: fetchError } = await supabaseAdmin
+                  .from('stores')
+                  .select('wallet_balance')
+                  .eq('id', store.id)
+                  .single();
+
+                if (!fetchError && currentStore) {
+                  const newBalance = (currentStore.wallet_balance || 0) - totalFreightToDebit;
+                  const { error: updateError } = await supabaseAdmin.from('stores')
+                    .update({ wallet_balance: newBalance })
+                    .eq('id', store.id);
+                  if (updateError) {
+                    debugLogs.push(`❌ Erro no fallback direto de saldo: ${updateError.message}`);
+                  } else {
+                    debugLogs.push(`✅ Fallback direto de saldo concluído. Novo saldo: ${newBalance}`);
+                  }
+                }
+              } else {
+                debugLogs.push("✅ Saldo atualizado com sucesso via RPC.");
+              }
+            }
+
+            // 2. Atualiza status para pending
+            const { error: updateError } = await supabaseAdmin
+              .from("deliveries")
+              .update({
+                status: "pending",
+                updated_at: new Date().toISOString(),
+                accepted_at: new Date().toISOString()
+              })
+              .eq("id", delivery.id);
+
+            if (updateError) {
+              debugLogs.push(`❌ Erro ao atualizar status do pedido para pending: ${updateError.message}`);
+            } else {
+              debugLogs.push(`✅ Pedido atualizado para 'pending' com sucesso.`);
+            }
+          } else {
+            debugLogs.push(`ℹ️ Pedido já possui status '${delivery.status}'. Ignorando atualização de status e débito.`);
+          }
+        } else {
+          // Caso o pedido ainda não exista (ex: confirmação recebida antes do ORDER_CREATED)
+          debugLogs.push(`⚠️ Pedido ${orderId} não encontrado no banco de dados. Criando registro já como 'pending' e debitando carteira...`);
+          
+          // Busca detalhes no iFood
+          let orderDetails;
+          try {
+            orderDetails = await fetchIFoodOrderDetails(accessToken, orderId);
+            debugLogs.push(`✅ Detalhes do pedido obtidos do iFood.`);
+          } catch (fetchErr: any) {
+            debugLogs.push(`⚠️ Falha ao buscar detalhes do pedido real: ${fetchErr.message}. Usando dados simulados.`);
+            orderDetails = {
+              id: orderId,
+              displayId: orderId.slice(-4).toUpperCase(),
+              createdAt: new Date().toISOString(),
+              customer: {
+                name: "Cliente Teste iFood",
+                phone: { number: "11999999999" }
+              },
+              payments: {
+                value: 49.90,
+                pending: 49.90,
+                methods: [
+                  { method: "CARD", value: 49.90 }
+                ]
+              },
+              delivery: {
+                deliveredBy: new Date(Date.now() + 45 * 60 * 1000).toISOString(),
+                pickupCode: orderId.slice(-4).toUpperCase(),
+                deliveryAddress: {
+                  streetName: "Rua Carlos Scalet",
+                  streetNumber: "58",
+                  complement: "Casa de Teste",
+                  neighborhood: "Parque Residencial Presidente Médici",
+                  city: "Itu",
+                  state: "SP",
+                  postalCode: "13310-131",
+                  formattedAddress: "Rua Carlos Scalet, 58 - Parque Residencial Presidente Médici, Itu/SP",
+                  coordinates: {
+                    latitude: -23.266708,
+                    longitude: -47.311805
+                  }
+                }
+              }
+            };
+          }
+
+          // Mapeia método de pagamento
+          let payMethod: "PIX" | "CARD" | "CASH" = "PIX";
+          let changeAmount = null;
+          if (orderDetails.payments && orderDetails.payments.methods && orderDetails.payments.methods.length > 0) {
+            const methodObj = orderDetails.payments.methods[0];
+            const methodStr = String(methodObj.method).toUpperCase();
+            if (methodStr.includes("CASH") || methodStr.includes("MONEY") || methodStr.includes("DINHEIRO")) {
+              payMethod = "CASH";
+              changeAmount = methodObj.changeFor || null;
+            } else if (methodStr.includes("CARD") || methodStr.includes("CREDIT") || methodStr.includes("DEBIT") || methodStr.includes("CARTAO")) {
+              payMethod = "CARD";
+            }
+          }
+
+          // Mapeia endereço
+          const addr = orderDetails.delivery?.deliveryAddress || {};
+          const street = addr.streetName || "Endereço Externo";
+          const number = addr.streetNumber || "S/N";
+          const complement = addr.complement || "";
+          const neighborhood = addr.neighborhood || "";
+          const city = addr.city || "";
+          const state = addr.state || "";
+          const cep = addr.postalCode || "";
+          const formattedAddress = addr.formattedAddress || `${street}, ${number} - ${neighborhood}, ${city}/${state}`;
+
+          // Mapeia coordenadas
+          const destLat = addr.coordinates?.latitude || null;
+          const destLng = addr.coordinates?.longitude || null;
+
+          const clientPhone = orderDetails.customer?.phone?.number || "";
+          const phoneSuffix = clientPhone.length >= 4 ? clientPhone.slice(-4) : "";
+          const orderValue = orderDetails.total?.orderAmount || orderDetails.payments?.prepaid || orderDetails.payments?.value || 0;
+
+          const parsedScheduledTime = (() => {
+            if (orderDetails.orderTiming !== "SCHEDULED") return null;
+            const dtStr = orderDetails.delivery?.deliveryDateTime;
+            if (!dtStr) return null;
+            const d = new Date(dtStr);
+            return isNaN(d.getTime()) ? null : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          })();
+
+          // Calcula taxas de frete
+          let distanceMeters = 0;
+          let storeFee = 7.00;
+          let courierFee = 6.00;
+
+          if (store.lat && store.lng && destLat && destLng) {
+            distanceMeters = await calculateRouteDistanceMeters(store.lat, store.lng, destLat, destLng);
+            const variableFee = distanceMeters * 0.00132;
+            storeFee = Number((7.00 + variableFee).toFixed(2));
+
+            let returnFee = 0;
+            let returnCourierEarnings = 0;
+            if (payMethod === "CARD") {
+              const returnVariableFee = distanceMeters * 0.00132;
+              returnFee = Number(returnVariableFee.toFixed(2));
+              returnCourierEarnings = Number((returnVariableFee * 0.875).toFixed(2));
+            }
+
+            const courierPart = Number((variableFee * 0.875).toFixed(2));
+            courierFee = Number((6.00 + courierPart + returnCourierEarnings).toFixed(2));
+            storeFee = Number((storeFee + returnFee).toFixed(2));
+          }
+
+          const displayId = orderDetails.displayId || orderId.slice(-4);
+          const itemsPayload = {
+            displayId: displayId,
+            addressStreet: street,
+            addressNumber: number,
+            addressComplement: complement,
+            addressNeighborhood: neighborhood,
+            addressCity: `${city}/${state}`,
+            addressCep: cep,
+            deliveryValue: orderValue,
+            paymentMethod: payMethod,
+            changeFor: changeAmount,
+            destinationLat: destLat,
+            destinationLng: destLng,
+            clientPhone: clientPhone,
+            requestSource: "IFOOD",
+            isBatch: false,
+            scheduledAt: parsedScheduledTime,
+            storeFreight: storeFee
+          };
+
+          const storeStreet = store.address?.street || "";
+          const storeNumber = store.address?.number || "";
+          const storeCity = store.address?.city || "";
+          const storeAddressFormatted = storeStreet ? `${storeStreet}, ${storeNumber} - ${storeCity}` : "Endereço da Loja";
+
+          // Debita saldo da carteira da loja se houver frete
+          if (storeFee > 0) {
+            debugLogs.push(`💰 Debitando R$ ${storeFee} da carteira da loja ${store.id}...`);
+            const { error: txError } = await supabaseAdmin.from('wallet_transactions').insert({
+              store_id: store.id,
+              amount: storeFee,
+              type: 'PAYMENT',
+              status: 'CONFIRMED',
+              description: `Entrega iFood #${displayId}`,
+              payment_method: 'WALLET'
+            });
+
+            if (txError) {
+              debugLogs.push(`❌ Erro ao criar transação de carteira: ${txError.message}`);
+            }
+
+            const { error: balanceError } = await supabaseAdmin.rpc('decrement_wallet_balance', {
+              row_id: store.id,
+              amount: storeFee
+            });
+
+            if (balanceError) {
+              debugLogs.push(`❌ Erro ao debitar carteira via RPC: ${balanceError.message}. Tentando fallback direto...`);
+              const { data: currentStore, error: fetchError } = await supabaseAdmin
+                .from('stores')
+                .select('wallet_balance')
+                .eq('id', store.id)
+                .single();
+
+              if (!fetchError && currentStore) {
+                const newBalance = (currentStore.wallet_balance || 0) - storeFee;
+                await supabaseAdmin.from('stores')
+                  .update({ wallet_balance: newBalance })
+                  .eq('id', store.id);
+              }
+            }
+          }
+
+          // Insere o pedido direto com status 'pending'
+          const { error: insertError } = await supabaseAdmin
+            .from("deliveries")
+            .insert({
+              id: crypto.randomUUID(),
+              store_id: store.id,
+              store_name: store.fantasy_name || store.company_name || "Guepardo Delivery",
+              store_address: storeAddressFormatted,
+              status: "pending", // Criado já como pending
+              customer_name: orderDetails.customer?.name || "Cliente iFood",
+              customer_address: formattedAddress,
+              customer_phone_suffix: phoneSuffix || null,
+              collection_code: orderDetails.collection_code || orderDetails.delivery?.pickupCode || orderId.slice(-4),
+              earnings: courierFee,
+              items: itemsPayload,
+              external_source: "IFOOD",
+              external_order_id: orderId,
+              external_metadata: orderDetails,
+              payment_method: payMethod,
+              delivery_value: orderValue,
+              delivery_distance: Number((distanceMeters / 1000).toFixed(2)),
+              accepted_at: new Date().toISOString()
+            });
+
+          if (insertError) {
+            debugLogs.push(`❌ Erro ao salvar pedido pendente no Supabase: ${insertError.message}`);
+          } else {
+            debugLogs.push("✅ Pedido do iFood salvo com status 'pending' com sucesso.");
+          }
+        }
+      }
       else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN") {
         // Pedido cancelado no iFood
         const { error: cancelError } = await supabaseAdmin
