@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { Order, OrderStatus } from '../types';
-import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle, MessageSquare, PackageCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Phone, Navigation, Clock, MapPin, CheckCircle2, Circle, Bike, Search, AlertTriangle, MessageSquare, PackageCheck, ChevronDown, ChevronUp, Car } from 'lucide-react';
 
 interface ActiveOrderCardProps {
   order: Order;
@@ -191,6 +191,13 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             }`}>
                 {getCompactStatusLabel(order.status)}
             </span>
+
+            {order.vehicleType && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-500/10 text-orange-400 text-[9px] font-black uppercase tracking-[0.2em] border border-orange-500/20 shadow-glow-sm">
+                {order.vehicleType === 'bike' ? <Bike size={10} strokeWidth={2.5} /> : order.vehicleType === 'carro' ? <Car size={10} strokeWidth={2.5} /> : <Bike size={10} strokeWidth={2.5} />}
+                {order.vehicleType}
+              </span>
+            )}
 
             {(order.scheduled_at || (order as any).items?.scheduledAt) && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-guepardo-accent text-white text-[9px] font-black uppercase tracking-[0.2em] border border-white/5 shadow-glow animate-pulse">

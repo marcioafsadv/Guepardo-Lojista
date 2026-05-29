@@ -4,7 +4,7 @@ import { Order, OrderStatus, StoreProfile } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -207,6 +207,20 @@ const OrderContent: React.FC<{
                                 order.requestSource === 'IFOOD' ? 'iFood' : 'Site'}</span>
                         </div>
                     </div>
+
+                    {/* VEHICLE TYPE */}
+                    {order.vehicleType && (
+                        <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'} col-span-2`}>
+                            <div className="flex items-center gap-2 mb-1 md:mb-2">
+                                {order.vehicleType === 'bike' ? <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : order.vehicleType === 'carro' ? <Car className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />}
+                                <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Veículo Solicitado</span>
+                            </div>
+                            <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {order.vehicleType === 'bike' ? <Bike className="text-orange-500" size={14} /> : order.vehicleType === 'carro' ? <Car className="text-orange-500" size={14} /> : <Bike className="text-orange-500" size={14} />}
+                                <span className="capitalize">{order.vehicleType}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Cliente & Categoria + Contato Direto */}

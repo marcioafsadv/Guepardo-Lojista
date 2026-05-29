@@ -323,7 +323,8 @@ function App() {
             courier: courierData,
             scheduled_at: items.scheduledAt || null,
             external_order_id: d.external_order_id,
-            external_source: d.external_source
+            external_source: d.external_source,
+            vehicleType: items.vehicleType || 'moto'
         };
     }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
@@ -1153,7 +1154,8 @@ function App() {
                         changeFor: stop.changeFor,
                         stopNumber: index + 1,
                         storeFreight: index === 0 ? data.storeFreight : 0, // Store total in the first stop for batch aggregation
-                        scheduledAt: stop.scheduled_at || null
+                        scheduledAt: stop.scheduled_at || null,
+                        vehicleType: data.vehicleType || 'moto'
                     },
                     earnings: stopEarnings,
                     delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length,
@@ -1262,7 +1264,8 @@ function App() {
                     destinationLng: createdData.items?.destinationLng,
                     batch_id: createdData.batch_id,
                     stopNumber: createdData.stop_number || createdData.items?.stopNumber || (index + 1),
-                    scheduled_at: createdData.items?.scheduledAt || null
+                    scheduled_at: createdData.items?.scheduledAt || null,
+                    vehicleType: createdData.items?.vehicleType || 'moto'
                 };
             });
 

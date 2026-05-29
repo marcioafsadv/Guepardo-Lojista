@@ -117,6 +117,7 @@ export interface Order {
   scheduled_at?: string; // e.g., "14:30"
   external_order_id?: string;
   external_source?: 'IFOOD';
+  vehicleType?: 'moto' | 'bike' | 'carro';
 }
 
 export interface SavedAddress {

@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet } from 'lucide-react';
+import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
 import { BalanceAlertModal } from './BalanceAlertModal';
 import { StoreClosedAlertModal } from './StoreClosedAlertModal';
@@ -21,6 +21,7 @@ export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimat
   targetCourierId?: string;
   additionalStops?: any[]; // Simplified for internal use, mapping happens in App.tsx
   customerNote?: string | null;
+  vehicleType?: 'moto' | 'bike' | 'carro';
 };
 
 interface DeliveryFormProps {
@@ -79,6 +80,7 @@ export const DeliveryForm = ({
 
   // Logistics State
   const [isReturnRequired, setIsReturnRequired] = useState(false);
+  const [vehicleType, setVehicleType] = useState<'moto' | 'bike' | 'carro'>('moto');
 
   // Listener for auto-fill from WhatsApp/Order Hub
   useEffect(() => {
@@ -248,7 +250,8 @@ export const DeliveryForm = ({
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
       storeFreight: totalFreight,
-      scheduled_at: isScheduled && scheduledTime ? scheduledTime : undefined
+      scheduled_at: isScheduled && scheduledTime ? scheduledTime : undefined,
+      vehicleType
     });
 
     // Reset form
@@ -269,6 +272,7 @@ export const DeliveryForm = ({
     setIsScheduled(false);
     setScheduledTime('');
     setAdditionalStops([]);
+    setVehicleType('moto');
   };
 
   const addStop = () => {
@@ -670,6 +674,38 @@ export const DeliveryForm = ({
               <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
                 <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[6px] border-t-white/20"></div>
               </div>
+            </div>
+          </div>
+
+          {/* VEHICLE TYPE SELECTOR */}
+          <div className="space-y-2 mt-2">
+            <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] flex items-center gap-2 text-shadow-glow">
+              <Bike className="w-4 h-4 text-guepardo-accent drop-shadow-glow" /> Modalidade de Entrega
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'moto', label: 'Moto', icon: Bike },
+                { id: 'bike', label: 'Bike', icon: Bike },
+                { id: 'carro', label: 'Carro', icon: Car }
+              ].map(method => {
+                const IconComponent = method.icon;
+                const isSelected = vehicleType === method.id;
+                return (
+                  <button
+                    key={method.id}
+                    type="button"
+                    onClick={() => setVehicleType(method.id as any)}
+                    className={`h-11 rounded-xl flex flex-col items-center justify-center gap-1 border transition-all ${
+                      isSelected
+                        ? 'bg-guepardo-accent/20 border-guepardo-accent text-white shadow-glow-sm'
+                        : 'bg-black/60 border-white/5 text-white/40 hover:border-white/20 hover:text-white/60'
+                    }`}
+                  >
+                    <IconComponent size={16} className={isSelected ? 'text-guepardo-accent animate-pulse' : ''} />
+                    <span className="text-[9px] font-black uppercase tracking-wider">{method.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
