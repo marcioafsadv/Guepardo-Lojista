@@ -4,7 +4,7 @@ import { Order, OrderStatus, StoreProfile } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car, Bike
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
