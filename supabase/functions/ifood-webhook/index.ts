@@ -391,7 +391,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
                 type: 'PAYMENT',
                 status: 'CONFIRMED',
                 description: `Entrega iFood #${displayId}`,
-                payment_method: 'WALLET'
+                payment_method: 'SYSTEM'
               });
 
               if (txError) {
@@ -592,7 +592,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
               type: 'PAYMENT',
               status: 'CONFIRMED',
               description: `Entrega iFood #${displayId}`,
-              payment_method: 'WALLET'
+              payment_method: 'SYSTEM'
             });
 
             if (txError) {

@@ -1184,7 +1184,7 @@ function App() {
                     description: payloads.length > 1 
                         ? `Entrega Lote #${payloads[0].items.displayId} (${payloads.length} paradas)`
                         : `Entrega #${payloads[0].items.displayId}`,
-                    payment_method: 'WALLET'
+                    payment_method: 'SYSTEM'
                 });
 
                 if (txError) {
@@ -1744,7 +1744,7 @@ function App() {
                     type: 'REFUND',
                     status: 'CONFIRMED',
                     description: `Reembolso OS #${order.display_id || order.id.slice(-4)} ${cancellationFee > 0 ? '(Taxa desc.)' : ''}`,
-                    payment_method: 'WALLET'
+                    payment_method: 'SYSTEM'
                 });
                 const { data: store, error: fetchErr } = await supabase.from('stores').select('wallet_balance').eq('id', session.user.id).single();
                 if (!fetchErr && store) {
@@ -1833,13 +1833,22 @@ function App() {
                     type: 'PAYMENT',
                     status: 'CONFIRMED',
                     description: `Entrega iFood #${order.display_id || order.id.slice(-4)}`,
-                    payment_method: 'WALLET'
+                    payment_method: 'SYSTEM'
                 });
 
-                await supabase.rpc('decrement_wallet_balance', {
-                    row_id: session?.user?.id,
-                    amount: totalFreightToDebit
-                });
+                // Update Balance directly since RPC does not exist
+                const { data: currentStore, error: fetchError } = await supabase
+                    .from('stores')
+                    .select('wallet_balance')
+                    .eq('id', session?.user?.id)
+                    .single();
+
+                if (!fetchError && currentStore) {
+                    const newBalance = (currentStore.wallet_balance || 0) - totalFreightToDebit;
+                    await supabase.from('stores')
+                        .update({ wallet_balance: newBalance })
+                        .eq('id', session?.user?.id);
+                }
             }
 
             // 5. Persist to DB

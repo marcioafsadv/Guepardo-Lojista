@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Wallet, Plus, CreditCard, QrCode, FileText, TrendingUp, History, ArrowUpRight, ArrowDownRight, Clock, RefreshCcw, Check } from 'lucide-react';
 import { RechargeModal } from './RechargeModal.tsx';
 import { supabase } from '../lib/supabaseClient';
@@ -52,7 +52,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
                     date: new Date(tx.created_at).toLocaleString('pt-BR'),
                     amount: tx.type === 'PAYMENT' ? -tx.amount : tx.amount,
                     type: tx.type,
-                    method: tx.payment_method,
+                    method: tx.payment_method === 'SYSTEM' ? 'BALANCE' : tx.payment_method,
                     status: tx.status,
                     qrCode: tx.pix_qr_code,
                     qrCodePayload: tx.pix_copy_paste
