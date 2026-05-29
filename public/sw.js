@@ -4,7 +4,7 @@
  * Versão: 1.0.0
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `guepardo-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `guepardo-dynamic-${CACHE_VERSION}`;
 
@@ -95,8 +95,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Assets estáticos locais → CacheFirst
+  // 5. Assets estáticos locais
   if (url.origin === self.location.origin) {
+    // Documentos/Navegação (index.html, /) -> NetworkFirst para evitar cache trap
+    if (
+      request.mode === 'navigate' ||
+      request.destination === 'document' ||
+      url.pathname === '/' ||
+      url.pathname.endsWith('.html')
+    ) {
+      event.respondWith(networkFirst(request, DYNAMIC_CACHE, 5000));
+      return;
+    }
+
+    // Demais assets estáticos locais (JS, CSS, imagens, etc.) -> CacheFirst
     event.respondWith(cacheFirst(request, STATIC_CACHE));
     return;
   }

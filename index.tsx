@@ -28,6 +28,9 @@ if ('serviceWorker' in navigator) {
       .then((registration) => {
         console.log('[PWA] Service Worker registrado com sucesso:', registration.scope);
 
+        // Força verificação de atualização no carregamento da página
+        registration.update();
+
         // Verifica se há uma atualização disponível
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
