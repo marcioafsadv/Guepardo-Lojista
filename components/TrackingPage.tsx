@@ -336,7 +336,7 @@ export const TrackingPage: React.FC = () => {
                         </div>
 
                         {/* Visual Timeline */}
-                        <div className="relative flex justify-between items-center px-2 mb-10">
+                        <div className="relative flex justify-between items-center px-2 mb-6">
                             <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/5 -translate-y-1/2 rounded-full overflow-hidden">
                                 <div
                                     className="h-full bg-orange-500 transition-all duration-1000"
@@ -355,6 +355,24 @@ export const TrackingPage: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Código de Entrega (Apenas se o pedido não estiver finalizado ou cancelado) */}
+                        {order.collection_code && order.status !== 'completed' && order.status !== 'cancelled' && (
+                            <div className="mb-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between shadow-glow-sm">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-orange-500/15 rounded-xl flex items-center justify-center text-orange-500 shadow-glow-sm">
+                                        <span className="text-lg">🔑</span>
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-white/40 text-[9px] font-black uppercase tracking-widest leading-none mb-1">Código de Entrega</p>
+                                        <p className="text-white/80 text-[10px] font-medium leading-tight">Diga o código ao entregador para confirmar a entrega</p>
+                                    </div>
+                                </div>
+                                <div className="bg-orange-500 text-white font-mono font-black tracking-widest text-base px-3.5 py-1.5 rounded-xl shadow-glow">
+                                    {order.collection_code}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Courier Details */}
                         {courierProfile ? (
