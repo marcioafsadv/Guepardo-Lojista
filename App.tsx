@@ -1134,7 +1134,7 @@ function App() {
                     customer_name: stop.clientName,
                     customer_address: stop.destination,
                     customer_phone_suffix: phoneSuffix,
-                    collection_code: finalPickupCode,
+                    collection_code: phoneSuffix,
                     status: stop.scheduled_at ? 'scheduled' : 'pending',
                     driver_id: targetCourierId || null,
                     batch_id: batchId,
@@ -1361,10 +1361,7 @@ function App() {
         console.log(`📦 [App] Bulk assigning ${orderIds.length} orders to courier ${courierId}`);
         try {
             const batchId = crypto.randomUUID();
-
-            // Get current orders to check for existing pickup codes
             const selectedOrders = orders.filter(o => orderIds.includes(o.id));
-            const existingPickupCode = selectedOrders.find(o => o.pickupCode)?.pickupCode || Math.floor(1000 + Math.random() * 9000).toString();
 
             // Update each order in Supabase
             // Rule: 100% of the highest fee + 50% of others
@@ -1387,7 +1384,6 @@ function App() {
                     .update({
                         driver_id: courierId,
                         batch_id: batchId,
-                        collection_code: existingPickupCode,
                         earnings: newEarnings,
                         stop_number: i + 1,
                         items: {

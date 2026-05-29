@@ -143,7 +143,7 @@ const server = createServer(async (req, res) => {
                             customer_name: customerName,
                             customer_address: rawAddress,
                             customer_phone_suffix: tel.slice(-4),
-                            collection_code: Math.floor(1000 + Math.random() * 9000).toString(),
+                            collection_code: tel.length >= 4 ? tel.slice(-4) : "6060",
                             status: 'pending',
                             total_distance: parseFloat(distance.toFixed(2)),
                             earnings: Number((totalFreight * 0.75).toFixed(2)),
