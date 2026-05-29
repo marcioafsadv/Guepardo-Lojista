@@ -19,6 +19,30 @@ export const TrackingPage: React.FC = () => {
         route?: any;
     }>({});
     const [routeStats, setRouteStats] = useState<any>(null);
+    const [isMinimized, setIsMinimized] = useState(false);
+    const touchStartRef = useRef<number | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartRef.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchStartRef.current === null) return;
+        const currentY = e.touches[0].clientY;
+        const diffY = currentY - touchStartRef.current;
+
+        if (diffY > 50 && !isMinimized) {
+            setIsMinimized(true);
+            touchStartRef.current = null;
+        } else if (diffY < -50 && isMinimized) {
+            setIsMinimized(false);
+            touchStartRef.current = null;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        touchStartRef.current = null;
+    };
 
 
     // 1. ID Extraction from URL
@@ -225,9 +249,17 @@ export const TrackingPage: React.FC = () => {
 
         if (markers.length > 0) {
             const bounds = L.latLngBounds(markers);
-            map.fitBounds(bounds, { padding: [80, 80], maxZoom: 16 });
+            const isMobile = window.innerWidth < 768;
+            const bottomPadding = isMobile ? (isMinimized ? 160 : 420) : 100;
+            map.fitBounds(bounds, {
+                paddingTop: 80,
+                paddingBottom: bottomPadding,
+                paddingLeft: 40,
+                paddingRight: 40,
+                maxZoom: 16
+            });
         }
-    }, [order, courierProfile]);
+    }, [order, courierProfile, isMinimized]);
 
     const getStatusInfo = (status: string) => {
         switch (status) {
@@ -290,10 +322,28 @@ export const TrackingPage: React.FC = () => {
                 <div className="max-w-md mx-auto space-y-3">
 
                     {/* Progress Stepper Card */}
-                    <div className="bg-[#121214]/90 backdrop-blur-2xl border border-white/5 rounded-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-700">
+                    <div 
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        className="bg-[#121214]/90 backdrop-blur-2xl border border-white/5 rounded-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-700 transition-all duration-300 ease-out"
+                    >
+                        {/* Drag/Minimize Handle */}
+                        <div 
+                            className="w-full flex flex-col items-center pb-3 -mt-2 cursor-pointer group"
+                            onClick={() => setIsMinimized(!isMinimized)}
+                        >
+                            <div className="w-12 h-1 bg-white/20 rounded-full group-hover:bg-white/40 transition-colors mb-1"></div>
+                            <span className="text-[8px] font-black uppercase tracking-[0.15em] text-white/30 group-hover:text-white/50 transition-colors flex items-center gap-1">
+                                {isMinimized ? 'Ver Detalhes' : 'Minimizar Painel'}
+                            </span>
+                        </div>
 
                         {/* Status Header */}
-                        <div className="flex items-center justify-between mb-8">
+                        <div 
+                            className={`flex items-center justify-between cursor-pointer ${isMinimized ? 'mb-0' : 'mb-8'}`}
+                            onClick={() => setIsMinimized(!isMinimized)}
+                        >
                             <div>
                                 <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${statusInfo.bg} ${statusInfo.color} text-[10px] font-black uppercase tracking-widest mb-2`}>
                                     <span className="relative flex h-2 w-2">
@@ -335,67 +385,70 @@ export const TrackingPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Visual Timeline */}
-                        <div className="relative flex justify-between items-center px-2 mb-6">
-                            <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/5 -translate-y-1/2 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-orange-500 transition-all duration-1000"
-                                    style={{ width: `${Math.max(0, (statusInfo.step - 1) * 33.33)}%` }}
-                                />
+                        {/* Collapsible Content */}
+                        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isMinimized ? 'max-h-0 opacity-0 pointer-events-none mt-0' : 'max-h-[800px] opacity-100 mt-6'}`}>
+                            {/* Visual Timeline */}
+                            <div className="relative flex justify-between items-center px-2 mb-6">
+                                <div className="absolute top-1/2 left-0 right-0 h-1 bg-white/5 -translate-y-1/2 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-orange-500 transition-all duration-1000"
+                                        style={{ width: `${Math.max(0, (statusInfo.step - 1) * 33.33)}%` }}
+                                    />
+                                </div>
+                                {[1, 2, 3, 4].map((s) => (
+                                    <div key={s} className="relative z-10">
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 border-4 ${s <= statusInfo.step ? 'bg-orange-500 border-[#121214] text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-[#1a1a1e] border-[#121214] text-white/10'
+                                            }`}>
+                                            {s === 1 && <Package size={14} />}
+                                            {s === 2 && <Navigation size={14} />}
+                                            {s === 3 && <MapPin size={14} />}
+                                            {s === 4 && <CheckCircle2 size={14} />}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            {[1, 2, 3, 4].map((s) => (
-                                <div key={s} className="relative z-10">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 border-4 ${s <= statusInfo.step ? 'bg-orange-500 border-[#121214] text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-[#1a1a1e] border-[#121214] text-white/10'
-                                        }`}>
-                                        {s === 1 && <Package size={14} />}
-                                        {s === 2 && <Navigation size={14} />}
-                                        {s === 3 && <MapPin size={14} />}
-                                        {s === 4 && <CheckCircle2 size={14} />}
+
+                            {/* Código de Entrega (Apenas se o pedido não estiver finalizado ou cancelado) */}
+                            {order.collection_code && order.status !== 'completed' && order.status !== 'cancelled' && (
+                                <div className="mb-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between shadow-glow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-orange-500/15 rounded-xl flex items-center justify-center text-orange-500 shadow-glow-sm">
+                                            <span className="text-lg">🔑</span>
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="text-white/40 text-[9px] font-black uppercase tracking-widest leading-none mb-1">Código de Entrega</p>
+                                            <p className="text-white/80 text-[10px] font-medium leading-tight">Diga o código ao entregador para confirmar a entrega</p>
+                                        </div>
+                                    </div>
+                                    <div className="bg-orange-500 text-white font-mono font-black tracking-widest text-base px-3.5 py-1.5 rounded-xl shadow-glow">
+                                        {order.collection_code}
                                     </div>
                                 </div>
-                            ))}
+                            )}
+
+                            {/* Courier Details */}
+                            {courierProfile ? (
+                                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
+                                    <img src={courierProfile.avatar_url || 'https://ui-avatars.com/api/?name=C&background=FFC107'} className="w-12 h-12 rounded-xl object-cover border border-white/10" alt="" />
+                                    <div className="flex-1">
+                                        <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5">Entregador</p>
+                                        <h3 className="text-white font-bold text-base leading-none">{courierProfile.full_name || courierProfile.name || 'Seu Entregador'}</h3>
+                                        <p className="text-orange-500/80 text-[10px] font-black uppercase tracking-tighter mt-1">{courierProfile.vehicle || 'MOTO'} • ITU/SP</p>
+                                    </div>
+                                    <a href={`tel:${courierProfile.phone}`} className="w-12 h-12 bg-orange-500 hover:bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
+                                        <Phone size={20} />
+                                    </a>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 opacity-50">
+                                    <div className="w-12 h-12 bg-white/5 rounded-xl animate-pulse"></div>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-2 w-20 bg-white/10 rounded animate-pulse"></div>
+                                        <div className="h-3 w-32 bg-white/10 rounded animate-pulse"></div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-
-                        {/* Código de Entrega (Apenas se o pedido não estiver finalizado ou cancelado) */}
-                        {order.collection_code && order.status !== 'completed' && order.status !== 'cancelled' && (
-                            <div className="mb-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between shadow-glow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-orange-500/15 rounded-xl flex items-center justify-center text-orange-500 shadow-glow-sm">
-                                        <span className="text-lg">🔑</span>
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-white/40 text-[9px] font-black uppercase tracking-widest leading-none mb-1">Código de Entrega</p>
-                                        <p className="text-white/80 text-[10px] font-medium leading-tight">Diga o código ao entregador para confirmar a entrega</p>
-                                    </div>
-                                </div>
-                                <div className="bg-orange-500 text-white font-mono font-black tracking-widest text-base px-3.5 py-1.5 rounded-xl shadow-glow">
-                                    {order.collection_code}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Courier Details */}
-                        {courierProfile ? (
-                            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5">
-                                <img src={courierProfile.avatar_url || 'https://ui-avatars.com/api/?name=C&background=FFC107'} className="w-12 h-12 rounded-xl object-cover border border-white/10" alt="" />
-                                <div className="flex-1">
-                                    <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-0.5">Entregador</p>
-                                    <h3 className="text-white font-bold text-base leading-none">{courierProfile.full_name || courierProfile.name || 'Seu Entregador'}</h3>
-                                    <p className="text-orange-500/80 text-[10px] font-black uppercase tracking-tighter mt-1">{courierProfile.vehicle || 'MOTO'} • ITU/SP</p>
-                                </div>
-                                <a href={`tel:${courierProfile.phone}`} className="w-12 h-12 bg-orange-500 hover:bg-orange-600 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
-                                    <Phone size={20} />
-                                </a>
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 opacity-50">
-                                <div className="w-12 h-12 bg-white/5 rounded-xl animate-pulse"></div>
-                                <div className="flex-1 space-y-2">
-                                    <div className="h-2 w-20 bg-white/10 rounded animate-pulse"></div>
-                                    <div className="h-3 w-32 bg-white/10 rounded animate-pulse"></div>
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     {/* Store Contact & Order ID Overlay */}
