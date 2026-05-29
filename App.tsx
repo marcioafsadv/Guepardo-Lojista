@@ -122,6 +122,7 @@ function App() {
     const courierCacheRef = useRef<Map<string, Courier>>(new Map());
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const storeProfileRef = useRef<StoreProfile | null>(null);
+    const playedIFoodAlertsRef = useRef<Set<string>>(new Set());
 
     // Keep Refs synced
     useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -132,6 +133,59 @@ function App() {
         const timer = setTimeout(() => setShowSplash(false), 3000);
         return () => clearTimeout(timer);
     }, []);
+
+    // One-time robust iFood alert effect
+    useEffect(() => {
+        // Clean up played alerts set for orders that are no longer pending or active
+        const activeIds = new Set(orders.map(o => o.id));
+        for (const id of playedIFoodAlertsRef.current) {
+            if (!activeIds.has(id)) {
+                playedIFoodAlertsRef.current.delete(id);
+            }
+        }
+
+        const pendingIFoodOrders = orders.filter(o => 
+            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD') && 
+            o.status === OrderStatus.PENDING && 
+            !o.acceptedAt
+        );
+
+        const unplayedIFood = pendingIFoodOrders.filter(o => !playedIFoodAlertsRef.current.has(o.id));
+
+        if (unplayedIFood.length > 0) {
+            const tryPlay = () => {
+                const stillUnplayed = unplayedIFood.filter(o => !playedIFoodAlertsRef.current.has(o.id));
+                if (stillUnplayed.length === 0) return;
+
+                console.log("🔊 [iFood Alert] Playing one-time notification sound...");
+                const audio = new Audio('/sounds/ifood.mp3');
+                audio.play()
+                    .then(() => {
+                        // Mark as played only after it successfully plays
+                        stillUnplayed.forEach(o => playedIFoodAlertsRef.current.add(o.id));
+                    })
+                    .catch(e => {
+                        console.warn("⚠️ [iFood Alert] Could not autoplay. Waiting for user interaction:", e);
+                    });
+            };
+
+            tryPlay();
+            
+            // Listen for any user interaction to bypass autoplay restrictions
+            const handleInteraction = () => {
+                tryPlay();
+                document.removeEventListener('click', handleInteraction);
+                document.removeEventListener('keydown', handleInteraction);
+            };
+            document.addEventListener('click', handleInteraction);
+            document.addEventListener('keydown', handleInteraction);
+
+            return () => {
+                document.removeEventListener('click', handleInteraction);
+                document.removeEventListener('keydown', handleInteraction);
+            };
+        }
+    }, [orders]);
 
     // --- UTILITIES & MAPPERS ---
     const mapSupabaseStatusToLocal = useCallback((status: string): OrderStatus => {
@@ -617,9 +671,7 @@ function App() {
                     if (payload.eventType === 'INSERT') {
                         const newOrder = await processDeliveryRecord(newRecord);
                         setOrders(prev => [newOrder, ...prev]);
-                        if (newOrder.requestSource === 'IFOOD' || newOrder.external_source === 'IFOOD') {
-                            playAlert('ifood');
-                        } else {
+                        if (newOrder.requestSource !== 'IFOOD' && newOrder.external_source !== 'IFOOD') {
                             playAlert('cheetah');
                         }
                     } 
