@@ -551,7 +551,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
 
                     return (
                         <Marker 
-                            key={c.id} 
+                            key={`${c.id}-${status}`} 
                             position={[c.lat, c.lng]} 
                             icon={createCourierIcon(c, status)}
                             eventHandlers={{

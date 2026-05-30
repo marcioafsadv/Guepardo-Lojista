@@ -543,6 +543,7 @@ function App() {
                         id: p.id,
                         name: p.full_name || 'Entregador',
                         vehiclePlate: vehicle?.plate || 'Não Cadastrada',
+                        vehicleModel: vehicle?.model || 'Moto',
                         photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
                         phone: p.phone || '',
                         lat: p.current_lat,
@@ -748,9 +749,30 @@ function App() {
                 },
                 (payload) => {
                     const profile = payload.new;
-                    // Only update if this profile is in our availableCouriers list
+                    if (profile.status !== 'approved') return;
+
                     setAvailableCouriers(prev => {
-                        if (!prev.some(c => c.id === profile.id)) return prev;
+                        const exists = prev.some(c => c.id === profile.id);
+                        const hasLocation = !!(profile.current_lat && profile.current_lng);
+
+                        if (!exists) {
+                            if (hasLocation) {
+                                return [...prev, {
+                                    id: profile.id,
+                                    name: profile.full_name || 'Entregador',
+                                    vehiclePlate: 'Não Cadastrada',
+                                    vehicleModel: 'Moto',
+                                    photoUrl: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.full_name}&background=random`,
+                                    phone: profile.phone || '',
+                                    lat: profile.current_lat,
+                                    lng: profile.current_lng,
+                                    isOnline: profile.is_online === true,
+                                    isBusy: profile.is_busy === true
+                                }];
+                            }
+                            return prev;
+                        }
+
                         return prev.map(c => c.id === profile.id ? {
                             ...c,
                             lat: profile.current_lat || c.lat,
