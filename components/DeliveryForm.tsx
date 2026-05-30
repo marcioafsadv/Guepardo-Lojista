@@ -996,9 +996,9 @@ export const DeliveryForm = ({
                   <option value="">Enviar p/ Todos (Painel de Ofertas)</option>
                 </optgroup>
 
-                {availableCouriers.length > 0 && (
+                {availableCouriers.some(c => c.isOnline) && (
                   <optgroup label="📍 Disponíveis (Direto)" className="text-white bg-guepardo-dark">
-                    {availableCouriers.map(courier => (
+                    {availableCouriers.filter(c => c.isOnline).map(courier => (
                       <option key={courier.id} value={courier.id}>
                         Guepardo: {courier.name} ({courier.vehiclePlate})
                       </option>

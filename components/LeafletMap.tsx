@@ -97,18 +97,42 @@ const createStopMarker = (num: number, label: string, color: string) => {
     });
 };
 
-const createCourierIcon = (courier: Courier, status: OrderStatus | 'IDLE') => {
+const createCourierIcon = (courier: Courier, status: OrderStatus | 'IDLE' | 'BUSY' | 'OFFLINE') => {
     const isMoving = status === OrderStatus.IN_TRANSIT || status === OrderStatus.TO_STORE || status === OrderStatus.RETURNING;
+    const isOffline = status === 'OFFLINE';
+    const isBusy = status === 'BUSY';
     
+    let pulseBg = '';
+    let imgClass = 'w-10 h-10 object-contain transition-all duration-300';
+    let badgeClass = 'mt-1 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg transition-all duration-300';
+    let textClass = 'text-[7px] font-black text-white italic tracking-tighter uppercase line-clamp-1';
+    let badgeLabel = courier.name.split(' ')[0];
+
+    if (isMoving) {
+        pulseBg = `<div class="absolute -inset-3 bg-orange-500/30 rounded-full blur-xl animate-pulse shadow-[0_0_40px_rgba(255,107,0,0.7)]"></div>`;
+        imgClass += ' drop-shadow-[0_0_12px_rgba(255,107,0,1)] brightness-125';
+    } else if (isBusy) {
+        pulseBg = `<div class="absolute -inset-2 bg-yellow-500/20 rounded-full blur-lg animate-pulse shadow-[0_0_20px_rgba(230,126,34,0.4)]"></div>`;
+        imgClass += ' drop-shadow-[0_0_8px_rgba(230,126,34,0.8)] saturate-75';
+        badgeClass = 'mt-1 bg-gradient-to-r from-amber-600/95 to-orange-700/95 backdrop-blur-md px-2 py-0.5 rounded-full border border-amber-400/35 shadow-lg';
+        badgeLabel += ' (OCUPADO)';
+    } else if (isOffline) {
+        imgClass += ' filter grayscale opacity-45';
+        badgeClass = 'mt-1 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/5 opacity-55';
+        textClass = 'text-[7px] font-black text-white/50 italic tracking-tighter uppercase line-clamp-1';
+    } else {
+        imgClass += ' filter grayscale-[20%] opacity-85';
+    }
+
     return L.divIcon({
         html: `
         <div class="relative group cursor-pointer flex flex-col items-center">
-            ${isMoving ? `<div class="absolute -inset-3 bg-orange-500/30 rounded-full blur-xl animate-pulse shadow-[0_0_40px_rgba(255,107,0,0.7)]"></div>` : ''}
+            ${pulseBg}
             <div class="relative transition-all duration-300 group-hover:scale-125">
-                <img src="/cheetah-scooter.png" class="w-10 h-10 object-contain ${isMoving ? 'drop-shadow-[0_0_12px_rgba(255,107,0,1)] brightness-125' : 'filter grayscale-[30%] opacity-80'}" />
+                <img src="/cheetah-scooter.png" class="${imgClass}" />
             </div>
-            <div class="mt-1 bg-black/80 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10 shadow-lg">
-                <p class="text-[7px] font-black text-white italic tracking-tighter uppercase line-clamp-1">${courier.name.split(' ')[0]}</p>
+            <div class="${badgeClass}">
+                <p class="${textClass}">${badgeLabel}</p>
             </div>
         </div>`,
         className: 'courier-marker transition-all duration-1000 ease-linear',
@@ -515,20 +539,38 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 {/* 2. COURIER MARKERS */}
                 {couriers.map(c => {
                     const currentOrder = orders.find(o => o.courier?.id === c.id);
+                    
+                    let status: OrderStatus | 'IDLE' | 'BUSY' | 'OFFLINE' = 'IDLE';
+                    if (currentOrder) {
+                        status = currentOrder.status;
+                    } else if (c.isBusy) {
+                        status = 'BUSY';
+                    } else if (!c.isOnline) {
+                        status = 'OFFLINE';
+                    }
+
                     return (
                         <Marker 
                             key={c.id} 
                             position={[c.lat, c.lng]} 
-                            icon={createCourierIcon(c, currentOrder?.status || 'IDLE')}
+                            icon={createCourierIcon(c, status)}
                             eventHandlers={{
                                 click: () => onCourierClick?.(c.id)
                             }}
                         >
                             <Popup>
-                                <div className="text-xs">
-                                    <p className="font-bold">{c.name}</p>
-                                    <p className="text-gray-500">{c.vehicleModel || 'Moto'} • {c.vehiclePlate}</p>
-                                    {currentOrder && <p className="text-orange-500 font-bold mt-2">EM ATENDIMENTO</p>}
+                                <div className="text-xs font-black">
+                                    <p className="font-bold text-gray-900 dark:text-white uppercase tracking-widest">{c.name}</p>
+                                    <p className="text-white/40 text-[10px] uppercase font-bold mt-1">{c.vehicleModel || 'Moto'} • {c.vehiclePlate}</p>
+                                    {currentOrder ? (
+                                        <p className="text-orange-500 font-black mt-2 uppercase tracking-wider text-[9px]">Em Atendimento</p>
+                                    ) : c.isBusy ? (
+                                        <p className="text-amber-500 font-black mt-2 uppercase tracking-wider text-[9px]">Ocupado</p>
+                                    ) : c.isOnline ? (
+                                        <p className="text-green-500 font-black mt-2 uppercase tracking-wider text-[9px]">Disponível / Online</p>
+                                    ) : (
+                                        <p className="text-gray-400 font-black mt-2 uppercase tracking-wider text-[9px]">Offline / Inativo</p>
+                                    )}
                                 </div>
                             </Popup>
                         </Marker>

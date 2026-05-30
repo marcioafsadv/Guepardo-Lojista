@@ -46,6 +46,9 @@ export interface Courier {
   phone: string;
   lat: number;
   lng: number;
+  isOnline?: boolean;
+  isBusy?: boolean;
+  hasActiveOrder?: boolean;
 }
 
 export interface OrderEvent {

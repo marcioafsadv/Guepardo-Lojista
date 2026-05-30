@@ -532,14 +532,12 @@ function App() {
                         o.status !== OrderStatus.CANCELED
                     );
 
-                    // RELAXED FILTER: Show if online OR has an active order (important for tracking during missions)
-                    // We also show them even if they don't have a vehicle record yet, provided they have an active mission.
                     const isOnline = p.is_online === true;
+                    const isBusy = p.is_busy === true;
                     const hasLocation = !!(p.current_lat && p.current_lng);
 
-                    if (!isOnline && !hasActiveOrder) return null;
+                    // Include all couriers with valid location (even if offline) to show last active position
                     if (!hasLocation) return null;
-                    // If not online but has active order, it means they are BUSY/UNAVAILABLE, we still show them.
 
                     return {
                         id: p.id,
@@ -548,7 +546,10 @@ function App() {
                         photoUrl: p.avatar_url || `https://ui-avatars.com/api/?name=${p.full_name}&background=random`,
                         phone: p.phone || '',
                         lat: p.current_lat,
-                        lng: p.current_lng
+                        lng: p.current_lng,
+                        isOnline,
+                        isBusy,
+                        hasActiveOrder
                     };
                 }).filter(Boolean) as Courier[];
 
@@ -755,7 +756,9 @@ function App() {
                             lat: profile.current_lat || c.lat,
                             lng: profile.current_lng || c.lng,
                             name: profile.full_name || c.name,
-                            photoUrl: profile.avatar_url || c.photoUrl
+                            photoUrl: profile.avatar_url || c.photoUrl,
+                            isOnline: profile.is_online === true,
+                            isBusy: profile.is_busy === true
                         } : c);
                     });
 
