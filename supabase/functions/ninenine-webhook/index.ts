@@ -73,7 +73,7 @@ async function acknowledgeNinenineEvents(accessToken: string, eventIds: string[]
  */
 async function fetchNinenineOrderDetails(accessToken: string, orderId: string, retryCount = 0): Promise<any> {
   console.log(`🔍 Buscando detalhes do pedido ${orderId} na 99Food (Tentativa ${retryCount + 1})...`);
-  const response = await fetch(`${NINENINE_BASE_URL}/openapi/v1/order/detail?order_id=${orderId}`, {
+  const response = await fetch(`${NINENINE_BASE_URL}/v1/orders/${orderId}`, {
     headers: {
       "Authorization": `Bearer ${accessToken}`,
     },
@@ -190,11 +190,11 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
         const payMethod = "CARD"; 
 
         // Mapeia endereço
-        const formattedAddress = orderDetails.delivery?.address || "Endereço 99Food";
-        const destLat = orderDetails.delivery?.latitude || null;
-        const destLng = orderDetails.delivery?.longitude || null;
+        const formattedAddress = orderDetails.delivery?.address || orderDetails.delivery?.deliveryAddress?.formattedAddress || "Endereço 99Food";
+        const destLat = orderDetails.delivery?.latitude || orderDetails.delivery?.deliveryAddress?.coordinates?.latitude || null;
+        const destLng = orderDetails.delivery?.longitude || orderDetails.delivery?.deliveryAddress?.coordinates?.longitude || null;
 
-        const clientPhone = orderDetails.customer?.phone || "";
+        const clientPhone = orderDetails.customer?.phone || orderDetails.customer?.phoneSuffix || "";
         const phoneSuffix = clientPhone.length >= 4 ? clientPhone.slice(-4) : "";
         const orderValue = orderDetails.price?.total || 0;
 
@@ -364,21 +364,20 @@ Deno.serve(async (req: Request) => {
       
       const accessToken = await getNinenineAccessToken();
       let ninenineEndpoint = "";
-      let bodyData = null;
+      let bodyData: any = null;
 
       if (action === "confirmOrder") {
-        ninenineEndpoint = `${NINENINE_BASE_URL}/openapi/v1/order/confirm`;
-        bodyData = { order_id: orderId };
+        ninenineEndpoint = `${NINENINE_BASE_URL}/v1/orders/${orderId}/confirm`;
+        bodyData = {};
       } else if (action === "dispatchOrder") {
-        ninenineEndpoint = `${NINENINE_BASE_URL}/openapi/v1/order/dispatch`;
-        bodyData = { order_id: orderId };
+        ninenineEndpoint = `${NINENINE_BASE_URL}/v1/orders/${orderId}/dispatch`;
+        bodyData = {};
       } else if (action === "readyToPickup") {
-        ninenineEndpoint = `${NINENINE_BASE_URL}/openapi/v1/order/ready`;
-        bodyData = { order_id: orderId };
+        ninenineEndpoint = `${NINENINE_BASE_URL}/v1/orders/${orderId}/readyForPickup`;
+        bodyData = {};
       } else if (action === "cancelOrder") {
-        ninenineEndpoint = `${NINENINE_BASE_URL}/openapi/v1/order/cancel`;
+        ninenineEndpoint = `${NINENINE_BASE_URL}/v1/orders/${orderId}/requestCancellation`;
         bodyData = {
-          order_id: orderId,
           reason: reason || "Lojista solicitou o cancelamento"
         };
       } else {
