@@ -48,6 +48,7 @@ interface GestaoDePedidosProps {
     unreadMessages: Record<string, Partial<Record<ChatRoomType, number>>>;
     setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, Partial<Record<ChatRoomType, number>>>>>;
     onAcceptIFoodOrder?: (orderId: string) => void;
+    onAccept99FoodOrder?: (orderId: string) => void;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -86,7 +87,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onToggleStatus,
     unreadMessages,
     setUnreadMessages,
-    onAcceptIFoodOrder
+    onAcceptIFoodOrder,
+    onAccept99FoodOrder
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -752,6 +754,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                             isExpanded={true}
                             theme="dark"
                             onAcceptIFoodOrder={onAcceptIFoodOrder}
+                            onAccept99FoodOrder={onAccept99FoodOrder}
                         />
                      </div>
                 </div>

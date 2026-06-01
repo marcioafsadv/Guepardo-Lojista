@@ -31,10 +31,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         name: storeProfile?.name || '',
         street: '',
         number: '',
-        neighborhood: '',
+        neighborhood: storeProfile?.address ? '' : '', // Will be set by useEffect
         city: '',
         state: '',
-        cep: ''
+        cep: '',
+        ifoodMerchantId: storeProfile?.ifood_merchant_id || '',
+        ninenineMerchantId: storeProfile?.ninenine_merchant_id || ''
     });
 
     // Initialize address from storeProfile string or fetch from DB if needed
@@ -47,7 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         if (storeProfile) {
             // We need to fetch the structured address since storeProfile only has the concatenated string
             const fetchStructuredAddress = async () => {
-                const { data } = await supabase.from('stores').select('address, fantasy_name').eq('id', storeProfile.id).single();
+                const { data } = await supabase.from('stores').select('address, fantasy_name, ifood_merchant_id, ninenine_merchant_id').eq('id', storeProfile.id).single();
                 if (data) {
                     setProfileData({
                         name: data.fantasy_name || storeProfile.name,
@@ -56,7 +58,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         neighborhood: data.address?.district || data.address?.neighborhood || '',
                         city: data.address?.city || '',
                         state: data.address?.state || '',
-                        cep: data.address?.zip_code || data.address?.cep || ''
+                        cep: data.address?.zip_code || data.address?.cep || '',
+                        ifoodMerchantId: data.ifood_merchant_id || '',
+                        ninenineMerchantId: data.ninenine_merchant_id || ''
                     });
                 }
             };
@@ -97,6 +101,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
             if (storeProfile) {
                 const updates: any = {
                     fantasy_name: profileData.name,
+                    ifood_merchant_id: profileData.ifoodMerchantId || null,
+                    ninenine_merchant_id: profileData.ninenineMerchantId || null,
                     address: {
                         street: profileData.street,
                         number: profileData.number,
@@ -282,18 +288,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         </div>
 
                         <div className="pt-4 border-t border-gray-100 dark:border-guepardo-gray-700">
-                            <button
-                                onClick={handleRecalculateLocation}
-                                disabled={isGeocoding}
-                                className="flex items-center gap-2 text-sm font-bold text-guepardo-accent hover:text-white transition-colors disabled:opacity-50"
-                            >
-                                {isGeocoding ? <Loader2 size={16} className="animate-spin" /> : <Navigation2 size={16} />}
-                                {isGeocoding ? 'Recalculando Localização...' : 'Recalcular Localização no Mapa'}
-                            </button>
-                            <p className="text-[10px] text-gray-500 mt-2 italic">Dica: Use esta opção se o marcador da sua loja estiver no local incorreto após o cadastro.</p>
+                        <button
+                            onClick={handleRecalculateLocation}
+                            disabled={isGeocoding}
+                            className="flex items-center gap-2 text-sm font-bold text-guepardo-accent hover:text-white transition-colors disabled:opacity-50"
+                        >
+                            {isGeocoding ? <Loader2 size={16} className="animate-spin" /> : <Navigation2 size={16} />}
+                            {isGeocoding ? 'Recalculando Localização...' : 'Recalcular Localização no Mapa'}
+                        </button>
+                        <p className="text-[10px] text-gray-500 mt-2 italic px-1">Dica: Use esta opção se o marcador da sua loja estiver no local incorreto após o cadastro.</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* 0.5. INTEGRAÇÕES DE MARKETPLACE */}
+            <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">
+                <h3 className="text-base md:text-lg font-bold text-guepardo-accent mb-4 md:mb-6 flex items-center gap-2">
+                    <Layers size={18} /> Integrações de Marketplaces
+                </h3>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">iFood Merchant ID</label>
+                            <input
+                                type="text"
+                                value={profileData.ifoodMerchantId}
+                                onChange={(e) => handleProfileChange('ifoodMerchantId', e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                placeholder="ID do Estabelecimento no iFood"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">99Food Merchant ID</label>
+                            <input
+                                type="text"
+                                value={profileData.ninenineMerchantId}
+                                onChange={(e) => handleProfileChange('ninenineMerchantId', e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                placeholder="ID do Estabelecimento na 99Food"
+                            />
                         </div>
                     </div>
-                </section>
+                    <p className="text-[10px] text-gray-500 italic">Insira os identificadores fornecidos pelas respectivas plataformas para habilitar a sincronização em tempo real.</p>
+                </div>
+            </section>
 
                 {/* 1. PERFIL & OPERAÇÃO */}
                 <section className="bg-white dark:bg-guepardo-gray-800 rounded-2xl p-4 md:p-6 border border-gray-200 dark:border-guepardo-gray-700 shadow-sm dark:shadow-none transition-colors duration-300">

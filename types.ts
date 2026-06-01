@@ -115,11 +115,11 @@ export interface Order {
   stopNumber?: number;
 
   // Source & CRM
-  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD';
+  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD' | '99FOOD';
   clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
   scheduled_at?: string; // e.g., "14:30"
   external_order_id?: string;
-  external_source?: 'IFOOD';
+  external_source?: 'IFOOD' | '99FOOD';
   vehicleType?: 'moto' | 'bike' | 'carro';
 }
 
@@ -163,6 +163,8 @@ export interface StoreProfile {
   document_url?: string;
   contract_url?: string;
   location_photo_url?: string;
+  ifood_merchant_id?: string;
+  ninenine_merchant_id?: string;
 }
 
 export interface RouteStats {

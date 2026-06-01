@@ -55,7 +55,8 @@ const SOUNDS = {
     symphony: '/sounds/symphony.mp3',
     guitar: '/sounds/guitar-notification.mp3',
     beep: '/sounds/beep-notification.mp3',
-    ifood: '/sounds/ifood.mp3'
+    ifood: '/sounds/ifood.mp3',
+    ninenine: '/sounds/ifood.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -145,7 +146,7 @@ function App() {
         }
 
         const pendingIFoodOrders = orders.filter(o => 
-            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD') && 
+            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD' || o.requestSource === '99FOOD' || o.external_source === '99FOOD') && 
             o.status === OrderStatus.PENDING && 
             !o.acceptedAt
         );
@@ -1554,6 +1555,19 @@ function App() {
                     else console.log("✅ Notified readyToPickup to iFood");
                 });
             }
+
+            // Se for pedido da 99Food, notifica a API da 99Food
+            if (orderToUpdate.external_source === '99FOOD' && orderToUpdate.external_order_id) {
+                supabase.functions.invoke('ninenine-webhook', {
+                    body: {
+                        action: 'readyToPickup',
+                        orderId: orderToUpdate.external_order_id
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying readyToPickup to 99Food:", edgeErr);
+                    else console.log("✅ Notified readyToPickup to 99Food");
+                });
+            }
         } catch (err) {
             console.error("❌ Error marking order(s) as ready:", err);
             setNotification({ title: "Erro", message: "Falha ao atualizar status no sistema." });
@@ -1598,6 +1612,19 @@ function App() {
                 }).then(({ error: edgeErr }) => {
                     if (edgeErr) console.error("❌ Error notifying dispatchOrder to iFood:", edgeErr);
                     else console.log("✅ Notified dispatchOrder to iFood");
+                });
+            }
+
+            // Se for pedido da 99Food, notifica a API da 99Food
+            if (orderToUpdate.external_source === '99FOOD' && orderToUpdate.external_order_id) {
+                supabase.functions.invoke('ninenine-webhook', {
+                    body: {
+                        action: 'dispatchOrder',
+                        orderId: orderToUpdate.external_order_id
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying dispatchOrder to 99Food:", edgeErr);
+                    else console.log("✅ Notified dispatchOrder to 99Food");
                 });
             }
 
@@ -1800,6 +1827,20 @@ function App() {
                 });
             }
 
+            // Se for pedido da 99Food, notifica a API da 99Food
+            if (order.external_source === '99FOOD' && order.external_order_id) {
+                supabase.functions.invoke('ninenine-webhook', {
+                    body: {
+                        action: 'cancelOrder',
+                        orderId: order.external_order_id,
+                        reason: reason
+                    }
+                }).then(({ error: edgeErr }) => {
+                    if (edgeErr) console.error("❌ Error notifying cancelOrder to 99Food:", edgeErr);
+                    else console.log("✅ Notified cancelOrder to 99Food");
+                });
+            }
+
             // 4.1. Fast Broadcast to Courier
             try {
                 const channel = supabase.channel(`public:deliveries:${orderId}`);
@@ -1959,6 +2000,125 @@ function App() {
                 };
             }));
             setNotification({ title: "Erro", message: "Falha ao aceitar pedido no iFood." });
+            setTimeout(() => setNotification(null), 4000);
+        }
+    };
+    const handleAccept99FoodOrder = async (orderId: string) => {
+        console.log("👉 [handleAccept99FoodOrder] Called with orderId:", orderId);
+        const order = orders.find(o => o.id === orderId);
+        if (!order) {
+            console.warn("❌ [handleAccept99FoodOrder] Order not found in local state:", orderId);
+            return;
+        }
+        console.log("👉 [handleAccept99FoodOrder] Found order details:", {
+            id: order.id,
+            external_source: order.external_source,
+            external_order_id: order.external_order_id,
+            requestSource: order.requestSource,
+            status: order.status
+        });
+        if (order.external_source !== '99FOOD' || !order.external_order_id) {
+            console.warn("❌ [handleAccept99FoodOrder] Order is not a valid 99Food order or lacks external_order_id:", {
+                external_source: order.external_source,
+                external_order_id: order.external_order_id
+            });
+            return;
+        }
+
+        // 1. Check Balance
+        const totalFreightToDebit = order.storeFreight || 0;
+        const currentBalance = realStoreProfile?.wallet_balance || 0;
+        if (currentBalance < totalFreightToDebit) {
+            console.warn("❌ [App] Insufficient balance for 99Food order accept", { currentBalance, totalFreightToDebit });
+            setNotification({ title: "Saldo Insuficiente", message: "Recarregue sua carteira para aceitar este pedido da 99Food." });
+            setTimeout(() => setNotification(null), 5000);
+            return;
+        }
+
+        console.log("🚀 [handleAccept99FoodOrder] Confirming order on 99Food...", orderId);
+
+        // 2. Optimistic update
+        setOrders(prev => prev.map(o => {
+            if (o.id !== orderId) return o;
+            const newEvent: OrderEvent = {
+                status: OrderStatus.PENDING,
+                label: "Confirmado na 99Food",
+                timestamp: new Date(),
+                description: "Lojista aceitou o pedido da 99Food e solicitou motoboy."
+            };
+            return {
+                ...o,
+                status: OrderStatus.PENDING,
+                acceptedAt: new Date(),
+                events: [...o.events, newEvent]
+            };
+        }));
+
+        try {
+            // 3. Call Edge Function
+            const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('ninenine-webhook', {
+                body: {
+                    action: 'confirmOrder',
+                    orderId: order.external_order_id
+                }
+            });
+
+            if (edgeErr) throw edgeErr;
+
+            // 4. Debit Wallet
+            if (totalFreightToDebit > 0) {
+                console.log("💰 [App] Debiting wallet for 99Food order:", totalFreightToDebit);
+                
+                await supabase.from('wallet_transactions').insert({
+                    store_id: session?.user?.id,
+                    amount: totalFreightToDebit,
+                    type: 'PAYMENT',
+                    status: 'CONFIRMED',
+                    description: `Entrega 99Food #${order.display_id || order.id.slice(-4)}`,
+                    payment_method: 'SYSTEM'
+                });
+
+                // Update Balance directly since RPC does not exist
+                const { data: currentStore, error: fetchError } = await supabase
+                    .from('stores')
+                    .select('wallet_balance')
+                    .eq('id', session?.user?.id)
+                    .single();
+
+                if (!fetchError && currentStore) {
+                    const newBalance = (currentStore.wallet_balance || 0) - totalFreightToDebit;
+                    await supabase.from('stores')
+                        .update({ wallet_balance: newBalance })
+                        .eq('id', session?.user?.id);
+                }
+            }
+
+            // 5. Persist to DB
+            const { error: dbError } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'pending',
+                    updated_at: new Date().toISOString(),
+                    accepted_at: new Date().toISOString()
+                })
+                .eq('id', orderId);
+
+            if (dbError) throw dbError;
+
+            console.log("✅ Order confirmed on 99Food and status updated locally to pending:", orderId);
+        } catch (err) {
+            console.error("❌ Error confirming 99Food order:", err);
+            // Revert optimistic update
+            setOrders(prev => prev.map(o => {
+                if (o.id !== orderId) return o;
+                return {
+                    ...o,
+                    status: OrderStatus.PENDING,
+                    acceptedAt: null,
+                    events: o.events.filter(e => e.label !== "Confirmado na 99Food")
+                };
+            }));
+            setNotification({ title: "Erro", message: "Falha ao aceitar pedido na 99Food." });
             setTimeout(() => setNotification(null), 4000);
         }
     };
@@ -2392,6 +2552,7 @@ function App() {
                             onSelectView={setCurrentView}
                             onToggleStatus={toggleStoreStatus}
                             onAcceptIFoodOrder={handleAcceptIFoodOrder}
+                            onAccept99FoodOrder={handleAccept99FoodOrder}
                         />
                     )}
 
@@ -2430,6 +2591,7 @@ function App() {
                 storeProfile={realStoreProfile || STORE_PROFILE}
                 onClose={() => setSelectedOrderDetails(null)}
                 onAcceptIFoodOrder={handleAcceptIFoodOrder}
+                onAccept99FoodOrder={handleAccept99FoodOrder}
                 theme="dark"
             />
 

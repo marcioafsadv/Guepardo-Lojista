@@ -19,9 +19,10 @@ const OrderContent: React.FC<{
     onCancelClick?: (order: Order) => void;
     onCallCourier?: (order: Order) => void; // Added onCallCourier prop
     onAcceptIFoodOrder?: (orderId: string) => void;
+    onAccept99FoodOrder?: (orderId: string) => void;
     theme?: string;
     isExpanded?: boolean;
-}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, theme, isExpanded = true }) => {
+}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, onAccept99FoodOrder, theme, isExpanded = true }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
     const [isAccepting, setIsAccepting] = React.useState(false);
 
@@ -201,10 +202,12 @@ const OrderContent: React.FC<{
                             {order.requestSource === 'WHATSAPP' ? <MessageCircle className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-green-500" /> :
                                 order.requestSource === 'PHONE' ? <Phone className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-blue-500" /> :
                                 order.requestSource === 'IFOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-red-500" /> :
+                                order.requestSource === '99FOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-yellow-500" /> :
                                     <Globe className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-orange-500" />}
                             <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
                                 order.requestSource === 'PHONE' ? 'Telefone' :
-                                order.requestSource === 'IFOOD' ? 'iFood' : 'Site'}</span>
+                                order.requestSource === 'IFOOD' ? 'iFood' :
+                                order.requestSource === '99FOOD' ? '99Food' : 'Site'}</span>
                         </div>
                     </div>
 
@@ -355,6 +358,38 @@ const OrderContent: React.FC<{
                     </button>
                 )}
 
+                {/* Ação de Aceitar Pedido do 99Food se estiver Pendente e não aceito */}
+                {order.requestSource === '99FOOD' && order.status === OrderStatus.PENDING && !order.acceptedAt && (
+                    <button
+                        disabled={isAccepting}
+                        onClick={async (e) => {
+                            e.stopPropagation();
+                            if (onAccept99FoodOrder) {
+                                setIsAccepting(true);
+                                try {
+                                    await onAccept99FoodOrder(order.id);
+                                } catch (err) {
+                                    console.error(err);
+                                } finally {
+                                    setIsAccepting(false);
+                                }
+                            }
+                        }}
+                        className={`flex-[2] h-12 bg-yellow-500 hover:bg-yellow-600 text-black dark:text-guepardo-gray-900 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(234,179,8,0.3)] transform ${isAccepting ? 'opacity-70 cursor-not-allowed' : 'active:scale-95 animate-pulse'}`}
+                    >
+                        {isAccepting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                                Aceitando...
+                            </>
+                        ) : (
+                            <>
+                                <ShoppingBag size={18} /> Aceitar Pedido 99Food
+                            </>
+                        )}
+                    </button>
+                )}
+
                 {/* Chamar Motoboy (Primary Action for External Orders) */}
                 {(order.requestSource === 'WHATSAPP' || (order.requestSource === 'IFOOD' && order.status !== OrderStatus.PENDING)) && !order.courier && (
                     <button
@@ -416,10 +451,11 @@ interface OrderServiceDetailProps {
     isEmbedded?: boolean; // New Prop
     theme?: string;
     onAcceptIFoodOrder?: (orderId: string) => void;
+    onAccept99FoodOrder?: (orderId: string) => void;
 }
 
 export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
-    order, storeProfile, onCancelClick, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark', onAcceptIFoodOrder
+    order, storeProfile, onCancelClick, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark', onAcceptIFoodOrder, onAccept99FoodOrder
 }) => {
     // Generate PIN
     const securityPin = order.pickupCode || order.id.slice(-4);
@@ -472,6 +508,7 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                 getPaymentIcon={getPaymentIcon}
                 onCancelClick={onCancelClick}
                 onAcceptIFoodOrder={onAcceptIFoodOrder}
+                onAccept99FoodOrder={onAccept99FoodOrder}
                 theme={theme}
             />
         );
@@ -557,6 +594,7 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                     onClose?.();
                 }}
                 onAcceptIFoodOrder={onAcceptIFoodOrder}
+                onAccept99FoodOrder={onAccept99FoodOrder}
                 theme={theme}
                 isExpanded={isExpanded} // Pass isExpanded
             />

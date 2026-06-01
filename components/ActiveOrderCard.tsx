@@ -160,7 +160,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
     <div className={`
       relative overflow-hidden transition-all duration-500 mb-4 rounded-[1.5rem] md:rounded-[2.5rem]
       bg-black/40 backdrop-blur-xl
-      border border-white/10 border-l-[6px] ${order.requestSource === 'IFOOD' ? 'border-l-red-500 shadow-[0_0_20px_rgba(239,68,68,0.05)]' : 'border-l-guepardo-accent'}
+      border border-white/10 border-l-[6px] ${order.requestSource === 'IFOOD' ? 'border-l-red-500 shadow-[0_0_20px_rgba(239,68,68,0.05)]' : order.requestSource === '99FOOD' ? 'border-l-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.05)]' : 'border-l-guepardo-accent'}
       shadow-[0_20px_40px_rgba(0,0,0,0.4)] group/card cursor-pointer hover:border-guepardo-accent/40 active:scale-[0.99]
       ${isExpanded ? 'p-3 md:p-6 ring-2 ring-guepardo-accent/20' : 'p-3 md:p-5'}
     `}
@@ -178,6 +178,12 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
             {order.requestSource === 'IFOOD' && (
               <span className="inline-flex items-center px-3 py-1 rounded-lg bg-red-600/20 text-red-500 text-[9px] font-black uppercase tracking-[0.2em] border border-red-500/30 shadow-[0_0_10px_rgba(220,38,38,0.2)]">
                 iFood
+              </span>
+            )}
+
+            {order.requestSource === '99FOOD' && (
+              <span className="inline-flex items-center px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-500 text-[9px] font-black uppercase tracking-[0.2em] border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+                99Food
               </span>
             )}
             
