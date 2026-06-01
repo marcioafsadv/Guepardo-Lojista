@@ -56,7 +56,7 @@ const SOUNDS = {
     guitar: '/sounds/guitar-notification.mp3',
     beep: '/sounds/beep-notification.mp3',
     ifood: '/sounds/ifood.mp3',
-    ninenine: '/sounds/ifood.mp3'
+    ninenine: '/sounds/99-pop.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -124,6 +124,7 @@ function App() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const storeProfileRef = useRef<StoreProfile | null>(null);
     const playedIFoodAlertsRef = useRef<Set<string>>(new Set());
+    const playedNineNineAlertsRef = useRef<Set<string>>(new Set());
 
     // Keep Refs synced
     useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -146,7 +147,7 @@ function App() {
         }
 
         const pendingIFoodOrders = orders.filter(o => 
-            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD' || o.requestSource === '99FOOD' || o.external_source === '99FOOD') && 
+            (o.requestSource === 'IFOOD' || o.external_source === 'IFOOD') && 
             o.status === OrderStatus.PENDING && 
             !o.acceptedAt
         );
@@ -167,6 +168,59 @@ function App() {
                     })
                     .catch(e => {
                         console.warn("⚠️ [iFood Alert] Could not autoplay. Waiting for user interaction:", e);
+                    });
+            };
+
+            tryPlay();
+            
+            // Listen for any user interaction to bypass autoplay restrictions
+            const handleInteraction = () => {
+                tryPlay();
+                document.removeEventListener('click', handleInteraction);
+                document.removeEventListener('keydown', handleInteraction);
+            };
+            document.addEventListener('click', handleInteraction);
+            document.addEventListener('keydown', handleInteraction);
+
+            return () => {
+                document.removeEventListener('click', handleInteraction);
+                document.removeEventListener('keydown', handleInteraction);
+            };
+        }
+    }, [orders]);
+
+    // One-time robust 99Food alert effect
+    useEffect(() => {
+        // Clean up played alerts set for orders that are no longer pending or active
+        const activeIds = new Set(orders.map(o => o.id));
+        for (const id of playedNineNineAlertsRef.current) {
+            if (!activeIds.has(id)) {
+                playedNineNineAlertsRef.current.delete(id);
+            }
+        }
+
+        const pendingNineNineOrders = orders.filter(o => 
+            (o.requestSource === '99FOOD' || o.external_source === '99FOOD') && 
+            o.status === OrderStatus.PENDING && 
+            !o.acceptedAt
+        );
+
+        const unplayedNineNine = pendingNineNineOrders.filter(o => !playedNineNineAlertsRef.current.has(o.id));
+
+        if (unplayedNineNine.length > 0) {
+            const tryPlay = () => {
+                const stillUnplayed = unplayedNineNine.filter(o => !playedNineNineAlertsRef.current.has(o.id));
+                if (stillUnplayed.length === 0) return;
+
+                console.log("🔊 [99Food Alert] Playing one-time notification sound...");
+                const audio = new Audio('/sounds/99-pop.mp3');
+                audio.play()
+                    .then(() => {
+                        // Mark as played only after it successfully plays
+                        stillUnplayed.forEach(o => playedNineNineAlertsRef.current.add(o.id));
+                    })
+                    .catch(e => {
+                        console.warn("⚠️ [99Food Alert] Could not autoplay. Waiting for user interaction:", e);
                     });
             };
 
