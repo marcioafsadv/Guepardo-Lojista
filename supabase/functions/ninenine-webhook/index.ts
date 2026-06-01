@@ -362,6 +362,14 @@ Deno.serve(async (req: Request) => {
       const { action, orderId, reason } = payload;
       console.log(`🎮 Ação solicitada via Frontend: ${action} para pedido ${orderId}`);
       
+      // Bypassa chamadas de API reais para pedidos de simulação/teste
+      if (orderId && (orderId.includes("test") || orderId.includes("mock"))) {
+        console.log(`🧪 Pedido de teste detectado (${orderId}). Ignorando chamada real e retornando sucesso.`);
+        return new Response(JSON.stringify({ success: true, mock: true }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+
       const accessToken = await getNinenineAccessToken();
       let ninenineEndpoint = "";
       let bodyData: any = null;
