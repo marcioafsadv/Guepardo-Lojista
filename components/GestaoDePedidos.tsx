@@ -575,8 +575,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             </div>
 
             {/* --- LEFT OVERLAY (Form + Monitoring) --- */}
-            <div className={`absolute top-0 left-0 h-full md:p-6 p-2 flex flex-col gap-4 md:gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'md:w-[380px] lg:w-[450px] xl:w-[528px] w-full opacity-100 translate-x-0'}`}>
-                <div className="pointer-events-auto flex flex-col gap-4 md:gap-6 h-full overflow-hidden">
+            <div className={`left-sidebar-overlay absolute top-0 left-0 h-full md:p-6 p-2 flex flex-col gap-4 md:gap-6 transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] z-10 pointer-events-none ${isFormCollapsed ? 'w-0 overflow-hidden opacity-0 -translate-x-full' : 'md:w-[380px] lg:w-[450px] xl:w-[528px] w-full opacity-100 translate-x-0'}`}>
+                <div className="left-sidebar-container pointer-events-auto flex flex-col gap-4 md:gap-6 h-full overflow-hidden">
                     {/* Delivery Form */}
                     <DeliveryForm
                     onSubmit={handleNewOrderSubmit}
@@ -599,7 +599,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}
-                    <div className="bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
+                    <div className="monitoring-panel bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
                          style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}>
                     
                     {/* Status Summary & Search */}

@@ -448,7 +448,7 @@ export const DeliveryForm = ({
   const totalChangeNeeded = calculateChangeNeeded();
 
   return (
-    <div className="w-full flex flex-col relative bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)]"
+    <div className="delivery-form-container w-full flex flex-col relative bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] min-h-0 flex-shrink-1"
          style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}
          ref={wrapperRef}>
 
@@ -478,7 +478,7 @@ export const DeliveryForm = ({
 
       {/* COLLAPSIBLE CONTENT */}
       <div
-        className="overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
+        className="delivery-form-content flex-1 overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
         style={{
           maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 260px)',
           opacity: isFormCollapsed ? 0 : 1,
@@ -695,7 +695,7 @@ export const DeliveryForm = ({
                     key={method.id}
                     type="button"
                     onClick={() => setVehicleType(method.id as any)}
-                    className={`h-11 rounded-xl flex flex-col items-center justify-center gap-1 border transition-all ${
+                    className={`vehicle-btn h-11 rounded-xl flex flex-col items-center justify-center gap-1 border transition-all ${
                       isSelected
                         ? 'bg-guepardo-accent/20 border-guepardo-accent text-white shadow-glow-sm'
                         : 'bg-black/60 border-white/5 text-white/40 hover:border-white/20 hover:text-white/60'
@@ -967,7 +967,7 @@ export const DeliveryForm = ({
             type="button"
             onClick={addStop}
             disabled={additionalStops.length >= 4}
-            className="w-full py-4 border-2 border-dashed border-white/10 rounded-[1.5rem] text-[10px] md:text-xs font-black text-white hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4 text-shadow-glow"
+            className="add-stop-btn w-full py-4 border-2 border-dashed border-white/10 rounded-[1.5rem] text-[10px] md:text-xs font-black text-white hover:border-guepardo-accent/50 hover:text-guepardo-accent hover:bg-guepardo-accent/5 transition-all flex items-center justify-center gap-3 group mb-4 text-shadow-glow"
           >
             <MapPin size={18} className="group-hover:animate-bounce text-white group-hover:text-guepardo-accent transition-colors" />
             <span>ADICIONAR PARADA (+)</span>
@@ -1032,7 +1032,7 @@ export const DeliveryForm = ({
           {/* RETURN TRIP TOGGLE & ALERTS */}
           <div className="space-y-3 mt-2">
             {/* Toggle Switch for Return */}
-            <label className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
+            <label className="form-toggle-label flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
               <div className="relative z-10">
                 <input
@@ -1052,7 +1052,7 @@ export const DeliveryForm = ({
             </label>
 
             {/* Toggle Switch for Scheduled */}
-            <label className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
+            <label className="form-toggle-label flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
               <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
               <div className="relative z-10">
                 <input
@@ -1122,7 +1122,7 @@ export const DeliveryForm = ({
           </div>
 
           {/* ESTIMATE BREAKDOWN */}
-          <div className="bg-black/40 rounded-[1.5rem] border border-[#8B3A0F]/20 p-5 space-y-3 mt-4 relative overflow-hidden group/estimate">
+          <div className="estimate-container bg-black/40 rounded-[1.5rem] border border-[#8B3A0F]/20 p-5 space-y-3 mt-4 relative overflow-hidden group/estimate">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl group-hover/estimate:bg-white/10 transition-colors"></div>
 
             {/* Taxa de saída */}
@@ -1164,11 +1164,11 @@ export const DeliveryForm = ({
 
         </form>
 
-        <div className="flex flex-col sm:flex-row gap-4 pt-4 pb-12 md:pb-6">
+        <div className="form-actions-wrapper flex flex-col sm:flex-row gap-4 pt-4 pb-12 md:pb-6">
           <button
             type="button"
             onClick={onToggleSelection}
-            className={`h-14 rounded-2xl flex items-center justify-center transition-all border-2 relative overflow-hidden group/hardhat ${isSelecting
+            className={`form-action-btn h-14 rounded-2xl flex items-center justify-center transition-all border-2 relative overflow-hidden group/hardhat ${isSelecting
               ? 'bg-guepardo-accent text-white border-guepardo-accent shadow-glow animate-pulse w-full'
               : targetCourierId
                 ? 'bg-guepardo-accent/20 text-guepardo-accent border-guepardo-accent/50 shadow-glow-sm w-full sm:w-14'
@@ -1186,7 +1186,7 @@ export const DeliveryForm = ({
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !clientName || !street || !number}
-            className={`flex-1 h-14 rounded-2xl font-black italic text-base flex items-center justify-center gap-3 transition-all transform active:scale-95 duration-200 shadow-2xl relative overflow-hidden group/chamar ${!clientName || !street || !number
+            className={`form-action-btn flex-1 h-14 rounded-2xl font-black italic text-base flex items-center justify-center gap-3 transition-all transform active:scale-95 duration-200 shadow-2xl relative overflow-hidden group/chamar ${!clientName || !street || !number
               ? 'bg-black/40 text-white/5 cursor-not-allowed border border-white/5'
               : 'bg-brand-gradient text-white border border-[#8B3A0F]/50 shadow-[0_0_30px_rgba(211,84,0,0.4)] hover:shadow-[0_0_40px_rgba(211,84,0,0.6)] hover:brightness-110 active:brightness-90'
               }`}
