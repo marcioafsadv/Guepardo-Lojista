@@ -260,24 +260,16 @@
       animation: pulse-sync 1s ease-in-out 3;
     }
 
-    /* Media queries for notebook/tablet screen heights using CSS Zoom */
-    @media (max-height: 860px) {
-      .left-sidebar-overlay,
-      .left-sidebar-toggle-btn {
+    /* Media queries for notebook/tablet screen heights (browser zoom simulation) */
+    @media (min-width: 768px) and (max-height: 860px) {
+      body {
         zoom: 0.75 !important;
-      }
-      .monitoring-panel {
-        min-height: 240px !important;
       }
     }
 
-    @media (max-height: 720px) {
-      .left-sidebar-overlay,
-      .left-sidebar-toggle-btn {
+    @media (min-width: 768px) and (max-height: 720px) {
+      body {
         zoom: 0.67 !important;
-      }
-      .monitoring-panel {
-        min-height: 180px !important;
       }
     }
   </style>
