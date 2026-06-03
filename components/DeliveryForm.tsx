@@ -469,7 +469,7 @@ export const DeliveryForm = ({
         </div>
         <button
           type="button"
-          className="p-1 rounded-md text-warm-500 dark:text-white/50 hover:text-guepardo-accent hover:bg-guepardo-accent/10 transition-all duration-200"
+          className="w-7 h-7 md:w-8 md:h-8 rounded-lg md:rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white/80 group-hover:border-white/20 hover:!bg-guepardo-accent hover:!text-white hover:!border-guepardo-accent/50 shadow-md hover:shadow-[0_0_15px_rgba(255,107,0,0.5)] transition-all duration-300"
           aria-label={isFormCollapsed ? 'Expandir' : 'Minimizar'}
         >
           {isFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
