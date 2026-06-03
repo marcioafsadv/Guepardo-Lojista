@@ -262,14 +262,26 @@
 
     /* Media queries for notebook/tablet screen heights (browser zoom simulation) */
     @media (min-width: 768px) and (max-height: 860px) {
-      body {
+      #root {
         zoom: 0.75 !important;
+        width: 133.333vw !important;
+        height: 133.333vh !important;
+        height: 133.333dvh !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
       }
     }
 
     @media (min-width: 768px) and (max-height: 720px) {
-      body {
-        zoom: 0.67 !important;
+      #root {
+        zoom: 0.666667 !important;
+        width: 150vw !important;
+        height: 150vh !important;
+        height: 150dvh !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
       }
     }
   </style>
