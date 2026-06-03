@@ -665,7 +665,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             {/* --- COLLAPSE/EXPAND TOGGLE (Floating) --- */}
             <button
                 onClick={() => setIsFormCollapsed(!isFormCollapsed)}
-                className={`
+                className={`left-sidebar-toggle-btn
                     fixed md:absolute top-1/2 -translate-y-1/2 z-[60]
                     w-8 md:w-8 h-16 md:h-20 bg-brand-gradient-premium border border-white/10 
                     rounded-r-2xl flex items-center justify-center text-white
