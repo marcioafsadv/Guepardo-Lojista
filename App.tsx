@@ -1426,7 +1426,7 @@ function App() {
                     customer_address: stop.destination,
                     customer_phone_suffix: phoneSuffix,
                     collection_code: phoneSuffix,
-                    status: stop.scheduled_at ? 'scheduled' : 'pending',
+                    status: stop.scheduled_at ? 'scheduled' : (isFixedDriver ? 'accepted' : 'pending'),
                     driver_id: targetCourierId || null,
                     batch_id: batchId,
                     stop_number: index + 1,
@@ -1721,20 +1721,26 @@ function App() {
                     finalStoreFreight = 0;
                 }
 
+                const updatePayload: any = {
+                    driver_id: courierId,
+                    batch_id: batchId,
+                    earnings: newEarnings,
+                    stop_number: i + 1,
+                    items: {
+                        ...order, // Keep existing items
+                        storeFreight: finalStoreFreight,
+                        stopNumber: i + 1,
+                        batchId: batchId
+                    }
+                };
+
+                if (isFixedDriver) {
+                    updatePayload.status = 'accepted';
+                }
+
                 const { error } = await supabase
                     .from('deliveries')
-                    .update({
-                        driver_id: courierId,
-                        batch_id: batchId,
-                        earnings: newEarnings,
-                        stop_number: i + 1,
-                        items: {
-                            ...order, // Keep existing items
-                            storeFreight: finalStoreFreight,
-                            stopNumber: i + 1,
-                            batchId: batchId
-                        }
-                    })
+                    .update(updatePayload)
                     .eq('id', order.id);
 
                 if (error) throw error;
