@@ -2738,14 +2738,109 @@ function App() {
             if (upToDate) {
                 // If the order reached a final state, clear it from active view
                 if (upToDate.status === OrderStatus.DELIVERED || upToDate.status === OrderStatus.CANCELED) {
+                    // Check if it was part of a batch and if there are remaining active orders in the same batch
+                    if (activeOrder.batch_id) {
+                        const remainingBatchOrders = orders.filter(o => 
+                            o.batch_id === activeOrder.batch_id && 
+                            o.status !== OrderStatus.DELIVERED && 
+                            o.status !== OrderStatus.CANCELED
+                        );
+                        if (remainingBatchOrders.length > 0) {
+                            const sortedRemaining = [...remainingBatchOrders].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+                            const nextActiveStop = sortedRemaining[0];
+                            const totalValue = remainingBatchOrders.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
+                            const statuses = remainingBatchOrders.map(o => o.status);
+                            let batchStatus = OrderStatus.PENDING;
+                            if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+                            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
+                            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
+                            else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+                            else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
+
+                            const updatedActiveOrder = {
+                                ...nextActiveStop,
+                                isBatch: true,
+                                batchOrders: remainingBatchOrders,
+                                status: batchStatus,
+                                clientName: remainingBatchOrders.length > 1 ? `${remainingBatchOrders.length} Pedidos (Lote)` : nextActiveStop.clientName,
+                                destination: remainingBatchOrders.length > 1 ? `${remainingBatchOrders.length} destinos no roteiro` : nextActiveStop.destination,
+                                deliveryValue: totalValue
+                            };
+                            setActiveOrder(updatedActiveOrder);
+                            return;
+                        }
+                    }
                     setActiveOrder(null);
                     if (selectedOrderDetails?.id === upToDate.id) {
                         setSelectedOrderDetails(null);
                     }
                 } else if (upToDate.status !== activeOrder.status || upToDate.courier?.lat !== activeOrder.courier?.lat) {
-                    setActiveOrder(upToDate);
+                    // Sync activeOrder while preserving batch properties if it is a batch
+                    if (activeOrder.isBatch && activeOrder.batch_id) {
+                        const batchOrders = orders.filter(o => o.batch_id === activeOrder.batch_id && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED);
+                        if (batchOrders.length > 0) {
+                            const sortedBatch = [...batchOrders].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+                            // Try to find the exact same stop we were viewing, otherwise fallback to the first active stop
+                            const mainOrder = sortedBatch.find(o => o.id === activeOrder.id) || sortedBatch[0];
+                            const totalValue = batchOrders.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
+                            const statuses = batchOrders.map(o => o.status);
+                            let batchStatus = OrderStatus.PENDING;
+                            if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+                            else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
+                            else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
+                            else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+                            else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
+
+                            setActiveOrder({
+                                ...mainOrder,
+                                isBatch: true,
+                                batchOrders,
+                                status: batchStatus,
+                                clientName: batchOrders.length > 1 ? `${batchOrders.length} Pedidos (Lote)` : mainOrder.clientName,
+                                destination: batchOrders.length > 1 ? `${batchOrders.length} destinos no roteiro` : mainOrder.destination,
+                                deliveryValue: totalValue
+                            });
+                        } else {
+                            setActiveOrder(null);
+                        }
+                    } else {
+                        setActiveOrder(upToDate);
+                    }
                 }
             } else {
+                // If it is a batch, it's possible that the specific mainOrder ID we were tracking was removed/delivered
+                // but the batch still has other active orders. Let's check.
+                if (activeOrder.batch_id) {
+                    const remainingBatchOrders = orders.filter(o => 
+                        o.batch_id === activeOrder.batch_id && 
+                        o.status !== OrderStatus.DELIVERED && 
+                        o.status !== OrderStatus.CANCELED
+                    );
+                    if (remainingBatchOrders.length > 0) {
+                        const sortedRemaining = [...remainingBatchOrders].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+                        const nextActiveStop = sortedRemaining[0];
+                        const totalValue = remainingBatchOrders.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
+                        const statuses = remainingBatchOrders.map(o => o.status);
+                        let batchStatus = OrderStatus.PENDING;
+                        if (statuses.includes(OrderStatus.IN_TRANSIT)) batchStatus = OrderStatus.IN_TRANSIT;
+                        else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) batchStatus = OrderStatus.READY_FOR_PICKUP;
+                        else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) batchStatus = OrderStatus.ARRIVED_AT_STORE;
+                        else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) batchStatus = OrderStatus.ACCEPTED;
+                        else if (statuses.includes(OrderStatus.RETURNING)) batchStatus = OrderStatus.RETURNING;
+
+                        const updatedActiveOrder = {
+                            ...nextActiveStop,
+                            isBatch: true,
+                            batchOrders: remainingBatchOrders,
+                            status: batchStatus,
+                            clientName: remainingBatchOrders.length > 1 ? `${remainingBatchOrders.length} Pedidos (Lote)` : nextActiveStop.clientName,
+                            destination: remainingBatchOrders.length > 1 ? `${remainingBatchOrders.length} destinos no roteiro` : nextActiveStop.destination,
+                            deliveryValue: totalValue
+                        };
+                        setActiveOrder(updatedActiveOrder);
+                        return;
+                    }
+                }
                 // Order no longer exists in orders array (e.g. after reset)
                 setActiveOrder(null);
             }

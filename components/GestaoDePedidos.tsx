@@ -501,7 +501,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         });
 
         const processedBatches: Order[] = Array.from(batchGroups.values()).map(batch => {
-            const mainOrder = batch.find(o => o.stopNumber === 1) || batch[0];
+            const sortedBatch = [...batch].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+            const mainOrder = sortedBatch[0];
             const totalValue = batch.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
             
             // Determine consolidated status - PRIORITY: IN_TRANSIT > STORE_READY > RETURNING
@@ -517,7 +518,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             return {
                 ...mainOrder,
                 isBatch: true,
-                batchOrders: batch,
+                batchOrders: sortedBatch,
                 status: batchStatus,
                 clientName: batch.length > 1 ? `${batch.length} Pedidos (Lote)` : mainOrder.clientName,
                 destination: batch.length > 1 ? `${batch.length} destinos no roteiro` : mainOrder.destination,
@@ -526,7 +527,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         });
 
         const processedCourierGroups: Order[] = Array.from(courierOnlyGroups.values()).map(group => {
-            const mainOrder = group[0];
+            const sortedGroup = [...group].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+            const mainOrder = sortedGroup[0];
             const totalValue = group.reduce((acc, o) => acc + (o.deliveryValue || 0), 0);
             
             const statuses = group.map(o => o.status);
@@ -539,7 +541,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
             return {
                 ...mainOrder,
-                batchOrders: group.length > 1 ? group : undefined,
+                batchOrders: group.length > 1 ? sortedGroup : undefined,
                 status: groupStatus,
                 clientName: group.length > 1 ? `${group.length} Pedidos - ${mainOrder.courier?.name}` : mainOrder.clientName,
                 destination: group.length > 1 ? `${group.length} destinos na rota` : mainOrder.destination,

@@ -26,6 +26,22 @@ const OrderContent: React.FC<{
     const isDark = theme === 'dark'; // Helper for Explicit Theme
     const [isAccepting, setIsAccepting] = React.useState(false);
 
+    const [selectedStopId, setSelectedStopId] = React.useState<string | null>(null);
+
+    const sortedBatchOrders = React.useMemo(() => {
+        if (!order.isBatch || !order.batchOrders) return [];
+        return [...order.batchOrders].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+    }, [order.isBatch, order.batchOrders]);
+
+    const currentActiveStop = React.useMemo(() => {
+        return sortedBatchOrders.find(o => o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED) || sortedBatchOrders[0];
+    }, [sortedBatchOrders]);
+
+    const displayedOrder = React.useMemo(() => {
+        if (!order.isBatch || !order.batchOrders) return order;
+        return sortedBatchOrders.find(o => o.id === selectedStopId) || currentActiveStop || order;
+    }, [order, sortedBatchOrders, selectedStopId, currentActiveStop]);
+
     const steps = [
         { key: 'CREATED', label: 'Solicitado', status: [OrderStatus.PENDING, OrderStatus.SCHEDULED] },
         { key: 'ACCEPTED', label: 'Aceito', status: [OrderStatus.ACCEPTED] },
@@ -34,8 +50,8 @@ const OrderContent: React.FC<{
         { key: 'DONE', label: 'Concluído', status: [OrderStatus.DELIVERED] }
     ];
 
-    const currentStepIndex = steps.findIndex(s => s.status.includes(order.status));
-    const isCanceled = order.status === OrderStatus.CANCELED;
+    const currentStepIndex = steps.findIndex(s => s.status.includes(displayedOrder.status));
+    const isCanceled = displayedOrder.status === OrderStatus.CANCELED;
 
     const renderStepper = () => (
         <div className="px-4 py-6">
@@ -110,17 +126,49 @@ const OrderContent: React.FC<{
                 {/* Status Large */}
                 <div className="text-center">
                     {renderStepper()}
-                    <h2 className={`text-xl md:text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{order.clientName}</h2>
-                    {order.clientPhone && (
+
+                    {/* Horizontal Stop Navigation Tabs */}
+                    {order.isBatch && sortedBatchOrders.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-4 pt-2 justify-center px-4 scrollbar-none">
+                            {sortedBatchOrders.map((stop) => {
+                                const isStopCompleted = stop.status === OrderStatus.DELIVERED || stop.status === OrderStatus.CANCELED;
+                                const isStopActive = stop.id === displayedOrder.id;
+                                return (
+                                    <button
+                                        key={stop.id}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedStopId(stop.id);
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase border transition-all flex items-center gap-1.5 shrink-0 ${
+                                            isStopActive 
+                                                ? 'bg-orange-500 text-white border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)] scale-105' 
+                                                : isStopCompleted 
+                                                    ? 'bg-green-600/10 text-green-500 border-green-600/30' 
+                                                    : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${
+                                            isStopCompleted ? 'bg-green-500' : stop.status === OrderStatus.IN_TRANSIT ? 'bg-orange-500 animate-pulse' : 'bg-gray-400'
+                                        }`} />
+                                        Parada {stop.stopNumber || '?'}: {stop.clientName.split(' ')[0]}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    <h2 className={`text-xl md:text-2xl font-bold ${isEmbedded ? (isDark ? 'text-white' : 'text-gray-950') : (isDark ? 'text-white' : 'text-gray-900')}`}>{displayedOrder.clientName}</h2>
+                    {displayedOrder.clientPhone && (
                         <div className="flex items-center justify-center gap-2 mt-0.5 text-gray-500 dark:text-gray-400">
                             <Phone size={12} />
-                            <span className="text-sm font-medium">{order.clientPhone}</span>
+                            <span className="text-sm font-medium">{displayedOrder.clientPhone}</span>
                         </div>
                     )}
                     <div className="flex items-center justify-center gap-2 mt-1 text-orange-500 dark:text-orange-400">
                         <Clock size={14} />
                         <span className="text-sm font-mono font-bold">
-                            Chegada em {new Date(new Date(order.createdAt).getTime() + 40 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            Chegada em {new Date(new Date(displayedOrder.createdAt).getTime() + 40 * 60 * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                     </div>
                 </div>
@@ -156,8 +204,14 @@ const OrderContent: React.FC<{
                 <div className={`bg-brand-gradient-premium border border-white/10 rounded-2xl md:rounded-3xl p-4 md:p-6 text-center shadow-[0_15px_30px_rgba(211,84,0,0.2)]`}>
                     <span className="text-[9px] md:text-[10px] font-black text-white/60 uppercase tracking-[0.3em] block mb-1 md:mb-2">Número do Pedido</span>
                     <span className={`text-3xl md:text-5xl font-mono font-black tracking-[0.1em] md:tracking-[0.2em] text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]`}>
-                        #{order.display_id || order.id.slice(-4)}
+                        #{displayedOrder.display_id || displayedOrder.id.slice(-4)}
                     </span>
+                    {displayedOrder.pickupCode && (
+                        <div className="mt-3 text-[10px] font-black uppercase text-white/90 tracking-widest bg-black/40 py-1.5 px-4 rounded-xl inline-flex items-center gap-2 border border-white/5 shadow-inner">
+                            <span className="opacity-60">Cód. Coleta:</span>
+                            <span className="font-mono text-sm text-yellow-400 font-black drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]">{displayedOrder.pickupCode}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Financials & Source (Grid) */}
@@ -168,7 +222,12 @@ const OrderContent: React.FC<{
                             <Banknote className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Valor Pedido</span>
                         </div>
-                        <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        <span className={`text-lg md:text-xl font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>{(Number(displayedOrder.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        {order.isBatch && (
+                            <div className="text-[9px] font-black text-white/30 uppercase tracking-wider mt-1.5 border-t border-white/5 pt-1 truncate">
+                                Total Lote: {(Number(order.deliveryValue) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </div>
+                        )}
                     </div>
 
                     {/* FRETE */}
@@ -187,8 +246,8 @@ const OrderContent: React.FC<{
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Pagamento</span>
                         </div>
                         <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {getPaymentIcon(order.paymentMethod)}
-                            <span className="truncate">{order.paymentMethod === 'CARD' ? 'Cartão' : order.paymentMethod === 'CASH' ? 'Dinheiro' : order.paymentMethod}</span>
+                            {getPaymentIcon(displayedOrder.paymentMethod)}
+                            <span className="truncate">{displayedOrder.paymentMethod === 'CARD' ? 'Cartão' : displayedOrder.paymentMethod === 'CASH' ? 'Dinheiro' : displayedOrder.paymentMethod}</span>
                         </div>
                     </div>
 
@@ -199,28 +258,28 @@ const OrderContent: React.FC<{
                             <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Solicitado via</span>
                         </div>
                         <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            {order.requestSource === 'WHATSAPP' ? <MessageCircle className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-green-500" /> :
-                                order.requestSource === 'PHONE' ? <Phone className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-blue-500" /> :
-                                order.requestSource === 'IFOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-red-500" /> :
-                                order.requestSource === '99FOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-yellow-500" /> :
+                            {displayedOrder.requestSource === 'WHATSAPP' ? <MessageCircle className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-green-500" /> :
+                                displayedOrder.requestSource === 'PHONE' ? <Phone className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-blue-500" /> :
+                                displayedOrder.requestSource === 'IFOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-red-500" /> :
+                                displayedOrder.requestSource === '99FOOD' ? <ShoppingBag className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-yellow-500" /> :
                                     <Globe className="w-[12px] h-[12px] md:w-[14px] md:h-[14px] text-orange-500" />}
-                            <span>{order.requestSource === 'WHATSAPP' ? 'WhatsApp' :
-                                order.requestSource === 'PHONE' ? 'Telefone' :
-                                order.requestSource === 'IFOOD' ? 'iFood' :
-                                order.requestSource === '99FOOD' ? '99Food' : 'Site'}</span>
+                            <span>{displayedOrder.requestSource === 'WHATSAPP' ? 'WhatsApp' :
+                                displayedOrder.requestSource === 'PHONE' ? 'Telefone' :
+                                displayedOrder.requestSource === 'IFOOD' ? 'iFood' :
+                                displayedOrder.requestSource === '99FOOD' ? '99Food' : 'Site'}</span>
                         </div>
                     </div>
 
                     {/* VEHICLE TYPE */}
-                    {order.vehicleType && (
+                    {(displayedOrder.vehicleType || order.vehicleType) && (
                         <div className={`rounded-2xl p-3 md:p-4 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5 hover:bg-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'} col-span-2`}>
                             <div className="flex items-center gap-2 mb-1 md:mb-2">
-                                {order.vehicleType === 'bike' ? <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : order.vehicleType === 'carro' ? <Car className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />}
+                                {(displayedOrder.vehicleType || order.vehicleType) === 'bike' ? <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : (displayedOrder.vehicleType || order.vehicleType) === 'carro' ? <Car className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} /> : <Bike className={`w-[12px] h-[12px] md:w-[14px] md:h-[14px] ${isDark ? 'text-white/20' : 'text-gray-400'}`} />}
                                 <span className={`text-[9px] md:text-[10px] uppercase font-black tracking-widest ${isDark ? 'text-white/40' : 'text-gray-500'}`}>Veículo Solicitado</span>
                             </div>
                             <div className={`flex items-center gap-2 font-black text-xs md:text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {order.vehicleType === 'bike' ? <Bike className="text-orange-500" size={14} /> : order.vehicleType === 'carro' ? <Car className="text-orange-500" size={14} /> : <Bike className="text-orange-500" size={14} />}
-                                <span className="capitalize">{order.vehicleType}</span>
+                                {(displayedOrder.vehicleType || order.vehicleType) === 'bike' ? <Bike className="text-orange-500" size={14} /> : (displayedOrder.vehicleType || order.vehicleType) === 'carro' ? <Car className="text-orange-500" size={14} /> : <Bike className="text-orange-500" size={14} />}
+                                <span className="capitalize">{displayedOrder.vehicleType || order.vehicleType}</span>
                             </div>
                         </div>
                     )}
@@ -236,14 +295,14 @@ const OrderContent: React.FC<{
                             <div>
                                 <span className={`text-[10px] uppercase font-black tracking-widest block mb-1 ${isDark ? 'text-white/30' : 'text-gray-500'}`}>Categoria do Cliente</span>
                                 <div className="flex items-center gap-2">
-                                    {order.clientTier === 'GOLD' && <Trophy size={16} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]" />}
-                                    {order.clientTier === 'SILVER' && <Medal size={16} className="text-gray-400 drop-shadow-[0_0_8px_rgba(156,163,175,0.5)]" />}
-                                    {order.clientTier === 'BRONZE' && <Medal size={16} className="text-orange-600 drop-shadow-[0_0_8px_rgba(234,88,12,0.5)]" />}
-                                    {(!order.clientTier || order.clientTier === 'NEW') && <UserPlus size={16} className="text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
+                                    {displayedOrder.clientTier === 'GOLD' && <Trophy size={16} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]" />}
+                                    {displayedOrder.clientTier === 'SILVER' && <Medal size={16} className="text-gray-400 drop-shadow-[0_0_8px_rgba(156,163,175,0.5)]" />}
+                                    {displayedOrder.clientTier === 'BRONZE' && <Medal size={16} className="text-orange-600 drop-shadow-[0_0_8px_rgba(234,88,12,0.5)]" />}
+                                    {(!displayedOrder.clientTier || displayedOrder.clientTier === 'NEW') && <UserPlus size={16} className="text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
                                     <span className={`text-base font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                        {order.clientTier === 'GOLD' ? 'Ouro' :
-                                            order.clientTier === 'SILVER' ? 'Prata' :
-                                                order.clientTier === 'BRONZE' ? 'Bronze' : 'Cliente Novo'}
+                                        {displayedOrder.clientTier === 'GOLD' ? 'Ouro' :
+                                            displayedOrder.clientTier === 'SILVER' ? 'Prata' :
+                                                displayedOrder.clientTier === 'BRONZE' ? 'Bronze' : 'Cliente Novo'}
                                     </span>
                                 </div>
                             </div>
@@ -251,19 +310,19 @@ const OrderContent: React.FC<{
                         <div className="text-right">
                             <span className={`text-[10px] uppercase font-black tracking-widest block mb-1 ${isDark ? 'text-white/30' : 'text-gray-500'}`}>Pedido em</span>
                             <div className={`flex flex-col items-end gap-0.5 text-xs font-bold ${isDark ? 'text-white/60' : 'text-gray-700'}`}>
-                                <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                                <span className={`text-[10px] italic font-mono ${isDark ? 'opacity-70 text-white' : 'text-gray-500'}`}>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span>{new Date(displayedOrder.createdAt).toLocaleDateString()}</span>
+                                <span className={`text-[10px] italic font-mono ${isDark ? 'opacity-70 text-white' : 'text-gray-500'}`}>{new Date(displayedOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Botões de Contato do Cliente */}
-                    {order.clientPhone && (
+                    {displayedOrder.clientPhone && (
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const digits = order.clientPhone?.replace(/\D/g, '') || '';
+                                    const digits = displayedOrder.clientPhone?.replace(/\D/g, '') || '';
                                     // Add Brazil DDI +55 if not already present
                                     const phone = digits.startsWith('55') ? digits : `55${digits}`;
                                     window.open(`https://wa.me/${phone}`, '_blank');
@@ -275,7 +334,7 @@ const OrderContent: React.FC<{
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    const digits = order.clientPhone?.replace(/\D/g, '') || '';
+                                    const digits = displayedOrder.clientPhone?.replace(/\D/g, '') || '';
                                     window.open(`tel:+55${digits.startsWith('55') ? digits.slice(2) : digits}`, '_self');
                                 }}
                                 className="h-10 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 border border-blue-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
@@ -292,8 +351,8 @@ const OrderContent: React.FC<{
                          Histórico do Fluxo
                     </h3>
                     <div className={`relative border-l-2 ml-4 space-y-8 ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
-                        {order.events && order.events.length > 0 ? (
-                            order.events.map((event, index) => (
+                        {displayedOrder.events && displayedOrder.events.length > 0 ? (
+                            displayedOrder.events.map((event, index) => (
                                 <div key={index} className="relative pl-8">
                                     <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 shadow-[0_0_10px_rgba(255,107,0,0.3)] ${index === 0 ? 'bg-orange-500 border-orange-500 scale-110' : (isDark ? 'bg-gray-900 border-white/10' : 'bg-white border-gray-200')}`}></div>
                                     <div className="flex flex-col">
@@ -327,7 +386,7 @@ const OrderContent: React.FC<{
                 </button>
 
                 {/* Ação de Aceitar Pedido do iFood se estiver Pendente e não aceito */}
-                {order.requestSource === 'IFOOD' && order.status === OrderStatus.PENDING && !order.acceptedAt && (
+                {displayedOrder.requestSource === 'IFOOD' && displayedOrder.status === OrderStatus.PENDING && !displayedOrder.acceptedAt && (
                     <button
                         disabled={isAccepting}
                         onClick={async (e) => {
@@ -335,7 +394,7 @@ const OrderContent: React.FC<{
                             if (onAcceptIFoodOrder) {
                                 setIsAccepting(true);
                                 try {
-                                    await onAcceptIFoodOrder(order.id);
+                                    await onAcceptIFoodOrder(displayedOrder.id);
                                 } catch (err) {
                                     console.error(err);
                                 } finally {
@@ -359,7 +418,7 @@ const OrderContent: React.FC<{
                 )}
 
                 {/* Ação de Aceitar Pedido do 99Food se estiver Pendente e não aceito */}
-                {order.requestSource === '99FOOD' && order.status === OrderStatus.PENDING && !order.acceptedAt && (
+                {displayedOrder.requestSource === '99FOOD' && displayedOrder.status === OrderStatus.PENDING && !displayedOrder.acceptedAt && (
                     <button
                         disabled={isAccepting}
                         onClick={async (e) => {
@@ -367,7 +426,7 @@ const OrderContent: React.FC<{
                             if (onAccept99FoodOrder) {
                                 setIsAccepting(true);
                                 try {
-                                    await onAccept99FoodOrder(order.id);
+                                    await onAccept99FoodOrder(displayedOrder.id);
                                 } catch (err) {
                                     console.error(err);
                                 } finally {
@@ -391,15 +450,15 @@ const OrderContent: React.FC<{
                 )}
 
                 {/* Chamar Motoboy (Primary Action for External Orders) */}
-                {(order.requestSource === 'WHATSAPP' || (order.requestSource === 'IFOOD' && order.status !== OrderStatus.PENDING)) && !order.courier && (
+                {(displayedOrder.requestSource === 'WHATSAPP' || (displayedOrder.requestSource === 'IFOOD' && displayedOrder.status !== OrderStatus.PENDING)) && !order.courier && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             if (onCallCourier) {
-                                onCallCourier(order);
+                                onCallCourier(displayedOrder);
                             } else {
                                 // Fallback: Dispatch custom event for DeliveryForm
-                                const event = new CustomEvent('fill-delivery-from-order', { detail: order });
+                                const event = new CustomEvent('fill-delivery-from-order', { detail: displayedOrder });
                                 window.dispatchEvent(event);
                                 onClose?.();
                             }
@@ -411,7 +470,7 @@ const OrderContent: React.FC<{
                 )}
 
                 <button
-                    onClick={(e) => { e.stopPropagation(); onCancelClick && onCancelClick(order); }}
+                    onClick={(e) => { e.stopPropagation(); onCancelClick && onCancelClick(displayedOrder); }}
                     className="flex-1 h-12 bg-red-500/5 hover:bg-red-500/10 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 border border-red-500/20"
                 >
                     <Trash2 size={16} /> Cancelar
@@ -419,12 +478,12 @@ const OrderContent: React.FC<{
             </div>
 
             {/* Tracking Share Action (Only when In Transit) */}
-            {(order.status === OrderStatus.IN_TRANSIT || order.status === OrderStatus.TO_STORE) && (
+            {(displayedOrder.status === OrderStatus.IN_TRANSIT || displayedOrder.status === OrderStatus.TO_STORE) && (
                 <div className={`px-6 pb-6 ${isEmbedded ? (isDark ? 'bg-black/60' : 'bg-gray-50') : (isDark ? 'bg-black/60' : 'bg-white')}`}>
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            const link = `${window.location.origin}/track/${order.id}`;
+                            const link = `${window.location.origin}/track/${displayedOrder.id}`;
                             navigator.clipboard.writeText(link).then(() => {
                                 alert('Link de rastreamento copiado!');
                             });
