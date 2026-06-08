@@ -1361,8 +1361,8 @@ function App() {
             let batchIdToUse = stopsToProcess.length > 1 ? crypto.randomUUID() : undefined;
             const targetCourierId = data.targetCourierId;
             let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
-            let startStopNumber = 1;
             let targetStatusToUse = undefined;
+            let activeDeliveriesList: any[] = [];
 
             if (targetCourierId) {
                 // Fetch active deliveries for targetCourierId to sync batching, status and collection code
@@ -1373,38 +1373,10 @@ function App() {
                     .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'returning']);
                 
                 if (activeDeliveries && activeDeliveries.length > 0) {
-                    const activeBatchId = activeDeliveries.find(d => d.batch_id)?.batch_id;
+                    activeDeliveriesList = activeDeliveries;
+                    batchIdToUse = activeDeliveries.find(d => d.batch_id)?.batch_id || crypto.randomUUID();
                     targetStatusToUse = activeDeliveries[0].status;
                     finalPickupCode = activeDeliveries[0].collection_code || finalPickupCode;
-
-                    if (activeBatchId) {
-                        batchIdToUse = activeBatchId;
-                        const stopNumbers = activeDeliveries.map(d => d.stop_number || d.items?.stopNumber || 0);
-                        startStopNumber = Math.max(...stopNumbers, 0) + 1;
-                    } else {
-                        // Generate a new batch ID and assign to existing ones
-                        batchIdToUse = crypto.randomUUID();
-                        for (let idx = 0; idx < activeDeliveries.length; idx++) {
-                            const existingDelivery = activeDeliveries[idx];
-                            const stopNum = idx + 1;
-                            const updatedItems = {
-                                ...existingDelivery.items,
-                                stopNumber: stopNum,
-                                batchId: batchIdToUse,
-                                pickupCode: finalPickupCode
-                            };
-                            await supabase
-                                .from('deliveries')
-                                .update({
-                                    batch_id: batchIdToUse,
-                                    stop_number: stopNum,
-                                    collection_code: finalPickupCode,
-                                    items: updatedItems
-                                })
-                                .eq('id', existingDelivery.id);
-                        }
-                        startStopNumber = activeDeliveries.length + 1;
-                    }
                 }
             }
 
@@ -1422,6 +1394,60 @@ function App() {
                 }, { lat: storeCenter.lat, lng: storeCenter.lng });
                 return { ...stop, coords };
             }));
+
+            // Combine all destinations for route optimization
+            const allDestinations: { id?: string; lat: number; lng: number; isNew: boolean; index?: number }[] = [];
+            
+            activeDeliveriesList.forEach(d => {
+                const lat = d.destinationLat || d.destination_lat || d.items?.destinationLat || d.items?.destination_lat || storeCenter.lat;
+                const lng = d.destinationLng || d.destination_lng || d.items?.destinationLng || d.items?.destination_lng || storeCenter.lng;
+                allDestinations.push({ id: d.id, lat, lng, isNew: false });
+            });
+
+            geocodedStops.forEach((stop, index) => {
+                const lat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
+                const lng = stop.coords?.lng || (storeCenter.lng + (Math.random() - 0.5) * 0.015);
+                allDestinations.push({ lat, lng, isNew: true, index });
+            });
+
+            const storeCoords: [number, number] = [storeCenter.lat, storeCenter.lng];
+            const routePoints: [number, number][] = [storeCoords, ...allDestinations.map(d => [d.lat, d.lng] as [number, number])];
+            const optimizedIndices = await optimizeRoute(routePoints, false);
+
+            // Map each destination to its optimized stop order (1-indexed)
+            const stopNumberMap = new Map<string, number>();
+            const newStopsOrder: number[] = [];
+
+            allDestinations.forEach((dest, idx) => {
+                const visitOrder = optimizedIndices.indexOf(idx + 1);
+                const stopNum = visitOrder !== -1 ? visitOrder : idx + 1;
+                if (dest.isNew) {
+                    newStopsOrder[dest.index!] = stopNum;
+                } else if (dest.id) {
+                    stopNumberMap.set(dest.id, stopNum);
+                }
+            });
+
+            // Update existing active deliveries in database
+            for (let idx = 0; idx < activeDeliveriesList.length; idx++) {
+                const existingDelivery = activeDeliveriesList[idx];
+                const stopNum = stopNumberMap.get(existingDelivery.id) || (idx + 1);
+                const updatedItems = {
+                    ...existingDelivery.items,
+                    stopNumber: stopNum,
+                    batchId: batchIdToUse,
+                    pickupCode: finalPickupCode
+                };
+                await supabase
+                    .from('deliveries')
+                    .update({
+                        batch_id: batchIdToUse,
+                        stop_number: stopNum,
+                        collection_code: finalPickupCode,
+                        items: updatedItems
+                    })
+                    .eq('id', existingDelivery.id);
+            }
 
             const payloads = geocodedStops.map((stop, index) => {
                 const phoneDigits = stop.clientPhone.replace(/\D/g, '');
@@ -1452,7 +1478,7 @@ function App() {
                     console.warn(`⚠️ [App] Geocoding failed for stop #${index + 1}, using random fallback.`);
                 }
 
-                const currentStopNum = startStopNumber + index;
+                const currentStopNum = newStopsOrder[index] || (activeDeliveriesList.length + index + 1);
                 return {
                     id: crypto.randomUUID(),
                     store_id: session.user.id,
@@ -1706,50 +1732,6 @@ function App() {
             
             if (fetchError) throw fetchError;
 
-            let batchIdToUse = null;
-            let startStopNumber = 1;
-            let targetStatusToUse = undefined;
-            let finalCollectionCode = sortedOrders[0]?.pickupCode || Math.floor(1000 + Math.random() * 9000).toString();
-
-            if (activeDeliveries && activeDeliveries.length > 0) {
-                // Determine target status, collection code and batch ID from existing active deliveries
-                const activeBatchId = activeDeliveries.find(d => d.batch_id)?.batch_id;
-                targetStatusToUse = activeDeliveries[0].status;
-                finalCollectionCode = activeDeliveries[0].collection_code;
-
-                if (activeBatchId) {
-                    batchIdToUse = activeBatchId;
-                    const stopNumbers = activeDeliveries.map(d => d.stop_number || d.items?.stopNumber || 0);
-                    startStopNumber = Math.max(...stopNumbers, 0) + 1;
-                } else {
-                    // Generate new batch ID and assign to existing ones
-                    batchIdToUse = crypto.randomUUID();
-                    for (let idx = 0; idx < activeDeliveries.length; idx++) {
-                        const existingDelivery = activeDeliveries[idx];
-                        const stopNum = idx + 1;
-                        const updatedItems = {
-                            ...existingDelivery.items,
-                            stopNumber: stopNum,
-                            batchId: batchIdToUse,
-                            pickupCode: finalCollectionCode
-                        };
-                        await supabase
-                            .from('deliveries')
-                            .update({
-                                batch_id: batchIdToUse,
-                                stop_number: stopNum,
-                                collection_code: finalCollectionCode,
-                                items: updatedItems
-                            })
-                            .eq('id', existingDelivery.id);
-                    }
-                    startStopNumber = activeDeliveries.length + 1;
-                }
-            } else {
-                batchIdToUse = orderIds.length > 1 ? crypto.randomUUID() : null;
-                startStopNumber = 1;
-            }
-
             // Pre-calculate earnings and store freight based on pricing ranking (sorted by price descending)
             const pricingMap = new Map<string, { earnings: number; storeFreight: number }>();
             for (let i = 0; i < sortedOrders.length; i++) {
@@ -1780,31 +1762,66 @@ function App() {
                 pricingMap.set(order.id, { earnings: newEarnings, storeFreight: calculatedStoreFreight });
             }
 
-            // Perform route optimization on selectedOrders
+            let batchIdToUse = null;
+            let targetStatusToUse = undefined;
+            let finalCollectionCode = sortedOrders[0]?.pickupCode || Math.floor(1000 + Math.random() * 9000).toString();
+
+            if (activeDeliveries && activeDeliveries.length > 0) {
+                batchIdToUse = activeDeliveries.find(d => d.batch_id)?.batch_id || crypto.randomUUID();
+                targetStatusToUse = activeDeliveries[0].status;
+                finalCollectionCode = activeDeliveries[0].collection_code;
+            } else {
+                batchIdToUse = orderIds.length > 1 ? crypto.randomUUID() : null;
+            }
+
+            // Combine all active orders (existing ones and new ones) to perform route optimization on the whole set
+            const existingActive = activeDeliveries || [];
+            const allActiveOrders = [...existingActive, ...selectedOrders];
+
             const storeCenter = realStoreProfile || STORE_PROFILE;
             const storeCoords: [number, number] = [storeCenter.lat, storeCenter.lng];
-            const destinations: [number, number][] = selectedOrders.map(o => [
-                o.destinationLat || storeCenter.lat,
-                o.destinationLng || storeCenter.lng
-            ]);
-            
+            const destinations: [number, number][] = allActiveOrders.map(d => {
+                const lat = d.destinationLat || d.destination_lat || d.items?.destinationLat || d.items?.destination_lat;
+                const lng = d.destinationLng || d.destination_lng || d.items?.destinationLng || d.items?.destination_lng;
+                return [lat || storeCenter.lat, lng || storeCenter.lng] as [number, number];
+            });
+
             const routePoints: [number, number][] = [storeCoords, ...destinations];
             const optimizedIndices = await optimizeRoute(routePoints, false);
 
-            // Map each selected order to its optimized stop order (1-indexed)
-            const stopOrders = selectedOrders.map((order, idx) => {
+            // Create a map of order ID -> optimized stop_number (1-indexed)
+            const stopNumberMap = new Map<string, number>();
+            allActiveOrders.forEach((order, idx) => {
                 const visitOrder = optimizedIndices.indexOf(idx + 1);
                 const stopNum = visitOrder !== -1 ? visitOrder : idx + 1;
-                return { order, stopNum };
+                stopNumberMap.set(order.id, stopNum);
             });
 
-            // Sort by optimized stop sequence
-            const sortedByRoute = [...stopOrders].sort((a, b) => a.stopNum - b.stopNum);
+            // Update existing active deliveries in database to sync the new batch_id, collection_code, and optimized stop_number
+            for (let idx = 0; idx < existingActive.length; idx++) {
+                const existingDelivery = existingActive[idx];
+                const stopNum = stopNumberMap.get(existingDelivery.id) || (idx + 1);
+                const updatedItems = {
+                    ...existingDelivery.items,
+                    stopNumber: stopNum,
+                    batchId: batchIdToUse,
+                    pickupCode: finalCollectionCode
+                };
+                await supabase
+                    .from('deliveries')
+                    .update({
+                        batch_id: batchIdToUse,
+                        stop_number: stopNum,
+                        collection_code: finalCollectionCode,
+                        items: updatedItems
+                    })
+                    .eq('id', existingDelivery.id);
+            }
 
-            for (let i = 0; i < sortedByRoute.length; i++) {
-                const { order, stopNum } = sortedByRoute[i];
+            for (let i = 0; i < sortedOrders.length; i++) {
+                const order = sortedOrders[i];
                 const pricing = pricingMap.get(order.id) || { earnings: 0, storeFreight: 0 };
-                const distMeters = (order.distanceKm || 1.2) * 1000;
+                const stopNum = stopNumberMap.get(order.id) || (existingActive.length + i + 1);
                 
                 const currentStoreFreight = order.storeFreight || 0;
                 let finalStoreFreight = currentStoreFreight;
@@ -1842,17 +1859,16 @@ function App() {
                     finalStoreFreight = 0;
                 }
 
-                const currentStopNum = startStopNumber + stopNum - 1;
                 const updatePayload: any = {
                     driver_id: courierId,
                     batch_id: batchIdToUse,
                     collection_code: finalCollectionCode,
                     earnings: pricing.earnings,
-                    stop_number: currentStopNum,
+                    stop_number: stopNum,
                     items: {
                         ...order, // Keep existing items
                         storeFreight: finalStoreFreight,
-                        stopNumber: currentStopNum,
+                        stopNumber: stopNum,
                         batchId: batchIdToUse,
                         pickupCode: finalCollectionCode
                     }
