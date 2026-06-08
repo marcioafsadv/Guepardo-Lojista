@@ -1058,7 +1058,9 @@ function App() {
                 payment_method: 'SYSTEM'
             });
 
-            if (txError) throw txError;
+            if (txError) {
+                console.error("❌ [App] Error logging wallet transaction:", txError);
+            }
 
             // 2. Decrement wallet balance
             const { error: balanceError } = await supabase.rpc('decrement_wallet_balance', {
