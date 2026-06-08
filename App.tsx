@@ -453,7 +453,9 @@ function App() {
             setRealStoreProfile({
                 id: data.id, name: data.fantasy_name || data.company_name, address: fullAddress,
                 lat, lng, logo_url: data.logo_url, wallet_balance: data.wallet_balance || 0,
-                status: data.status || 'fechada', onboarding_status: data.onboarding_status || 'pending'
+                status: data.status || 'fechada', onboarding_status: data.onboarding_status || 'pending',
+                is_open_mode: data.is_open_mode,
+                active_fixed_drivers: data.active_fixed_drivers || []
             });
         }
     }, [session?.user?.id]);
@@ -1034,6 +1036,153 @@ function App() {
         }
     };
 
+    const handleActivateFixedCourier = async (courierId: string) => {
+        if (!session?.user?.id) return;
+        const currentBalance = realStoreProfile?.wallet_balance || 0;
+        
+        if (currentBalance < 200) {
+            alert("Saldo insuficiente para ativar um entregador fixo. Recarregue a sua carteira.");
+            throw new Error("INSUFFICIENT_FUNDS");
+        }
+
+        try {
+            console.log(`🔌 [App] Activating fixed courier: ${courierId}`);
+            
+            // 1. Log transaction
+            const { error: txError } = await supabase.from('wallet_transactions').insert({
+                store_id: session.user.id,
+                amount: 200.00,
+                type: 'PAYMENT',
+                status: 'CONFIRMED',
+                description: `Diária Turno Fixo - Guepardo Open`,
+                payment_method: 'SYSTEM'
+            });
+
+            if (txError) throw txError;
+
+            // 2. Decrement wallet balance
+            const { error: balanceError } = await supabase.rpc('decrement_wallet_balance', {
+                row_id: session.user.id,
+                amount: 200.00
+            });
+
+            if (balanceError) {
+                console.warn("decrement_wallet_balance RPC failed, falling back...", balanceError);
+                const newBalance = currentBalance - 200.00;
+                const { error: updateErr } = await supabase
+                    .from('stores')
+                    .update({ wallet_balance: newBalance })
+                    .eq('id', session.user.id);
+                if (updateErr) throw updateErr;
+            }
+
+            // 3. Update store profile
+            const currentFixed = realStoreProfile?.active_fixed_drivers || [];
+            if (!currentFixed.includes(courierId)) {
+                const updatedFixed = [...currentFixed, courierId];
+                const { error: storeUpdateErr } = await supabase
+                    .from('stores')
+                    .update({
+                        active_fixed_drivers: updatedFixed,
+                        is_open_mode: true
+                    })
+                    .eq('id', session.user.id);
+                
+                if (storeUpdateErr) throw storeUpdateErr;
+            }
+
+            await fetchStoreProfile();
+            console.log("✅ [App] Fixed courier activated successfully!");
+        } catch (err: any) {
+            console.error("❌ [App] Error activating fixed courier:", err);
+            alert(`Erro ao ativar entregador: ${err.message}`);
+            throw err;
+        }
+    };
+
+    const handleReleaseFixedCourier = async (courierId: string) => {
+        if (!session?.user?.id) return;
+        
+        try {
+            console.log(`🔌 [App] Releasing fixed courier: ${courierId}`);
+            
+            // 1. Remove courier from active_fixed_drivers list in DB
+            const currentFixed = realStoreProfile?.active_fixed_drivers || [];
+            const updatedFixed = currentFixed.filter(id => id !== courierId);
+            const nextIsOpenMode = updatedFixed.length > 0;
+
+            const { error: storeUpdateErr } = await supabase
+                .from('stores')
+                .update({
+                    active_fixed_drivers: updatedFixed,
+                    is_open_mode: nextIsOpenMode
+                })
+                .eq('id', session.user.id);
+            
+            if (storeUpdateErr) throw storeUpdateErr;
+
+            // 2. Log credit to the courier in transactions table
+            const randomTxId = Math.random().toString(36).substring(2, 11);
+            const todayStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            
+            const { error: courierTxErr } = await supabase.from('transactions').insert({
+                id: randomTxId,
+                user_id: courierId,
+                amount: 170.00,
+                type: 'Diária Turno Fixo',
+                status: 'COMPLETED',
+                week_id: 'current',
+                details: {
+                    duration: 'Turno Fixo',
+                    stops: 0,
+                    timeline: [
+                        { time: todayStr, description: 'Turno Fixo Ativado', status: 'done' },
+                        { time: todayStr, description: 'Turno Fixo Encerrado e Pago', status: 'done' }
+                    ]
+                }
+            });
+
+            if (courierTxErr) {
+                console.error("❌ [App] Error inserting transaction for courier:", courierTxErr);
+            }
+
+            // 3. Update courier daily stats
+            const todayDate = new Date().toISOString().split('T')[0];
+            const { data: currentStats, error: statsFetchErr } = await supabase
+                .from('daily_stats')
+                .select('*')
+                .eq('user_id', courierId)
+                .eq('date', todayDate)
+                .maybeSingle();
+
+            if (!statsFetchErr) {
+                const currentEarnings = currentStats?.earnings || 0;
+                const newEarnings = currentEarnings + 170.00;
+                const { error: statsUpsertErr } = await supabase
+                    .from('daily_stats')
+                    .upsert({
+                        user_id: courierId,
+                        date: todayDate,
+                        earnings: newEarnings
+                    }, {
+                        onConflict: 'user_id,date'
+                    });
+                
+                if (statsUpsertErr) {
+                    console.error("❌ [App] Error updating daily stats for courier:", statsUpsertErr);
+                }
+            }
+
+            await fetchStoreProfile();
+            console.log("✅ [App] Fixed courier released and paid successfully!");
+        } catch (err: any) {
+            console.error("❌ [App] Error releasing fixed courier:", err);
+            alert(`Erro ao liberar entregador: ${err.message}`);
+            throw err;
+        }
+    };
+
+
 
 
     useEffect(() => {
@@ -1241,19 +1390,22 @@ function App() {
                 const phoneDigits = stop.clientPhone.replace(/\D/g, '');
                 const phoneSuffix = phoneDigits.length >= 4 ? phoneDigits.slice(-4) : "6060";
 
-                // Earnings Calculation: Distribute total route earnings proportionally across all stops
                 const distMeters = (data.calculatedDistance || 1.2) * 1000;
-                
-                let totalBatchEarnings = data.isBatch 
-                    ? calculateFreightBatching(distMeters).courierFee 
-                    : calculateFreight(distMeters).courierFee;
+                const isFixedDriver = !!(targetCourierId && realStoreProfile?.active_fixed_drivers?.includes(targetCourierId));
+                let stopEarnings = 0;
+
+                if (!isFixedDriver) {
+                    let totalBatchEarnings = data.isBatch 
+                        ? calculateFreightBatching(distMeters).courierFee 
+                        : calculateFreight(distMeters).courierFee;
+                        
+                    if (data.isReturnRequired) {
+                        totalBatchEarnings += calculateReturnFee(distMeters).courierFee;
+                    }
                     
-                if (data.isReturnRequired) {
-                    totalBatchEarnings += calculateReturnFee(distMeters).courierFee;
+                    // Divide the total earning equally among all stops in the batch
+                    stopEarnings = Number((totalBatchEarnings / stopsToProcess.length).toFixed(2));
                 }
-                
-                // Divide the total earning equally among all stops in the batch
-                let stopEarnings = Number((totalBatchEarnings / stopsToProcess.length).toFixed(2));
 
                 // Fallback to random nearby if geocoding fails, but log it
                 const finalLat = stop.coords?.lat || (storeCenter.lat + (Math.random() - 0.5) * 0.015);
@@ -1499,6 +1651,7 @@ function App() {
         try {
             const batchId = crypto.randomUUID();
             const selectedOrders = orders.filter(o => orderIds.includes(o.id));
+            const isFixedDriver = !!(courierId && realStoreProfile?.active_fixed_drivers?.includes(courierId));
 
             // Update each order in Supabase
             // Rule: 100% of the highest fee + 50% of others
@@ -1507,14 +1660,64 @@ function App() {
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
                 const distMeters = (order.distanceKm || 1.2) * 1000;
-                let newEarnings = i === 0 
-                    ? calculateFreight(distMeters).courierFee 
-                    : calculateFreightBatching(distMeters).courierFee;
+                
+                let newEarnings = 0;
+                let calculatedStoreFreight = 0;
 
-                if (order.isReturnRequired) {
-                    newEarnings += calculateReturnFee(distMeters).courierFee;
+                if (!isFixedDriver) {
+                    newEarnings = i === 0 
+                        ? calculateFreight(distMeters).courierFee 
+                        : calculateFreightBatching(distMeters).courierFee;
+
+                    if (order.isReturnRequired) {
+                        newEarnings += calculateReturnFee(distMeters).courierFee;
+                    }
+                    newEarnings = Number(newEarnings.toFixed(2));
+
+                    calculatedStoreFreight = i === 0
+                        ? calculateFreight(distMeters).storeFee
+                        : calculateFreightBatching(distMeters).storeFee;
+                    if (order.isReturnRequired) {
+                        calculatedStoreFreight += calculateReturnFee(distMeters).storeFee;
+                    }
+                    calculatedStoreFreight = Number(calculatedStoreFreight.toFixed(2));
                 }
-                newEarnings = Number(newEarnings.toFixed(2));
+
+                const currentStoreFreight = order.storeFreight || 0;
+                let finalStoreFreight = currentStoreFreight;
+
+                // If assigning to a marketplace driver and the order has 0 store freight (e.g. webhook open mode), we debit now
+                if (!isFixedDriver && currentStoreFreight === 0 && calculatedStoreFreight > 0) {
+                    const currentBalance = realStoreProfile?.wallet_balance || 0;
+                    if (currentBalance < calculatedStoreFreight) {
+                        alert(`Saldo insuficiente para atribuir este pedido ao entregador do marketplace. Taxa necessária: R$ ${calculatedStoreFreight.toFixed(2)}. Saldo atual: R$ ${currentBalance.toFixed(2)}`);
+                        throw new Error("INSUFFICIENT_FUNDS");
+                    }
+
+                    console.log(`💰 [App] Debiting wallet for marketplace dispatch: R$ ${calculatedStoreFreight}`);
+                    
+                    // Log transaction
+                    await supabase.from('wallet_transactions').insert({
+                        store_id: session?.user?.id,
+                        amount: calculatedStoreFreight,
+                        type: 'PAYMENT',
+                        status: 'CONFIRMED',
+                        description: `Envio Marketplace #${order.display_id || order.id.slice(-4)}`,
+                        payment_method: 'SYSTEM'
+                    });
+
+                    // Update Balance
+                    const newBalance = currentBalance - calculatedStoreFreight;
+                    await supabase.from('stores')
+                        .update({ wallet_balance: newBalance })
+                        .eq('id', session?.user?.id);
+                    
+                    finalStoreFreight = calculatedStoreFreight;
+                }
+
+                if (isFixedDriver) {
+                    finalStoreFreight = 0;
+                }
 
                 const { error } = await supabase
                     .from('deliveries')
@@ -1525,6 +1728,7 @@ function App() {
                         stop_number: i + 1,
                         items: {
                             ...order, // Keep existing items
+                            storeFreight: finalStoreFreight,
                             stopNumber: i + 1,
                             batchId: batchId
                         }
@@ -1546,7 +1750,9 @@ function App() {
 
         } catch (error: any) {
             console.error('❌ [App] Error in handleBulkAssign:', error);
-            alert(`Erro na atribuição em lote: ${error.message}`);
+            if (error.message !== "INSUFFICIENT_FUNDS") {
+                alert(`Erro na atribuição em lote: ${error.message}`);
+            }
         }
     };
 
@@ -2607,6 +2813,8 @@ function App() {
                             onToggleStatus={toggleStoreStatus}
                             onAcceptIFoodOrder={handleAcceptIFoodOrder}
                             onAccept99FoodOrder={handleAccept99FoodOrder}
+                            onActivateFixedCourier={handleActivateFixedCourier}
+                            onReleaseFixedCourier={handleReleaseFixedCourier}
                         />
                     )}
 

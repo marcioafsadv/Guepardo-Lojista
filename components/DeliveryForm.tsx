@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car } from 'lucide-react';
-import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents } from '../types';
+import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents, StoreProfile } from '../types';
 import { BalanceAlertModal } from './BalanceAlertModal';
 import { StoreClosedAlertModal } from './StoreClosedAlertModal';
 import { classifyClient } from '../utils/clientClassifier';
@@ -43,6 +43,9 @@ interface DeliveryFormProps {
   onNavigateToWallet?: () => void;
   storeStatus?: string;
   onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
+  storeProfile?: StoreProfile;
+  onActivateFixedCourier?: (courierId: string) => Promise<void>;
+  onReleaseFixedCourier?: (courierId: string) => Promise<void>;
 }
 
 export const DeliveryForm = ({
@@ -63,11 +66,27 @@ export const DeliveryForm = ({
   onNavigateToWallet,
   balance = 0,
   storeStatus = 'fechada',
-  onToggleStatus
+  onToggleStatus,
+  storeProfile,
+  onActivateFixedCourier,
+  onReleaseFixedCourier
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const [showBalanceAlert, setShowBalanceAlert] = useState(false);
   const [showStoreClosedAlert, setShowStoreClosedAlert] = useState(false);
+
+  // Modo Guepardo Open
+  const [activeTab, setActiveTab] = useState<'express' | 'open'>((storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) ? 'open' : 'express');
+  const [selectedCourierToFix, setSelectedCourierToFix] = useState<string>('');
+  const [isActivatingFixed, setIsActivatingFixed] = useState(false);
+  const [showFixedConfirmModal, setShowFixedConfirmModal] = useState(false);
+  const [courierToFix, setCourierToFix] = useState<Courier | null>(null);
+
+  useEffect(() => {
+    if (storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) {
+      setActiveTab('open');
+    }
+  }, [storeProfile?.is_open_mode, storeProfile?.active_fixed_drivers]);
 
   // Client & Payment
   const [clientName, setClientName] = useState('');
@@ -185,20 +204,22 @@ export const DeliveryForm = ({
     o.status !== OrderStatus.CANCELED
   ));
 
+  const isFixedDriver = !!(targetCourierId && storeProfile?.active_fixed_drivers?.includes(targetCourierId));
+
   const baseFreightResult = isBatching
     ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
     : calculateFreight(distanceMeters);           // Base R$7,00 + R$1,32/km
 
-  const baseFreight = baseFreightResult.storeFee;
-  const baseCourierEarnings = baseFreightResult.courierFee;
+  const baseFreight = isFixedDriver ? 0 : baseFreightResult.storeFee;
+  const baseCourierEarnings = isFixedDriver ? 0 : baseFreightResult.courierFee;
 
   // ── Taxa de retorno ───────────────────────────────────────────────────
   const returnFeeActive = settings?.returnFeeActive ?? true;
   const returnFeeResult = (isReturnRequired && returnFeeActive)
     ? calculateReturnFee(distanceMeters)
     : null;
-  const returnFee = returnFeeResult?.storeFee ?? 0;
-  const returnCourierEarnings = returnFeeResult?.courierFee ?? 0;
+  const returnFee = (isReturnRequired && returnFeeActive && !isFixedDriver) ? (returnFeeResult?.storeFee ?? 0) : 0;
+  const returnCourierEarnings = (isReturnRequired && returnFeeActive && !isFixedDriver) ? (returnFeeResult?.courierFee ?? 0) : 0;
 
   const additionalStopsFee = 0;
   const totalFreight = baseFreight + returnFee + additionalStopsFee;
@@ -485,6 +506,163 @@ export const DeliveryForm = ({
           paddingRight: isFormCollapsed ? 0 : '4px'
         }}
       >
+        {/* TABS SELECTOR */}
+        <div className="grid grid-cols-2 gap-2 mb-4 bg-black/40 p-1 rounded-xl border border-white/5">
+          <button
+            type="button"
+            onClick={() => setActiveTab('express')}
+            className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all ${
+              activeTab === 'express'
+                ? 'bg-guepardo-accent text-white shadow-[0_0_15px_rgba(211,84,0,0.4)]'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Logística Express
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('open')}
+            className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'open'
+                ? 'bg-guepardo-accent text-white shadow-[0_0_15px_rgba(211,84,0,0.4)]'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            <FlaskConical size={12} className={activeTab === 'open' ? 'animate-pulse' : ''} />
+            Guepardo Open (Fixo)
+          </button>
+        </div>
+
+        {/* GUEPARDO OPEN PANEL */}
+        {activeTab === 'open' && (
+          <div className="mb-4 bg-black/40 border border-white/5 rounded-2xl p-4 space-y-4">
+            <h3 className="text-[10px] font-black text-guepardo-accent uppercase tracking-widest text-shadow-glow flex items-center gap-1.5">
+              <HardHat size={12} className="drop-shadow-glow" /> Entregadores Fixos Ativos
+            </h3>
+
+            {/* List Active Fixed Riders */}
+            <div className="space-y-2">
+              {storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0 ? (
+                availableCouriers
+                  .filter(c => storeProfile.active_fixed_drivers?.includes(c.id))
+                  .map(courier => (
+                    <div key={courier.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3">
+                        <img src={courier.photoUrl} alt={courier.name} className="w-8 h-8 rounded-lg object-cover border border-white/10" />
+                        <div>
+                          <p className="text-xs font-black text-white">{courier.name}</p>
+                          <p className="text-[9px] text-white/40 font-mono">{courier.vehiclePlate} • {courier.vehicleModel}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`Deseja encerrar o turno fixo de ${courier.name}?\nSerá creditado R$ 170,00 na carteira dele.`)) {
+                            if (onReleaseFixedCourier) await onReleaseFixedCourier(courier.id);
+                          }
+                        }}
+                        className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 hover:border-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Liberar
+                      </button>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-[10px] text-white/30 italic uppercase tracking-wider text-center py-2">
+                  Nenhum entregador ativado no turno fixo.
+                </p>
+              )}
+            </div>
+
+            {/* Add Courier to Fixed Shift Form */}
+            <div className="pt-2 border-t border-white/5 space-y-2">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-wider">Ativar Entregador Fixo no Turno (R$ 200,00/diária)</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCourierToFix}
+                  onChange={(e) => setSelectedCourierToFix(e.target.value)}
+                  className="flex-1 bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-[10px] font-black uppercase text-white placeholder-white/45 focus:border-guepardo-accent/80 outline-none"
+                >
+                  <option value="">Selecione um Guepardo...</option>
+                  {availableCouriers
+                    .filter(c => c.isOnline && !storeProfile?.active_fixed_drivers?.includes(c.id))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.vehiclePlate})
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedCourierToFix || isActivatingFixed}
+                  onClick={async () => {
+                    const c = availableCouriers.find(courier => courier.id === selectedCourierToFix);
+                    if (!c) return;
+                    setCourierToFix(c);
+                    setShowFixedConfirmModal(true);
+                  }}
+                  className="px-3 py-2 bg-guepardo-accent hover:bg-guepardo-accent/80 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  Ativar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOM CONFIRMATION MODAL FOR ATIVAR DIÁRIA */}
+        {showFixedConfirmModal && courierToFix && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#1A0900]/95 border border-guepardo-accent/30 p-6 rounded-[2rem] w-full max-w-[340px] text-center shadow-[0_20px_50px_rgba(0,0,0,0.8)] space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 bg-guepardo-accent/20 rounded-full flex items-center justify-center text-guepardo-accent mx-auto border border-guepardo-accent/30 shadow-glow-sm">
+                <HardHat size={28} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-white uppercase italic">Ativar Turno Fixo</h3>
+                <p className="text-xs text-white/70">
+                  Deseja fixar o entregador <strong className="text-white font-bold">{courierToFix.name}</strong> no turno de hoje?
+                </p>
+                <p className="text-[10px] text-guepardo-accent font-black uppercase tracking-wider pt-2">
+                  * Será debitado R$ 200,00 do seu saldo.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowFixedConfirmModal(false);
+                    setCourierToFix(null);
+                  }}
+                  className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white rounded-xl border border-white/10 text-xs font-black uppercase tracking-wider transition-all"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setIsActivatingFixed(true);
+                    try {
+                      if (onActivateFixedCourier) {
+                        await onActivateFixedCourier(courierToFix.id);
+                      }
+                      setSelectedCourierToFix('');
+                    } catch (err) {
+                      console.error(err);
+                    } finally {
+                      setIsActivatingFixed(false);
+                      setShowFixedConfirmModal(false);
+                      setCourierToFix(null);
+                    }
+                  }}
+                  className="flex-1 py-2.5 bg-guepardo-accent hover:bg-guepardo-accent/80 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-glow transition-all"
+                >
+                  Ativar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-2 md:space-y-3">
 
           {/* CUSTOMER SEARCH / NAME */}
@@ -998,11 +1176,14 @@ export const DeliveryForm = ({
 
                 {availableCouriers.some(c => c.isOnline) && (
                   <optgroup label="📍 Disponíveis (Direto)" className="text-white bg-guepardo-dark">
-                    {availableCouriers.filter(c => c.isOnline).map(courier => (
-                      <option key={courier.id} value={courier.id}>
-                        Guepardo: {courier.name} ({courier.vehiclePlate})
-                      </option>
-                    ))}
+                    {availableCouriers.filter(c => c.isOnline).map(courier => {
+                      const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                      return (
+                        <option key={courier.id} value={courier.id}>
+                          Guepardo: {courier.name} ({courier.vehiclePlate}){isFixed ? ' ★ [FIXO]' : ''}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 )}
 

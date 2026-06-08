@@ -165,7 +165,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`🔍 Buscando loja cadastrada com ifood_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng, fantasy_name, company_name, address")
+        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode")
         .eq("ifood_merchant_id", merchantId)
         .single();
 
@@ -301,6 +301,13 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           debugLogs.push("⚠️ Coordenadas da loja ou de destino ausentes. Usando valores mínimos de frete.");
         }
 
+        const isStoreOpenMode = store.is_open_mode === true;
+        if (isStoreOpenMode) {
+          storeFee = 0;
+          courierFee = 0;
+          debugLogs.push("ℹ️ Modo Guepardo Open ativo na loja. Frete e ganho zerados individualmente.");
+        }
+
         // Constrói objeto de items compatível com o Guepardo Lojista
         const itemsPayload = {
           displayId: orderDetails.displayId || orderId.slice(-4),
@@ -318,6 +325,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           clientPhone: clientPhone,
           requestSource: "IFOOD",
           isBatch: false,
+          is_open_mode: isStoreOpenMode,
           scheduledAt: parsedScheduledTime,
           storeFreight: storeFee
         };
@@ -557,6 +565,12 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
             storeFee = Number((storeFee + returnFee).toFixed(2));
           }
 
+          const isStoreOpenMode = store.is_open_mode === true;
+          if (isStoreOpenMode) {
+            storeFee = 0;
+            courierFee = 0;
+          }
+
           const displayId = orderDetails.displayId || orderId.slice(-4);
           const itemsPayload = {
             displayId: displayId,
@@ -574,6 +588,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
             clientPhone: clientPhone,
             requestSource: "IFOOD",
             isBatch: false,
+            is_open_mode: isStoreOpenMode,
             scheduledAt: parsedScheduledTime,
             storeFreight: storeFee
           };

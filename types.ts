@@ -165,6 +165,8 @@ export interface StoreProfile {
   location_photo_url?: string;
   ifood_merchant_id?: string;
   ninenine_merchant_id?: string;
+  is_open_mode?: boolean;
+  active_fixed_drivers?: string[]; // Lista de IDs de entregadores contratados no turno
 }
 
 export interface RouteStats {

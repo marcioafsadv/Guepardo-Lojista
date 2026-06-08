@@ -16,6 +16,8 @@ interface ActiveOrderCardProps {
   onConfirmReturn?: (orderId: string) => void;
   routeStats?: any;
   unreadCount?: number;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 // Helper for distance
@@ -40,7 +42,9 @@ const BASE_STEPS = [
 
 export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({ 
   order, storeLat, storeLng, onSimulateAccept, onChatClick, onCardClick, onTrackClick, onValidateClick, onConfirmReturn, onMarkAsReady, routeStats,
-  unreadCount = 0
+  unreadCount = 0,
+  isSelected = false,
+  onToggleSelect
 }) => {
   const [secondsWaiting, setSecondsWaiting] = useState(0);
   const [arrivalTimerSeconds, setArrivalTimerSeconds] = useState(0);
@@ -171,6 +175,17 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center gap-2 mb-2">
+            {onToggleSelect && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleSelect();
+                }}
+                className="w-4 h-4 rounded border-white/20 bg-black/60 text-guepardo-accent checked:bg-guepardo-accent focus:ring-0 cursor-pointer accent-orange-500"
+              />
+            )}
             <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-black/40 text-white/30 text-[9px] font-black uppercase tracking-[0.2em] border border-white/5">
               #{order.display_id || order.id.slice(-4)}
             </span>

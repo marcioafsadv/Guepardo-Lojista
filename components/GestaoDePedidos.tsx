@@ -49,6 +49,8 @@ interface GestaoDePedidosProps {
     setUnreadMessages: React.Dispatch<React.SetStateAction<Record<string, Partial<Record<ChatRoomType, number>>>>>;
     onAcceptIFoodOrder?: (orderId: string) => void;
     onAccept99FoodOrder?: (orderId: string) => void;
+    onActivateFixedCourier?: (courierId: string) => Promise<void>;
+    onReleaseFixedCourier?: (courierId: string) => Promise<void>;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -88,7 +90,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     unreadMessages,
     setUnreadMessages,
     onAcceptIFoodOrder,
-    onAccept99FoodOrder
+    onAccept99FoodOrder,
+    onActivateFixedCourier,
+    onReleaseFixedCourier
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -596,6 +600,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         onNavigateToWallet={() => onSelectView?.('wallet')}
                         storeStatus={storeProfile?.status}
                         onToggleStatus={onToggleStatus}
+                        storeProfile={storeProfile}
+                        onActivateFixedCourier={onActivateFixedCourier}
+                        onReleaseFixedCourier={onReleaseFixedCourier}
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}
@@ -645,6 +652,14 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 onMarkAsReady={onMarkAsReady}
                                 routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
                                 unreadCount={Object.values(unreadMessages[order.id] || {}).reduce((a, b) => a + (b || 0), 0)}
+                                isSelected={selectedOrderIds.includes(order.id)}
+                                onToggleSelect={() => {
+                                    setSelectedOrderIds(prev =>
+                                        prev.includes(order.id)
+                                            ? prev.filter(id => id !== order.id)
+                                            : [...prev, order.id]
+                                    );
+                                }}
                             />
                         ))}
 
@@ -682,19 +697,46 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
             {/* BATCH ACTION BAR */}
             {selectedOrderIds.length > 0 && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[340px] bg-guepardo-gray-900 border border-guepardo-accent shadow-2xl rounded-2xl p-4 z-50 ring-4 ring-orange-500/20 pointer-events-auto">
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-guepardo-accent p-1.5 rounded-lg text-white">
-                                    <Layers size={16} />
-                                </div>
-                                <span className="text-white text-xs font-black uppercase tracking-widest">{selectedOrderIds.length} selecionados</span>
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-[360px] bg-[#1A0900]/95 border border-guepardo-accent/40 shadow-[0_20px_50px_rgba(0,0,0,0.8)] rounded-2xl p-4 z-50 ring-4 ring-orange-500/10 pointer-events-auto flex flex-col gap-3 animate-in slide-in-from-bottom-5 duration-300">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-guepardo-accent p-1.5 rounded-lg text-white shadow-glow-sm">
+                                <Layers size={16} />
                             </div>
-                            <button onClick={() => setSelectedOrderIds([])} className="text-gray-400 hover:text-white">
-                                <X size={16} />
-                            </button>
+                            <span className="text-white text-xs font-black uppercase tracking-widest">{selectedOrderIds.length} selecionados</span>
                         </div>
+                        <button onClick={() => setSelectedOrderIds([])} className="text-white/40 hover:text-white transition-colors">
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-[9px] font-black text-white/40 uppercase tracking-wider block">Atribuir a um Guepardo</label>
+                        <select
+                            id="batch-assign-courier-select"
+                            className="w-full bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-[10px] font-black uppercase text-white placeholder-white/45 focus:border-guepardo-accent/80 outline-none"
+                            defaultValue=""
+                            onChange={async (e) => {
+                                const courierId = e.target.value;
+                                if (!courierId) return;
+
+                                if (window.confirm(`Confirmar atribuição em lote de ${selectedOrderIds.length} pedido(s)?`)) {
+                                    onBulkAssign(selectedOrderIds, courierId);
+                                    setSelectedOrderIds([]);
+                                }
+                            }}
+                        >
+                            <option value="">Selecione um Guepardo...</option>
+                            {availableCouriers
+                                .filter(c => c.isOnline)
+                                .map(courier => {
+                                    const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                                    return (
+                                        <option key={courier.id} value={courier.id} className="text-white bg-guepardo-dark">
+                                            {courier.name} ({courier.vehiclePlate}){isFixed ? ' ★ [FIXO]' : ''}
+                                        </option>
+                                    );
+                                })}
+                        </select>
                     </div>
                 </div>
             )}

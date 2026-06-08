@@ -144,7 +144,7 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`🔍 Buscando loja cadastrada com ninenine_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng, fantasy_name, company_name, address")
+        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode")
         .eq("ninenine_merchant_id", merchantId)
         .single();
 
@@ -211,6 +211,13 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
           courierFee = Number((6.00 + courierPart).toFixed(2));
         }
 
+        const isStoreOpenMode = store.is_open_mode === true;
+        if (isStoreOpenMode) {
+          storeFee = 0;
+          courierFee = 0;
+          debugLogs.push("ℹ️ Modo Guepardo Open ativo na loja. Frete e ganho zerados.");
+        }
+
         const itemsPayload = {
           displayId: orderDetails.display_id || orderId.slice(-4),
           addressStreet: formattedAddress.split(',')[0] || "Endereço",
@@ -224,6 +231,7 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
           clientPhone: clientPhone,
           requestSource: "99FOOD",
           isBatch: false,
+          is_open_mode: isStoreOpenMode,
           storeFreight: storeFee
         };
 
