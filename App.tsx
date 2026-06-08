@@ -1357,19 +1357,53 @@ function App() {
                 }))
             ];
 
-            const batchId = stopsToProcess.length > 1 ? crypto.randomUUID() : undefined;
+            let batchIdToUse = stopsToProcess.length > 1 ? crypto.randomUUID() : undefined;
             const targetCourierId = data.targetCourierId;
             let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+            let startStopNumber = 1;
+            let targetStatusToUse = undefined;
 
             if (targetCourierId) {
-                const courierOrders = orders.filter(o =>
-                    o.courier?.id === targetCourierId &&
-                    o.status !== OrderStatus.DELIVERED &&
-                    o.status !== OrderStatus.CANCELED &&
-                    o.pickupCode
-                );
-                if (courierOrders.length > 0) {
-                    finalPickupCode = courierOrders[0].pickupCode;
+                // Fetch active deliveries for targetCourierId to sync batching, status and collection code
+                const { data: activeDeliveries } = await supabase
+                    .from('deliveries')
+                    .select('*')
+                    .eq('driver_id', targetCourierId)
+                    .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'returning']);
+                
+                if (activeDeliveries && activeDeliveries.length > 0) {
+                    const activeBatchId = activeDeliveries.find(d => d.batch_id)?.batch_id;
+                    targetStatusToUse = activeDeliveries[0].status;
+                    finalPickupCode = activeDeliveries[0].collection_code || finalPickupCode;
+
+                    if (activeBatchId) {
+                        batchIdToUse = activeBatchId;
+                        const stopNumbers = activeDeliveries.map(d => d.stop_number || d.items?.stopNumber || 0);
+                        startStopNumber = Math.max(...stopNumbers, 0) + 1;
+                    } else {
+                        // Generate a new batch ID and assign to existing ones
+                        batchIdToUse = crypto.randomUUID();
+                        for (let idx = 0; idx < activeDeliveries.length; idx++) {
+                            const existingDelivery = activeDeliveries[idx];
+                            const stopNum = idx + 1;
+                            const updatedItems = {
+                                ...existingDelivery.items,
+                                stopNumber: stopNum,
+                                batchId: batchIdToUse,
+                                pickupCode: finalPickupCode
+                            };
+                            await supabase
+                                .from('deliveries')
+                                .update({
+                                    batch_id: batchIdToUse,
+                                    stop_number: stopNum,
+                                    collection_code: finalPickupCode,
+                                    items: updatedItems
+                                })
+                                .eq('id', existingDelivery.id);
+                        }
+                        startStopNumber = activeDeliveries.length + 1;
+                    }
                 }
             }
 
@@ -1417,6 +1451,7 @@ function App() {
                     console.warn(`⚠️ [App] Geocoding failed for stop #${index + 1}, using random fallback.`);
                 }
 
+                const currentStopNum = startStopNumber + index;
                 return {
                     id: crypto.randomUUID(),
                     store_id: session.user.id,
@@ -1425,11 +1460,15 @@ function App() {
                     customer_name: stop.clientName,
                     customer_address: stop.destination,
                     customer_phone_suffix: phoneSuffix,
-                    collection_code: phoneSuffix,
-                    status: stop.scheduled_at ? 'scheduled' : (isFixedDriver ? 'accepted' : 'pending'),
+                    collection_code: finalPickupCode,
+                    status: stop.scheduled_at 
+                        ? 'scheduled' 
+                        : (targetStatusToUse 
+                            ? targetStatusToUse 
+                            : (isFixedDriver ? 'accepted' : 'pending')),
                     driver_id: targetCourierId || null,
-                    batch_id: batchId,
-                    stop_number: index + 1,
+                    batch_id: batchIdToUse || null,
+                    stop_number: currentStopNum,
                     items: {
                         displayId: Math.floor(1000 + Math.random() * 9000),
                         paymentMethod: stop.paymentMethod,
@@ -1443,10 +1482,12 @@ function App() {
                         addressCity: stop.addressCity,
                         addressCep: stop.addressCep,
                         changeFor: stop.changeFor,
-                        stopNumber: index + 1,
+                        stopNumber: currentStopNum,
                         storeFreight: index === 0 ? data.storeFreight : 0, // Store total in the first stop for batch aggregation
                         scheduledAt: stop.scheduled_at || null,
-                        vehicleType: data.vehicleType || 'moto'
+                        vehicleType: data.vehicleType || 'moto',
+                        batchId: batchIdToUse || null,
+                        pickupCode: finalPickupCode
                     },
                     earnings: stopEarnings,
                     delivery_distance: (data.calculatedDistance || 1.2) / stopsToProcess.length,
@@ -1651,13 +1692,62 @@ function App() {
     const handleBulkAssign = async (orderIds: string[], courierId: string) => {
         console.log(`📦 [App] Bulk assigning ${orderIds.length} orders to courier ${courierId}`);
         try {
-            const batchId = crypto.randomUUID();
             const selectedOrders = orders.filter(o => orderIds.includes(o.id));
             const isFixedDriver = !!(courierId && realStoreProfile?.active_fixed_drivers?.includes(courierId));
-
-            // Update each order in Supabase
-            // Rule: 100% of the highest fee + 50% of others
             const sortedOrders = [...selectedOrders].sort((a, b) => b.estimatedPrice - a.estimatedPrice);
+
+            // Fetch active deliveries for the courier from database to check for existing batching
+            const { data: activeDeliveries, error: fetchError } = await supabase
+                .from('deliveries')
+                .select('*')
+                .eq('driver_id', courierId)
+                .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'returning']);
+            
+            if (fetchError) throw fetchError;
+
+            let batchIdToUse = null;
+            let startStopNumber = 1;
+            let targetStatusToUse = undefined;
+            let finalCollectionCode = sortedOrders[0]?.pickupCode || Math.floor(1000 + Math.random() * 9000).toString();
+
+            if (activeDeliveries && activeDeliveries.length > 0) {
+                // Determine target status, collection code and batch ID from existing active deliveries
+                const activeBatchId = activeDeliveries.find(d => d.batch_id)?.batch_id;
+                targetStatusToUse = activeDeliveries[0].status;
+                finalCollectionCode = activeDeliveries[0].collection_code;
+
+                if (activeBatchId) {
+                    batchIdToUse = activeBatchId;
+                    const stopNumbers = activeDeliveries.map(d => d.stop_number || d.items?.stopNumber || 0);
+                    startStopNumber = Math.max(...stopNumbers, 0) + 1;
+                } else {
+                    // Generate new batch ID and assign to existing ones
+                    batchIdToUse = crypto.randomUUID();
+                    for (let idx = 0; idx < activeDeliveries.length; idx++) {
+                        const existingDelivery = activeDeliveries[idx];
+                        const stopNum = idx + 1;
+                        const updatedItems = {
+                            ...existingDelivery.items,
+                            stopNumber: stopNum,
+                            batchId: batchIdToUse,
+                            pickupCode: finalCollectionCode
+                        };
+                        await supabase
+                            .from('deliveries')
+                            .update({
+                                batch_id: batchIdToUse,
+                                stop_number: stopNum,
+                                collection_code: finalCollectionCode,
+                                items: updatedItems
+                            })
+                            .eq('id', existingDelivery.id);
+                    }
+                    startStopNumber = activeDeliveries.length + 1;
+                }
+            } else {
+                batchIdToUse = orderIds.length > 1 ? crypto.randomUUID() : null;
+                startStopNumber = 1;
+            }
 
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
@@ -1721,20 +1811,25 @@ function App() {
                     finalStoreFreight = 0;
                 }
 
+                const currentStopNum = startStopNumber + i;
                 const updatePayload: any = {
                     driver_id: courierId,
-                    batch_id: batchId,
+                    batch_id: batchIdToUse,
+                    collection_code: finalCollectionCode,
                     earnings: newEarnings,
-                    stop_number: i + 1,
+                    stop_number: currentStopNum,
                     items: {
                         ...order, // Keep existing items
                         storeFreight: finalStoreFreight,
-                        stopNumber: i + 1,
-                        batchId: batchId
+                        stopNumber: currentStopNum,
+                        batchId: batchIdToUse,
+                        pickupCode: finalCollectionCode
                     }
                 };
 
-                if (isFixedDriver) {
+                if (targetStatusToUse) {
+                    updatePayload.status = targetStatusToUse;
+                } else if (isFixedDriver) {
                     updatePayload.status = 'accepted';
                 }
 

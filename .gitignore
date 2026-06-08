@@ -32,3 +32,8 @@ dist-ssr
 logs_evolution.txt
 test_payload.json
 v4_tunnel_logs_utf8.txt
+scratch/
+errors.txt
+typescript_errors.txt
+deploy_out.log
+output.log
