@@ -28,6 +28,7 @@ import {
 import { supabase } from './lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { geocodeAddress } from './utils/geocoding';
+import { optimizeRoute } from './utils/routing';
 import {
     calculateFreight,
     calculateFreightBatching,
@@ -1749,6 +1750,8 @@ function App() {
                 startStopNumber = 1;
             }
 
+            // Pre-calculate earnings and store freight based on pricing ranking (sorted by price descending)
+            const pricingMap = new Map<string, { earnings: number; storeFreight: number }>();
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
                 const distMeters = (order.distanceKm || 1.2) * 1000;
@@ -1774,24 +1777,52 @@ function App() {
                     }
                     calculatedStoreFreight = Number(calculatedStoreFreight.toFixed(2));
                 }
+                pricingMap.set(order.id, { earnings: newEarnings, storeFreight: calculatedStoreFreight });
+            }
 
+            // Perform route optimization on selectedOrders
+            const storeCenter = realStoreProfile || STORE_PROFILE;
+            const storeCoords: [number, number] = [storeCenter.lat, storeCenter.lng];
+            const destinations: [number, number][] = selectedOrders.map(o => [
+                o.destinationLat || storeCenter.lat,
+                o.destinationLng || storeCenter.lng
+            ]);
+            
+            const routePoints: [number, number][] = [storeCoords, ...destinations];
+            const optimizedIndices = await optimizeRoute(routePoints, false);
+
+            // Map each selected order to its optimized stop order (1-indexed)
+            const stopOrders = selectedOrders.map((order, idx) => {
+                const visitOrder = optimizedIndices.indexOf(idx + 1);
+                const stopNum = visitOrder !== -1 ? visitOrder : idx + 1;
+                return { order, stopNum };
+            });
+
+            // Sort by optimized stop sequence
+            const sortedByRoute = [...stopOrders].sort((a, b) => a.stopNum - b.stopNum);
+
+            for (let i = 0; i < sortedByRoute.length; i++) {
+                const { order, stopNum } = sortedByRoute[i];
+                const pricing = pricingMap.get(order.id) || { earnings: 0, storeFreight: 0 };
+                const distMeters = (order.distanceKm || 1.2) * 1000;
+                
                 const currentStoreFreight = order.storeFreight || 0;
                 let finalStoreFreight = currentStoreFreight;
 
                 // If assigning to a marketplace driver and the order has 0 store freight (e.g. webhook open mode), we debit now
-                if (!isFixedDriver && currentStoreFreight === 0 && calculatedStoreFreight > 0) {
+                if (!isFixedDriver && currentStoreFreight === 0 && pricing.storeFreight > 0) {
                     const currentBalance = realStoreProfile?.wallet_balance || 0;
-                    if (currentBalance < calculatedStoreFreight) {
-                        alert(`Saldo insuficiente para atribuir este pedido ao entregador do marketplace. Taxa necessária: R$ ${calculatedStoreFreight.toFixed(2)}. Saldo atual: R$ ${currentBalance.toFixed(2)}`);
+                    if (currentBalance < pricing.storeFreight) {
+                        alert(`Saldo insuficiente para atribuir este pedido ao entregador do marketplace. Taxa necessária: R$ ${pricing.storeFreight.toFixed(2)}. Saldo atual: R$ ${currentBalance.toFixed(2)}`);
                         throw new Error("INSUFFICIENT_FUNDS");
                     }
 
-                    console.log(`💰 [App] Debiting wallet for marketplace dispatch: R$ ${calculatedStoreFreight}`);
+                    console.log(`💰 [App] Debiting wallet for marketplace dispatch: R$ ${pricing.storeFreight}`);
                     
                     // Log transaction
                     await supabase.from('wallet_transactions').insert({
                         store_id: session?.user?.id,
-                        amount: calculatedStoreFreight,
+                        amount: pricing.storeFreight,
                         type: 'PAYMENT',
                         status: 'CONFIRMED',
                         description: `Envio Marketplace #${order.display_id || order.id.slice(-4)}`,
@@ -1799,24 +1830,24 @@ function App() {
                     });
 
                     // Update Balance
-                    const newBalance = currentBalance - calculatedStoreFreight;
+                    const newBalance = currentBalance - pricing.storeFreight;
                     await supabase.from('stores')
                         .update({ wallet_balance: newBalance })
                         .eq('id', session?.user?.id);
                     
-                    finalStoreFreight = calculatedStoreFreight;
+                    finalStoreFreight = pricing.storeFreight;
                 }
 
                 if (isFixedDriver) {
                     finalStoreFreight = 0;
                 }
 
-                const currentStopNum = startStopNumber + i;
+                const currentStopNum = startStopNumber + stopNum - 1;
                 const updatePayload: any = {
                     driver_id: courierId,
                     batch_id: batchIdToUse,
                     collection_code: finalCollectionCode,
-                    earnings: newEarnings,
+                    earnings: pricing.earnings,
                     stop_number: currentStopNum,
                     items: {
                         ...order, // Keep existing items
