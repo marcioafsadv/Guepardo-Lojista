@@ -1107,81 +1107,21 @@ function App() {
         if (!session?.user?.id) return;
         
         try {
-            console.log(`🔌 [App] Releasing fixed courier: ${courierId}`);
+            console.log(`🔌 [App] Releasing fixed courier: ${courierId} using RPC...`);
             
-            // 1. Remove courier from active_fixed_drivers list in DB
-            const currentFixed = realStoreProfile?.active_fixed_drivers || [];
-            const updatedFixed = currentFixed.filter(id => id !== courierId);
-            const nextIsOpenMode = updatedFixed.length > 0;
-
-            const { error: storeUpdateErr } = await supabase
-                .from('stores')
-                .update({
-                    active_fixed_drivers: updatedFixed,
-                    is_open_mode: nextIsOpenMode
-                })
-                .eq('id', session.user.id);
-            
-            if (storeUpdateErr) throw storeUpdateErr;
-
-            // 2. Log credit to the courier in transactions table
-            const randomTxId = Math.random().toString(36).substring(2, 11);
-            const todayStr = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-            
-            const { error: courierTxErr } = await supabase.from('transactions').insert({
-                id: randomTxId,
-                user_id: courierId,
-                amount: 170.00,
-                type: 'Diária Turno Fixo',
-                status: 'COMPLETED',
-                week_id: 'current',
-                details: {
-                    duration: 'Turno Fixo',
-                    stops: 0,
-                    timeline: [
-                        { time: todayStr, description: 'Turno Fixo Ativado', status: 'done' },
-                        { time: todayStr, description: 'Turno Fixo Encerrado e Pago', status: 'done' }
-                    ]
-                }
+            const { error: rpcError } = await supabase.rpc('release_fixed_driver', {
+                p_store_id: session.user.id,
+                p_courier_id: courierId,
+                p_amount: 170.00
             });
-
-            if (courierTxErr) {
-                console.error("❌ [App] Error inserting transaction for courier:", courierTxErr);
-            }
-
-            // 3. Update courier daily stats
-            const todayDate = new Date().toISOString().split('T')[0];
-            const { data: currentStats, error: statsFetchErr } = await supabase
-                .from('daily_stats')
-                .select('*')
-                .eq('user_id', courierId)
-                .eq('date', todayDate)
-                .maybeSingle();
-
-            if (!statsFetchErr) {
-                const currentEarnings = currentStats?.earnings || 0;
-                const newEarnings = currentEarnings + 170.00;
-                const { error: statsUpsertErr } = await supabase
-                    .from('daily_stats')
-                    .upsert({
-                        user_id: courierId,
-                        date: todayDate,
-                        earnings: newEarnings
-                    }, {
-                        onConflict: 'user_id,date'
-                    });
-                
-                if (statsUpsertErr) {
-                    console.error("❌ [App] Error updating daily stats for courier:", statsUpsertErr);
-                }
-            }
+            
+            if (rpcError) throw rpcError;
 
             await fetchStoreProfile();
-            console.log("✅ [App] Fixed courier released and paid successfully!");
+            console.log("✅ [App] Fixed courier released and paid successfully via RPC!");
         } catch (err: any) {
             console.error("❌ [App] Error releasing fixed courier:", err);
             alert(`Erro ao liberar entregador: ${err.message}`);
-            throw err;
         }
     };
 
