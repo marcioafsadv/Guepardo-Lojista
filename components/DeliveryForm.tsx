@@ -484,7 +484,7 @@ export const DeliveryForm = ({
             <Bike className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] group-hover:scale-110 transition-transform" strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
-            <span className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Logística Express</span>
+            <span className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Guepardo Flash</span>
             <h2 className="text-lg md:text-xl font-black italic text-white tracking-tighter leading-none">Chamar Guepardo</h2>
           </div>
         </div>
@@ -517,7 +517,7 @@ export const DeliveryForm = ({
                 : 'text-white/40 hover:text-white/60'
             }`}
           >
-            Logística Express
+            Guepardo Flash
           </button>
           <button
             type="button"
@@ -529,7 +529,7 @@ export const DeliveryForm = ({
             }`}
           >
             <FlaskConical size={12} className={activeTab === 'open' ? 'animate-pulse' : ''} />
-            Guepardo Open (Fixo)
+            Guepardo Open
           </button>
         </div>
 
