@@ -117,7 +117,7 @@ export interface Order {
   // Source & CRM
   requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD' | '99FOOD';
   clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
-  scheduled_at?: string; // e.g., "14:30"
+  scheduled_at?: string; // e.g., "2026-06-19T19:00" or legacy "14:30"
   external_order_id?: string;
   external_source?: 'IFOOD' | '99FOOD';
   vehicleType?: 'moto' | 'bike' | 'carro';

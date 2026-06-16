@@ -1601,8 +1601,6 @@ function App() {
     useEffect(() => {
         const checkScheduledOrders = async () => {
             const now = new Date();
-            const nowHH = now.getHours();
-            const nowMM = now.getMinutes();
 
             const scheduledOrders = orders.filter(o =>
                 o.status === OrderStatus.SCHEDULED && o.scheduled_at
@@ -1610,10 +1608,22 @@ function App() {
 
             for (const order of scheduledOrders) {
                 const scheduledAt = order.scheduled_at as string;
-                const [hh, mm] = scheduledAt.split(':').map(Number);
+                let scheduledDate: Date;
 
-                const isDue = (nowHH > hh) || (nowHH === hh && nowMM >= mm);
-                if (!isDue) continue;
+                if (scheduledAt.includes('-') || scheduledAt.includes('T')) {
+                    scheduledDate = new Date(scheduledAt.includes('T') ? scheduledAt : scheduledAt.replace(' ', 'T'));
+                } else {
+                    // Legacy format: "HH:mm"
+                    const [hh, mm] = scheduledAt.split(':').map(Number);
+                    scheduledDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+                }
+
+                if (isNaN(scheduledDate.getTime())) {
+                    console.error(`❌ [SCHEDULER] Invalid scheduled_at date: ${scheduledAt}`);
+                    continue;
+                }
+
+                if (now < scheduledDate) continue;
 
                 console.log(`⏰ [SCHEDULER] Scheduled order ${order.id} is due! Dispatching now...`);
 

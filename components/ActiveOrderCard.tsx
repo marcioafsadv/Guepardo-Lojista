@@ -32,6 +32,48 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 };
 
+const formatScheduledTime = (scheduledAt: string | undefined | null) => {
+  if (!scheduledAt) return '';
+  if (!scheduledAt.includes('T') && !scheduledAt.includes('-')) {
+    return scheduledAt;
+  }
+  try {
+    const date = new Date(scheduledAt.includes('T') ? scheduledAt : scheduledAt.replace(' ', 'T'));
+    if (isNaN(date.getTime())) return scheduledAt;
+
+    const daysOfWeek = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const now = new Date();
+    
+    const isToday = date.getDate() === now.getDate() && 
+                    date.getMonth() === now.getMonth() && 
+                    date.getFullYear() === now.getFullYear();
+                    
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow = date.getDate() === tomorrow.getDate() && 
+                       date.getMonth() === tomorrow.getMonth() && 
+                       date.getFullYear() === tomorrow.getFullYear();
+
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    const timeStr = `${hh}:${mm}`;
+
+    if (isToday) {
+      return `Hoje às ${timeStr}`;
+    }
+    if (isTomorrow) {
+      return `Amanhã às ${timeStr}`;
+    }
+    
+    const dayName = daysOfWeek[date.getDay()];
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${dayName} (${day}/${month}) às ${timeStr}`;
+  } catch (e) {
+    return scheduledAt;
+  }
+};
+
 const BASE_STEPS = [
   { status: OrderStatus.PENDING, label: 'Chamando' },
   { status: OrderStatus.ACCEPTED, label: 'Aceito' },
@@ -222,7 +264,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
             {(order.scheduled_at || (order as any).items?.scheduledAt) && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-guepardo-accent text-white text-[9px] font-black uppercase tracking-[0.2em] border border-white/5 shadow-glow animate-pulse">
-                <Clock size={10} strokeWidth={3} /> {order.scheduled_at || (order as any).items?.scheduledAt}
+                <Clock size={10} strokeWidth={3} /> {formatScheduledTime(order.scheduled_at || (order as any).items?.scheduledAt)}
               </span>
             )}
           </div>
@@ -309,7 +351,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 {order.scheduled_at ? 'Pedido Programado' : 'Procurando Entregadores'}
                 </p>
                 <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em]">
-                {order.scheduled_at ? `Coleta agendada para ${order.scheduled_at}` : 'Varredura de Proximidade Ativa'}
+                {order.scheduled_at ? `Coleta agendada para ${formatScheduledTime(order.scheduled_at)}` : 'Varredura de Proximidade Ativa'}
                 </p>
                 {order.status === OrderStatus.PENDING && !order.scheduled_at && (
                 <div className="mt-4 inline-flex items-center gap-2 bg-guepardo-accent text-white text-xs font-black italic px-4 py-2 rounded-xl shadow-glow text-shadow-glow">

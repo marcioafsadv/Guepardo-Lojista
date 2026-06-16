@@ -1239,7 +1239,17 @@ export const DeliveryForm = ({
                 <input
                   type="checkbox"
                   checked={isScheduled}
-                  onChange={(e) => setIsScheduled(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setIsScheduled(checked);
+                    if (checked && !scheduledTime) {
+                      const now = new Date();
+                      const localISO = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                        .toISOString()
+                        .slice(0, 16);
+                      setScheduledTime(localISO);
+                    }
+                  }}
                   className="sr-only"
                 />
                 <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isScheduled ? 'bg-guepardo-accent shadow-[0_0_15px_rgba(211,84,0,0.5)]' : 'bg-white/10'}`}>
@@ -1264,7 +1274,7 @@ export const DeliveryForm = ({
                   </label>
                   <div className="relative">
                     <input
-                      type="time"
+                      type="datetime-local"
                       className="w-full px-4 py-3 bg-black/60 border-2 border-guepardo-accent/40 rounded-2xl text-sm font-black italic focus:outline-none focus:border-guepardo-accent focus:ring-4 focus:ring-guepardo-accent/10 transition-all text-white"
                       value={scheduledTime}
                       onChange={(e) => setScheduledTime(e.target.value)}
