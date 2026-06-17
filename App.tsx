@@ -856,6 +856,16 @@ function App() {
                         }
                         return o;
                     }));
+
+                    // Also update the cache
+                    const cached = courierCacheRef.current.get(profile.id);
+                    if (cached) {
+                        courierCacheRef.current.set(profile.id, {
+                            ...cached,
+                            lat: profile.current_lat || cached.lat,
+                            lng: profile.current_lng || cached.lng
+                        });
+                    }
                 }
             )
             .subscribe();
@@ -2724,7 +2734,11 @@ function App() {
                     if (selectedOrderDetails?.id === upToDate.id) {
                         setSelectedOrderDetails(null);
                     }
-                } else if (upToDate.status !== activeOrder.status || upToDate.courier?.lat !== activeOrder.courier?.lat) {
+                } else if (
+                    upToDate.status !== activeOrder.status ||
+                    upToDate.courier?.lat !== activeOrder.courier?.lat ||
+                    upToDate.courier?.lng !== activeOrder.courier?.lng
+                ) {
                     // Sync activeOrder while preserving batch properties if it is a batch
                     if (activeOrder.isBatch && activeOrder.batch_id) {
                         const batchOrders = orders.filter(o => o.batch_id === activeOrder.batch_id && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED);

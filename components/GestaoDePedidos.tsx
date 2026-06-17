@@ -282,7 +282,13 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                 }
 
                 sortedStops.forEach(o => {
-                    if (o.destinationLat && o.destinationLng && o.status !== OrderStatus.RETURNING) {
+                    if (
+                        o.destinationLat && 
+                        o.destinationLng && 
+                        o.status !== OrderStatus.DELIVERED && 
+                        o.status !== OrderStatus.CANCELED && 
+                        o.status !== OrderStatus.RETURNING
+                    ) {
                         points.push([o.destinationLat, o.destinationLng]);
                     }
                 });
