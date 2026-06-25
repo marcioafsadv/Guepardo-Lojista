@@ -456,7 +456,8 @@ function App() {
                 lat, lng, logo_url: data.logo_url, wallet_balance: data.wallet_balance || 0,
                 status: data.status || 'fechada', onboarding_status: data.onboarding_status || 'pending',
                 is_open_mode: data.is_open_mode,
-                active_fixed_drivers: data.active_fixed_drivers || []
+                active_fixed_drivers: data.active_fixed_drivers || [],
+                active_hybrid_drivers: data.active_hybrid_drivers || []
             });
         }
     }, [session?.user?.id]);
@@ -1135,6 +1136,93 @@ function App() {
         }
     };
 
+    const handleActivateHybridCourier = async (courierId: string) => {
+        if (!session?.user?.id) return;
+        const currentBalance = realStoreProfile?.wallet_balance || 0;
+        
+        if (currentBalance < 50.00) {
+            alert("Saldo insuficiente para ativar um entregador híbrido. Recarregue a sua carteira.");
+            throw new Error("INSUFFICIENT_FUNDS");
+        }
+
+        try {
+            console.log(`🔌 [App] Activating hybrid fixed courier: ${courierId}`);
+            
+            // 1. Log transaction
+            const { error: txError } = await supabase.from('wallet_transactions').insert({
+                store_id: session.user.id,
+                amount: 50.00,
+                type: 'PAYMENT',
+                status: 'CONFIRMED',
+                description: `Diária Turno Híbrido`,
+                payment_method: 'SYSTEM'
+            });
+
+            if (txError) {
+                console.error("❌ [App] Error logging wallet transaction:", txError);
+            }
+
+            // 2. Decrement wallet balance
+            const { error: balanceError } = await supabase.rpc('decrement_wallet_balance', {
+                row_id: session.user.id,
+                amount: 50.00
+            });
+
+            if (balanceError) {
+                console.warn("decrement_wallet_balance RPC failed, falling back...", balanceError);
+                const newBalance = currentBalance - 50.00;
+                const { error: updateErr } = await supabase
+                    .from('stores')
+                    .update({ wallet_balance: newBalance })
+                    .eq('id', session.user.id);
+                if (updateErr) throw updateErr;
+            }
+
+            // 3. Update store profile
+            const currentHybrid = realStoreProfile?.active_hybrid_drivers || [];
+            if (!currentHybrid.includes(courierId)) {
+                const updatedHybrid = [...currentHybrid, courierId];
+                const { error: storeUpdateErr } = await supabase
+                    .from('stores')
+                    .update({
+                        active_hybrid_drivers: updatedHybrid
+                    })
+                    .eq('id', session.user.id);
+                
+                if (storeUpdateErr) throw storeUpdateErr;
+            }
+
+            await fetchStoreProfile();
+            console.log("✅ [App] Hybrid courier activated successfully!");
+        } catch (err: any) {
+            console.error("❌ [App] Error activating hybrid courier:", err);
+            alert(`Erro ao ativar entregador: ${err.message}`);
+            throw err;
+        }
+    };
+
+    const handleReleaseHybridCourier = async (courierId: string) => {
+        if (!session?.user?.id) return;
+        
+        try {
+            console.log(`🔌 [App] Releasing hybrid courier: ${courierId} using RPC...`);
+            
+            const { error: rpcError } = await supabase.rpc('release_hybrid_driver', {
+                p_store_id: session.user.id,
+                p_courier_id: courierId,
+                p_amount: 50.00
+            });
+            
+            if (rpcError) throw rpcError;
+
+            await fetchStoreProfile();
+            console.log("✅ [App] Hybrid courier released and paid successfully via RPC!");
+        } catch (err: any) {
+            console.error("❌ [App] Error releasing hybrid courier:", err);
+            alert(`Erro ao liberar entregador: ${err.message}`);
+        }
+    };
+
 
 
 
@@ -1405,9 +1493,12 @@ function App() {
 
                 const distMeters = (data.calculatedDistance || 1.2) * 1000;
                 const isFixedDriver = !!(targetCourierId && realStoreProfile?.active_fixed_drivers?.includes(targetCourierId));
+                const isHybridDriver = !!(targetCourierId && realStoreProfile?.active_hybrid_drivers?.includes(targetCourierId));
                 let stopEarnings = 0;
 
-                if (!isFixedDriver) {
+                if (isHybridDriver) {
+                    stopEarnings = 5.00;
+                } else if (!isFixedDriver) {
                     let totalBatchEarnings = data.isBatch 
                         ? calculateFreightBatching(distMeters).courierFee 
                         : calculateFreight(distMeters).courierFee;
@@ -1442,7 +1533,7 @@ function App() {
                         ? 'scheduled' 
                         : (targetStatusToUse 
                             ? targetStatusToUse 
-                            : (isFixedDriver ? 'accepted' : 'pending')),
+                            : ((isFixedDriver || isHybridDriver) ? 'accepted' : 'pending')),
                     driver_id: targetCourierId || null,
                     batch_id: batchIdToUse || null,
                     stop_number: currentStopNum,
@@ -1460,7 +1551,7 @@ function App() {
                         addressCep: stop.addressCep,
                         changeFor: stop.changeFor,
                         stopNumber: currentStopNum,
-                        storeFreight: index === 0 ? data.storeFreight : 0, // Store total in the first stop for batch aggregation
+                        storeFreight: index === 0 ? (isHybridDriver ? 7.00 * stopsToProcess.length : data.storeFreight) : 0, // Store total in the first stop for batch aggregation
                         scheduledAt: stop.scheduled_at || null,
                         vehicleType: data.vehicleType || 'moto',
                         batchId: batchIdToUse || null,
@@ -1778,56 +1869,86 @@ function App() {
                     .eq('id', existingDelivery.id);
             }
 
+            const isHybridDriver = !!(courierId && realStoreProfile?.active_hybrid_drivers?.includes(courierId));
+
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
                 const pricing = pricingMap.get(order.id) || { earnings: 0, storeFreight: 0 };
                 const stopNum = stopNumberMap.get(order.id) || (existingActive.length + i + 1);
                 
                 const currentStoreFreight = order.storeFreight || 0;
-                let finalStoreFreight = currentStoreFreight;
-
-                // If assigning to a marketplace driver and the order has 0 store freight (e.g. webhook open mode), we debit now
-                if (!isFixedDriver && currentStoreFreight === 0 && pricing.storeFreight > 0) {
-                    const currentBalance = realStoreProfile?.wallet_balance || 0;
-                    if (currentBalance < pricing.storeFreight) {
-                        alert(`Saldo insuficiente para atribuir este pedido ao entregador do marketplace. Taxa necessária: R$ ${pricing.storeFreight.toFixed(2)}. Saldo atual: R$ ${currentBalance.toFixed(2)}`);
-                        throw new Error("INSUFFICIENT_FUNDS");
-                    }
-
-                    console.log(`💰 [App] Debiting wallet for marketplace dispatch: R$ ${pricing.storeFreight}`);
-                    
-                    // Log transaction
-                    await supabase.from('wallet_transactions').insert({
-                        store_id: session?.user?.id,
-                        amount: pricing.storeFreight,
-                        type: 'PAYMENT',
-                        status: 'CONFIRMED',
-                        description: `Envio Marketplace #${order.display_id || order.id.slice(-4)}`,
-                        payment_method: 'SYSTEM'
-                    });
-
-                    // Update Balance
-                    const newBalance = currentBalance - pricing.storeFreight;
-                    await supabase.from('stores')
-                        .update({ wallet_balance: newBalance })
-                        .eq('id', session?.user?.id);
-                    
-                    finalStoreFreight = pricing.storeFreight;
-                }
+                let targetStoreFreight = pricing.storeFreight;
+                let targetEarnings = pricing.earnings;
 
                 if (isFixedDriver) {
-                    finalStoreFreight = 0;
+                    targetStoreFreight = 0;
+                    targetEarnings = 0;
+                } else if (isHybridDriver) {
+                    targetStoreFreight = 7.00;
+                    targetEarnings = 5.00;
+                }
+
+                const diff = currentStoreFreight - targetStoreFreight;
+
+                if (diff !== 0) {
+                    const currentBalance = realStoreProfile?.wallet_balance || 0;
+                    if (diff < 0) {
+                        // We need to DEBIT the difference
+                        const amountToDebit = Math.abs(diff);
+                        if (currentBalance < amountToDebit) {
+                            alert(`Saldo insuficiente para atribuir o pedido #${order.display_id || order.id.slice(-4)}. Taxa adicional necessária: R$ ${amountToDebit.toFixed(2)}. Saldo atual: R$ ${currentBalance.toFixed(2)}`);
+                            throw new Error("INSUFFICIENT_FUNDS");
+                        }
+
+                        console.log(`💰 [App] Debiting wallet for driver assignment difference: R$ ${amountToDebit}`);
+                        // Log transaction
+                        await supabase.from('wallet_transactions').insert({
+                            store_id: session?.user?.id,
+                            amount: amountToDebit,
+                            type: 'PAYMENT',
+                            status: 'CONFIRMED',
+                            description: `Ajuste Envio OS #${order.display_id || order.id.slice(-4)}`,
+                            payment_method: 'SYSTEM'
+                        });
+
+                        // Update Balance
+                        const newBalance = currentBalance - amountToDebit;
+                        await supabase.from('stores')
+                            .update({ wallet_balance: newBalance })
+                            .eq('id', session?.user?.id);
+                    } else {
+                        // We need to REFUND the difference
+                        const amountToRefund = diff;
+                        console.log(`💰 [App] Refunding wallet for driver assignment difference: R$ ${amountToRefund}`);
+                        // Log transaction
+                        await supabase.from('wallet_transactions').insert({
+                            store_id: session?.user?.id,
+                            amount: amountToRefund,
+                            type: 'REFUND',
+                            status: 'CONFIRMED',
+                            description: `Estorno Diferença OS #${order.display_id || order.id.slice(-4)}`,
+                            payment_method: 'SYSTEM'
+                        });
+
+                        // Update Balance
+                        const newBalance = currentBalance + amountToRefund;
+                        await supabase.from('stores')
+                            .update({ wallet_balance: newBalance })
+                            .eq('id', session?.user?.id);
+                    }
+                    // Fetch profile again to ensure we have the latest balance for the next iteration
+                    await fetchStoreProfile();
                 }
 
                 const updatePayload: any = {
                     driver_id: courierId,
                     batch_id: batchIdToUse,
                     collection_code: finalCollectionCode,
-                    earnings: pricing.earnings,
+                    earnings: targetEarnings,
                     stop_number: stopNum,
                     items: {
                         ...order, // Keep existing items
-                        storeFreight: finalStoreFreight,
+                        storeFreight: targetStoreFreight,
                         stopNumber: stopNum,
                         batchId: batchIdToUse,
                         pickupCode: finalCollectionCode
@@ -1836,7 +1957,7 @@ function App() {
 
                 if (targetStatusToUse) {
                     updatePayload.status = targetStatusToUse;
-                } else if (isFixedDriver) {
+                } else if (isFixedDriver || isHybridDriver) {
                     updatePayload.status = 'accepted';
                 }
 
@@ -2154,7 +2275,8 @@ function App() {
         const isLate = minutesElapsed >= 15;
         const isPlausibleReason = ["Demora na busca do entregador", "Motoboy não chegou ao estabelecimento"].includes(reason);
         const isRefundable = !isPostAcceptance || isLate || isPlausibleReason;
-        const cancellationFee = isRefundable ? 0 : 4.90;
+        const isHybridDriver = !!(order.courier?.id && realStoreProfile?.active_hybrid_drivers?.includes(order.courier.id));
+        const cancellationFee = (isRefundable || isHybridDriver) ? 0 : 4.90;
         const refundAmount = (order.storeFreight || 0) > 0 ? (order.storeFreight - cancellationFee) : 0;
 
         // 3. Update Order Status locally
@@ -3024,6 +3146,8 @@ function App() {
                             onAccept99FoodOrder={handleAccept99FoodOrder}
                             onActivateFixedCourier={handleActivateFixedCourier}
                             onReleaseFixedCourier={handleReleaseFixedCourier}
+                            onActivateHybridCourier={handleActivateHybridCourier}
+                            onReleaseHybridCourier={handleReleaseHybridCourier}
                         />
                     )}
 

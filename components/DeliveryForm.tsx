@@ -46,6 +46,8 @@ interface DeliveryFormProps {
   storeProfile?: StoreProfile;
   onActivateFixedCourier?: (courierId: string) => Promise<void>;
   onReleaseFixedCourier?: (courierId: string) => Promise<void>;
+  onActivateHybridCourier?: (courierId: string) => Promise<void>;
+  onReleaseHybridCourier?: (courierId: string) => Promise<void>;
 }
 
 export const DeliveryForm = ({
@@ -69,24 +71,37 @@ export const DeliveryForm = ({
   onToggleStatus,
   storeProfile,
   onActivateFixedCourier,
-  onReleaseFixedCourier
+  onReleaseFixedCourier,
+  onActivateHybridCourier,
+  onReleaseHybridCourier
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const [showBalanceAlert, setShowBalanceAlert] = useState(false);
   const [showStoreClosedAlert, setShowStoreClosedAlert] = useState(false);
 
-  // Modo Guepardo Open
-  const [activeTab, setActiveTab] = useState<'express' | 'open'>((storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) ? 'open' : 'express');
+  // Modo Guepardo Open & Híbrido
+  const [activeTab, setActiveTab] = useState<'express' | 'open' | 'hybrid'>(() => {
+    if (storeProfile?.active_hybrid_drivers && storeProfile.active_hybrid_drivers.length > 0) {
+      return 'hybrid';
+    }
+    if (storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) {
+      return 'open';
+    }
+    return 'express';
+  });
   const [selectedCourierToFix, setSelectedCourierToFix] = useState<string>('');
   const [isActivatingFixed, setIsActivatingFixed] = useState(false);
   const [showFixedConfirmModal, setShowFixedConfirmModal] = useState(false);
   const [courierToFix, setCourierToFix] = useState<Courier | null>(null);
+  const [confirmModalMode, setConfirmModalMode] = useState<'open' | 'hybrid'>('open');
 
   useEffect(() => {
-    if (storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) {
+    if (storeProfile?.active_hybrid_drivers && storeProfile.active_hybrid_drivers.length > 0) {
+      setActiveTab('hybrid');
+    } else if (storeProfile?.is_open_mode || (storeProfile?.active_fixed_drivers && storeProfile.active_fixed_drivers.length > 0)) {
       setActiveTab('open');
     }
-  }, [storeProfile?.is_open_mode, storeProfile?.active_fixed_drivers]);
+  }, [storeProfile?.is_open_mode, storeProfile?.active_fixed_drivers, storeProfile?.active_hybrid_drivers]);
 
   // Client & Payment
   const [clientName, setClientName] = useState('');
@@ -205,23 +220,29 @@ export const DeliveryForm = ({
   ));
 
   const isFixedDriver = !!(targetCourierId && storeProfile?.active_fixed_drivers?.includes(targetCourierId));
+  const isHybridFixedDriver = !!(targetCourierId && storeProfile?.active_hybrid_drivers?.includes(targetCourierId));
 
   const baseFreightResult = isBatching
     ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
     : calculateFreight(distanceMeters);           // Base R$7,00 + R$1,32/km
 
-  const baseFreight = isFixedDriver ? 0 : baseFreightResult.storeFee;
-  const baseCourierEarnings = isFixedDriver ? 0 : baseFreightResult.courierFee;
+  const baseFreight = isFixedDriver 
+    ? 0 
+    : (isHybridFixedDriver ? 7.00 : baseFreightResult.storeFee);
+
+  const baseCourierEarnings = isFixedDriver 
+    ? 0 
+    : (isHybridFixedDriver ? 5.00 : baseFreightResult.courierFee);
 
   // ── Taxa de retorno ───────────────────────────────────────────────────
   const returnFeeActive = settings?.returnFeeActive ?? true;
   const returnFeeResult = (isReturnRequired && returnFeeActive)
     ? calculateReturnFee(distanceMeters)
     : null;
-  const returnFee = (isReturnRequired && returnFeeActive && !isFixedDriver) ? (returnFeeResult?.storeFee ?? 0) : 0;
-  const returnCourierEarnings = (isReturnRequired && returnFeeActive && !isFixedDriver) ? (returnFeeResult?.courierFee ?? 0) : 0;
+  const returnFee = (isReturnRequired && returnFeeActive && !isFixedDriver && !isHybridFixedDriver) ? (returnFeeResult?.storeFee ?? 0) : 0;
+  const returnCourierEarnings = (isReturnRequired && returnFeeActive && !isFixedDriver && !isHybridFixedDriver) ? (returnFeeResult?.courierFee ?? 0) : 0;
 
-  const additionalStopsFee = 0;
+  const additionalStopsFee = isHybridFixedDriver ? (7.00 * additionalStops.length) : 0;
   const totalFreight = baseFreight + returnFee + additionalStopsFee;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -266,7 +287,9 @@ export const DeliveryForm = ({
       isReturnRequired,
       // Pass calculated values to parent (distância em KM para compatibilidade)
       calculatedDistance: distanceMeters / 1000,
-      calculatedEarnings: Number((baseCourierEarnings + returnCourierEarnings).toFixed(2)),
+      calculatedEarnings: isHybridFixedDriver
+        ? 5.00 * (1 + additionalStops.length)
+        : Number((baseCourierEarnings + returnCourierEarnings).toFixed(2)),
       isBatch: isBatching,
       targetCourierId: targetCourierId || undefined,
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
@@ -507,7 +530,7 @@ export const DeliveryForm = ({
         }}
       >
         {/* TABS SELECTOR */}
-        <div className="grid grid-cols-2 gap-2 mb-4 bg-black/40 p-1 rounded-xl border border-white/5">
+        <div className="grid grid-cols-3 gap-2 mb-4 bg-black/40 p-1 rounded-xl border border-white/5">
           <button
             type="button"
             onClick={() => setActiveTab('express')}
@@ -530,6 +553,18 @@ export const DeliveryForm = ({
           >
             <FlaskConical size={12} className={activeTab === 'open' ? 'animate-pulse' : ''} />
             Guepardo Open
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('hybrid')}
+            className={`py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'hybrid'
+                ? 'bg-guepardo-accent text-white shadow-[0_0_15px_rgba(211,84,0,0.4)]'
+                : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            <ArrowLeftRight size={12} className={activeTab === 'hybrid' ? 'animate-pulse' : ''} />
+            Híbrido (Fixo)
           </button>
         </div>
 
@@ -599,6 +634,85 @@ export const DeliveryForm = ({
                     const c = availableCouriers.find(courier => courier.id === selectedCourierToFix);
                     if (!c) return;
                     setCourierToFix(c);
+                    setConfirmModalMode('open');
+                    setShowFixedConfirmModal(true);
+                  }}
+                  className="px-3 py-2 bg-guepardo-accent hover:bg-guepardo-accent/80 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:pointer-events-none"
+                >
+                  Ativar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* GUEPARDO HÍBRIDO PANEL */}
+        {activeTab === 'hybrid' && (
+          <div className="mb-4 bg-black/40 border border-white/5 rounded-2xl p-4 space-y-4">
+            <h3 className="text-[10px] font-black text-guepardo-accent uppercase tracking-widest text-shadow-glow flex items-center gap-1.5">
+              <HardHat size={12} className="drop-shadow-glow" /> Entregadores Híbridos Ativos
+            </h3>
+
+            {/* List Active Hybrid Riders */}
+            <div className="space-y-2">
+              {storeProfile?.active_hybrid_drivers && storeProfile.active_hybrid_drivers.length > 0 ? (
+                availableCouriers
+                  .filter(c => storeProfile.active_hybrid_drivers?.includes(c.id))
+                  .map(courier => (
+                    <div key={courier.id} className="flex items-center justify-between bg-white/5 border border-white/5 rounded-xl p-3 animate-in fade-in duration-300">
+                      <div className="flex items-center gap-3">
+                        <img src={courier.photoUrl} alt={courier.name} className="w-8 h-8 rounded-lg object-cover border border-white/10" />
+                        <div>
+                          <p className="text-xs font-black text-white">{courier.name}</p>
+                          <p className="text-[9px] text-white/40 font-mono">{courier.vehiclePlate} • {courier.vehicleModel}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`Deseja encerrar o turno híbrido de ${courier.name}?\nSerá creditado R$ 50,00 na carteira dele.`)) {
+                            if (onReleaseHybridCourier) await onReleaseHybridCourier(courier.id);
+                          }
+                        }}
+                        className="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/20 hover:border-red-500 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                      >
+                        Liberar
+                      </button>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-[10px] text-white/30 italic uppercase tracking-wider text-center py-2">
+                  Nenhum entregador ativado no turno híbrido.
+                </p>
+              )}
+            </div>
+
+            {/* Add Courier to Hybrid Shift Form */}
+            <div className="pt-2 border-t border-white/5 space-y-2">
+              <label className="text-[9px] font-black text-white/40 uppercase tracking-wider">Ativar Entregador Híbrido no Turno (R$ 50,00/diária)</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCourierToFix}
+                  onChange={(e) => setSelectedCourierToFix(e.target.value)}
+                  className="flex-1 bg-black/60 border border-white/20 rounded-xl px-3 py-2 text-[10px] font-black uppercase text-white placeholder-white/45 focus:border-guepardo-accent/80 outline-none"
+                >
+                  <option value="">Selecione um Guepardo...</option>
+                  {availableCouriers
+                    .filter(c => c.isOnline && !storeProfile?.active_fixed_drivers?.includes(c.id) && !storeProfile?.active_hybrid_drivers?.includes(c.id))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.vehiclePlate})
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!selectedCourierToFix || isActivatingFixed}
+                  onClick={async () => {
+                    const c = availableCouriers.find(courier => courier.id === selectedCourierToFix);
+                    if (!c) return;
+                    setCourierToFix(c);
+                    setConfirmModalMode('hybrid');
                     setShowFixedConfirmModal(true);
                   }}
                   className="px-3 py-2 bg-guepardo-accent hover:bg-guepardo-accent/80 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:pointer-events-none"
@@ -618,12 +732,14 @@ export const DeliveryForm = ({
                 <HardHat size={28} />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-black text-white uppercase italic">Ativar Turno Fixo</h3>
+                <h3 className="text-lg font-black text-white uppercase italic">
+                  {confirmModalMode === 'hybrid' ? 'Ativar Turno Híbrido' : 'Ativar Turno Fixo'}
+                </h3>
                 <p className="text-xs text-white/70">
-                  Deseja fixar o entregador <strong className="text-white font-bold">{courierToFix.name}</strong> no turno de hoje?
+                  Deseja fixar o entregador <strong className="text-white font-bold">{courierToFix.name}</strong> no turno {confirmModalMode === 'hybrid' ? 'híbrido' : 'fixo'} de hoje?
                 </p>
                 <p className="text-[10px] text-guepardo-accent font-black uppercase tracking-wider pt-2">
-                  * Será debitado R$ 200,00 do seu saldo.
+                  * Será debitado R$ {confirmModalMode === 'hybrid' ? '50,00' : '200,00'} do seu saldo {confirmModalMode === 'hybrid' ? 'e retido até o final do turno' : ''}.
                 </p>
               </div>
               <div className="flex gap-3 pt-2">
@@ -642,8 +758,14 @@ export const DeliveryForm = ({
                   onClick={async () => {
                     setIsActivatingFixed(true);
                     try {
-                      if (onActivateFixedCourier) {
-                        await onActivateFixedCourier(courierToFix.id);
+                      if (confirmModalMode === 'hybrid') {
+                        if (onActivateHybridCourier) {
+                          await onActivateHybridCourier(courierToFix.id);
+                        }
+                      } else {
+                        if (onActivateFixedCourier) {
+                          await onActivateFixedCourier(courierToFix.id);
+                        }
                       }
                       setSelectedCourierToFix('');
                     } catch (err) {
@@ -1178,9 +1300,12 @@ export const DeliveryForm = ({
                   <optgroup label="📍 Disponíveis (Direto)" className="text-white bg-guepardo-dark">
                     {availableCouriers.filter(c => c.isOnline).map(courier => {
                       const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                      const isHybrid = storeProfile?.active_hybrid_drivers?.includes(courier.id);
                       return (
                         <option key={courier.id} value={courier.id}>
-                          Guepardo: {courier.name} ({courier.vehiclePlate}){isFixed ? ' ★ [FIXO]' : ''}
+                          Guepardo: {courier.name} ({courier.vehiclePlate})
+                          {isFixed ? ' ★ [FIXO]' : ''}
+                          {isHybrid ? ' ★ [FIXO HÍBRIDO]' : ''}
                         </option>
                       );
                     })}
@@ -1194,11 +1319,17 @@ export const DeliveryForm = ({
                         const courierOrders = allOrders.filter(o => o.courier?.id === courier.id);
                         return courierOrders.every(o => o.status !== OrderStatus.IN_TRANSIT && o.status !== OrderStatus.RETURNING);
                       })
-                      .map(courier => (
-                        <option key={courier.id} value={courier.id}>
-                          {courier.name} - Adicionar à Rota
-                        </option>
-                      ))}
+                      .map(courier => {
+                        const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                        const isHybrid = storeProfile?.active_hybrid_drivers?.includes(courier.id);
+                        return (
+                          <option key={courier.id} value={courier.id}>
+                            {courier.name} - Adicionar à Rota
+                            {isFixed ? ' ★ [FIXO]' : ''}
+                            {isHybrid ? ' ★ [FIXO HÍBRIDO]' : ''}
+                          </option>
+                        );
+                      })}
                   </optgroup>
                 )}
               </select>

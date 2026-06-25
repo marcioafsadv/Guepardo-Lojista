@@ -51,6 +51,8 @@ interface GestaoDePedidosProps {
     onAccept99FoodOrder?: (orderId: string) => void;
     onActivateFixedCourier?: (courierId: string) => Promise<void>;
     onReleaseFixedCourier?: (courierId: string) => Promise<void>;
+    onActivateHybridCourier?: (courierId: string) => Promise<void>;
+    onReleaseHybridCourier?: (courierId: string) => Promise<void>;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -92,7 +94,9 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onAcceptIFoodOrder,
     onAccept99FoodOrder,
     onActivateFixedCourier,
-    onReleaseFixedCourier
+    onReleaseFixedCourier,
+    onActivateHybridCourier,
+    onReleaseHybridCourier
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -611,6 +615,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         storeProfile={storeProfile}
                         onActivateFixedCourier={onActivateFixedCourier}
                         onReleaseFixedCourier={onReleaseFixedCourier}
+                        onActivateHybridCourier={onActivateHybridCourier}
+                        onReleaseHybridCourier={onReleaseHybridCourier}
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}
@@ -738,9 +744,12 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 .filter(c => c.isOnline)
                                 .map(courier => {
                                     const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                                    const isHybrid = storeProfile?.active_hybrid_drivers?.includes(courier.id);
                                     return (
                                         <option key={courier.id} value={courier.id} className="text-white bg-guepardo-dark">
-                                            {courier.name} ({courier.vehiclePlate}){isFixed ? ' ★ [FIXO]' : ''}
+                                            {courier.name} ({courier.vehiclePlate})
+                                            {isFixed ? ' ★ [FIXO]' : ''}
+                                            {isHybrid ? ' ★ [FIXO HÍBRIDO]' : ''}
                                         </option>
                                     );
                                 })}

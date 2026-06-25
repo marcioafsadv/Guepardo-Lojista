@@ -167,6 +167,7 @@ export interface StoreProfile {
   ninenine_merchant_id?: string;
   is_open_mode?: boolean;
   active_fixed_drivers?: string[]; // Lista de IDs de entregadores contratados no turno
+  active_hybrid_drivers?: string[]; // Lista de IDs de entregadores híbridos fixos ativos no turno
 }
 
 export interface RouteStats {
