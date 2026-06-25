@@ -176,6 +176,36 @@ export const DeliveryForm = ({
     setTargetCourierId(externalTargetId || '');
   }, [externalTargetId]);
 
+  // Sincroniza o entregador direcionado padrão baseado na aba ativa (Open vs Híbrido vs Express)
+  useEffect(() => {
+    if (activeTab === 'hybrid') {
+      const activeHybrids = storeProfile?.active_hybrid_drivers || [];
+      if (activeHybrids.length > 0) {
+        if (!targetCourierId || !activeHybrids.includes(targetCourierId)) {
+          setTargetCourierId(activeHybrids[0]);
+        }
+      } else {
+        setTargetCourierId('');
+      }
+    } else if (activeTab === 'open') {
+      const activeFixeds = storeProfile?.active_fixed_drivers || [];
+      if (activeFixeds.length > 0) {
+        if (!targetCourierId || !activeFixeds.includes(targetCourierId)) {
+          setTargetCourierId(activeFixeds[0]);
+        }
+      } else {
+        setTargetCourierId('');
+      }
+    } else {
+      // Se está no Express e o entregador atual é um fixo ou híbrido ativo, limpa
+      const activeFixeds = storeProfile?.active_fixed_drivers || [];
+      const activeHybrids = storeProfile?.active_hybrid_drivers || [];
+      if (targetCourierId && (activeFixeds.includes(targetCourierId) || activeHybrids.includes(targetCourierId))) {
+        setTargetCourierId('');
+      }
+    }
+  }, [activeTab, storeProfile?.active_fixed_drivers, storeProfile?.active_hybrid_drivers]);
+
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeStopSuggestionsId, setActiveStopSuggestionsId] = useState<string | null>(null);
@@ -219,8 +249,8 @@ export const DeliveryForm = ({
     o.status !== OrderStatus.CANCELED
   ));
 
-  const isFixedDriver = !!(targetCourierId && storeProfile?.active_fixed_drivers?.includes(targetCourierId));
-  const isHybridFixedDriver = !!(targetCourierId && storeProfile?.active_hybrid_drivers?.includes(targetCourierId));
+  const isFixedDriver = activeTab === 'open' || !!(targetCourierId && storeProfile?.active_fixed_drivers?.includes(targetCourierId));
+  const isHybridFixedDriver = activeTab === 'hybrid' || !!(targetCourierId && storeProfile?.active_hybrid_drivers?.includes(targetCourierId));
 
   const baseFreightResult = isBatching
     ? calculateFreightBatching(distanceMeters)   // Base R$3,00 + R$1,32/km
@@ -252,6 +282,22 @@ export const DeliveryForm = ({
     if (!clientName || !street || !number) {
       console.warn("⚠️ [DeliveryForm] Missing required fields, aborting submit");
       return;
+    }
+
+    if (activeTab === 'hybrid') {
+      const activeHybrids = storeProfile?.active_hybrid_drivers || [];
+      if (!targetCourierId || !activeHybrids.includes(targetCourierId)) {
+        alert("Selecione um entregador Híbrido ativo para enviar este pedido.");
+        return;
+      }
+    }
+
+    if (activeTab === 'open') {
+      const activeFixeds = storeProfile?.active_fixed_drivers || [];
+      if (!targetCourierId || !activeFixeds.includes(targetCourierId)) {
+        alert("Selecione um entregador Fixo ativo para enviar este pedido.");
+        return;
+      }
     }
 
     const fullAddress = `${street}, ${number}${complement ? ' - ' + complement : ''} - ${neighborhood}, ${cityState}`;
@@ -1344,24 +1390,26 @@ export const DeliveryForm = ({
           {/* RETURN TRIP TOGGLE & ALERTS */}
           <div className="space-y-3 mt-2">
             {/* Toggle Switch for Return */}
-            <label className="form-toggle-label flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
-              <div className="relative z-10">
-                <input
-                  type="checkbox"
-                  checked={isReturnRequired}
-                  onChange={(e) => setIsReturnRequired(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isReturnRequired ? 'bg-guepardo-accent shadow-[0_0_15px_rgba(211,84,0,0.5)]' : 'bg-white/10'}`}>
-                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-6' : ''}`}></div>
+            {!isHybridFixedDriver && (
+              <label className="form-toggle-label flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-white/5 rounded-full -mr-8 -mt-8"></div>
+                <div className="relative z-10">
+                  <input
+                    type="checkbox"
+                    checked={isReturnRequired}
+                    onChange={(e) => setIsReturnRequired(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isReturnRequired ? 'bg-guepardo-accent shadow-[0_0_15px_rgba(211,84,0,0.5)]' : 'bg-white/10'}`}>
+                    <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-xl transition-transform duration-300 ${isReturnRequired ? 'translate-x-6' : ''}`}></div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex-1 relative z-10">
-                <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent text-shadow-glow' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
-                <p className="text-[10px] text-white/10 font-black tracking-tighter uppercase">Ex: Maquininha, Recibo Assinado, Troca</p>
-              </div>
-            </label>
+                <div className="flex-1 relative z-10">
+                  <p className={`text-xs font-black uppercase tracking-wider ${isReturnRequired ? 'text-guepardo-accent text-shadow-glow' : 'text-white/30'}`}>Necessita Retorno à Loja?</p>
+                  <p className="text-[10px] text-white/10 font-black tracking-tighter uppercase">Ex: Maquininha, Recibo Assinado, Troca</p>
+                </div>
+              </label>
+            )}
 
             {/* Toggle Switch for Scheduled */}
             <label className="form-toggle-label flex items-center gap-4 p-4 rounded-[1.5rem] bg-black/40 border border-white/5 cursor-pointer hover:bg-white/5 transition-all group overflow-hidden relative">
@@ -1449,12 +1497,20 @@ export const DeliveryForm = ({
 
             {/* Taxa de saída */}
             <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
-              <span>Taxa de saída ({isBatching ? 'Batching' : 'Simples'}):</span>
-              <span className="text-white/40">{(isBatching ? FREIGHT_BASE_BATCHING : FREIGHT_BASE_SIMPLE).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              <span>{isHybridFixedDriver ? 'Taxa Híbrido (Saída Fixo)' : `Taxa de saída (${isBatching ? 'Batching' : 'Simples'})`}:</span>
+              <span className="text-white/40">{(isHybridFixedDriver ? 7.00 : (isBatching ? FREIGHT_BASE_BATCHING : FREIGHT_BASE_SIMPLE)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
             </div>
 
+            {/* Paradas Adicionais Híbridas */}
+            {isHybridFixedDriver && additionalStops.length > 0 && (
+              <div className="flex justify-between items-center text-[10px] font-black text-white/20 uppercase tracking-[0.2em] relative z-10">
+                <span>Paradas Adicionais ({additionalStops.length}):</span>
+                <span className="text-white/40">{(7.00 * additionalStops.length).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+              </div>
+            )}
+
             {/* Custo por distância */}
-            {distanceMeters > 0 && (
+            {!isHybridFixedDriver && distanceMeters > 0 && (
               <div className="flex justify-between items-center text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] animate-in fade-in relative z-10">
                 <span className="flex items-center gap-2">
                   <MapPin size={12} className="text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
@@ -1466,7 +1522,7 @@ export const DeliveryForm = ({
             )}
 
             {/* Taxa de retorno */}
-            {isReturnRequired && (
+            {!isHybridFixedDriver && isReturnRequired && (
               <div className="flex justify-between items-center text-[10px] font-black text-guepardo-accent uppercase tracking-[0.2em] relative z-10">
                 <span className="flex items-center gap-2">
                   <ArrowLeftRight size={12} className="text-guepardo-accent shadow-[0_0_10px_rgba(211,84,0,0.5)]" />
