@@ -310,13 +310,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">iFood Merchant ID</label>
-                            <input
-                                type="text"
-                                value={profileData.ifoodMerchantId}
-                                onChange={(e) => handleProfileChange('ifoodMerchantId', e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
-                                placeholder="ID do Estabelecimento no iFood"
-                            />
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="text"
+                                    value={profileData.ifoodMerchantId}
+                                    onChange={(e) => handleProfileChange('ifoodMerchantId', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                    placeholder="ID do Estabelecimento no iFood"
+                                />
+                                <a
+                                    href="https://portal.ifood.com.br/apps/home"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="self-start inline-flex items-center gap-1.5 text-[10px] font-bold text-guepardo-accent hover:text-white hover:bg-guepardo-accent/15 px-3 py-1.5 rounded-lg transition-all border border-guepardo-accent/20"
+                                >
+                                    <ExternalLink size={12} /> Autorizar App no iFood
+                                </a>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">99Food Merchant ID</label>
