@@ -367,33 +367,9 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           debugLogs.push("✅ Pedido do iFood salvo com sucesso no banco.");
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
-
-        // Automação para homologação (confirmação automática)
-        if (merchantId === "5810f9ac-c56e-41e3-82cc-f803f66c4529") {
-          console.log(`🤖 [AUTO] Confirmando pedido de teste ${orderId} no iFood...`);
-          try {
-            const confirmResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/confirm`, {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              }
-            });
-            if (confirmResp.ok) {
-              console.log(`🤖 [AUTO] Pedido ${orderId} confirmado com sucesso no iFood.`);
-              debugLogs.push("🤖 [AUTO] Pedido confirmado no iFood.");
-            } else {
-              const confirmErr = await confirmResp.text();
-              console.error(`🤖 [AUTO] Erro ao confirmar pedido: ${confirmErr}`);
-            }
-          } catch (err: any) {
-            console.error(`🤖 [AUTO] Falha ao chamar endpoint de confirmação:`, err.message);
-          }
-        }
       } 
       else if (code === "CONFIRMED" || code === "CON") {
         // Pedido confirmado no iFood (aceito pelo lojista ou automaticamente)
-        let isScheduled = false;
         debugLogs.push(`🔍 Buscando pedido existente com external_order_id: ${orderId}...`);
         const { data: delivery, error: deliveryError } = await supabaseAdmin
           .from("deliveries")
@@ -407,7 +383,6 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         }
 
         if (delivery) {
-          isScheduled = !!(delivery.items?.scheduledAt || delivery.items?.scheduled_at || delivery.items?.scheduled);
           if (delivery.status === "created") {
             debugLogs.push(`📦 Pedido encontrado com status 'created'. Atualizando para 'pending' e debitando carteira...`);
             const items = delivery.items || {};
@@ -559,7 +534,6 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           const phoneSuffix = clientPhone.length >= 4 ? clientPhone.slice(-4) : "";
           const orderValue = orderDetails.total?.orderAmount || orderDetails.payments?.prepaid || orderDetails.payments?.value || 0;
 
-          isScheduled = orderDetails?.orderTiming === "SCHEDULED";
           const parsedScheduledTime = (() => {
             if (orderDetails.orderTiming !== "SCHEDULED") return null;
             const dtStr = orderDetails.delivery?.deliveryDateTime;
@@ -691,71 +665,6 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           } else {
             debugLogs.push("✅ Pedido do iFood salvo com status 'pending' com sucesso.");
           }
-        }
-
-        // Automação para homologação (despacho automático de pedidos imediatos)
-        if (merchantId === "5810f9ac-c56e-41e3-82cc-f803f66c4529" && !isScheduled) {
-          console.log(`🤖 [AUTO] Iniciando preparo e despacho automático do pedido de teste ${orderId}...`);
-          debugLogs.push("🤖 [AUTO] Iniciando preparo e despacho automático.");
-          
-          // Dispara assincronamente sem travar a resposta do webhook
-          (async () => {
-            try {
-              // 1. Espera 2 segundos
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              
-              // 2. Envia sinal de pronto (readyToPickup)
-              console.log(`🤖 [AUTO] Enviando readyToPickup para o iFood...`);
-              const readyResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/readyToPickup`, {
-                method: "POST",
-                headers: {
-                  "Authorization": `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                }
-              });
-              if (readyResp.ok) {
-                console.log(`🤖 [AUTO] Pedido ${orderId} pronto no iFood.`);
-              } else {
-                console.error(`🤖 [AUTO] Erro no readyToPickup: ${await readyResp.text()}`);
-              }
-              
-              // 3. Espera 2 segundos
-              await new Promise(resolve => setTimeout(resolve, 2000));
-              
-              // 4. Envia sinal de despacho (dispatch)
-              console.log(`🤖 [AUTO] Enviando dispatch para o iFood...`);
-              const dispatchResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/dispatch`, {
-                method: "POST",
-                headers: {
-                  "Authorization": `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                }
-              });
-              if (dispatchResp.ok) {
-                console.log(`🤖 [AUTO] Pedido ${orderId} despachado no iFood.`);
-                
-                // 5. Atualiza o banco de dados local para "in_transit"
-                const { error: transitError } = await supabaseAdmin
-                  .from("deliveries")
-                  .update({ 
-                    status: "in_transit",
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq("external_source", "IFOOD")
-                  .eq("external_order_id", orderId);
-                  
-                if (transitError) {
-                  console.error(`🤖 [AUTO] Erro ao atualizar status para in_transit no banco:`, transitError.message);
-                } else {
-                  console.log(`🤖 [AUTO] Status atualizado para in_transit no banco local.`);
-                }
-              } else {
-                console.error(`🤖 [AUTO] Erro no dispatch: ${await dispatchResp.text()}`);
-              }
-            } catch (autoErr: any) {
-              console.error(`🤖 [AUTO] Falha no fluxo de automação:`, autoErr.message);
-            }
-          })();
         }
       }
       else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN") {
