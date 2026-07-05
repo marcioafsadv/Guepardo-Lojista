@@ -53,6 +53,7 @@ interface GestaoDePedidosProps {
     onReleaseFixedCourier?: (courierId: string) => Promise<void>;
     onActivateHybridCourier?: (courierId: string) => Promise<void>;
     onReleaseHybridCourier?: (courierId: string) => Promise<void>;
+    onSimulateAccept?: (orderId: string) => void;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -96,7 +97,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onActivateFixedCourier,
     onReleaseFixedCourier,
     onActivateHybridCourier,
-    onReleaseHybridCourier
+    onReleaseHybridCourier,
+    onSimulateAccept
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -664,6 +666,7 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                                 onValidateClick={handleOpenValidation}
                                 onConfirmReturn={onConfirmReturn}
                                 onMarkAsReady={onMarkAsReady}
+                                onSimulateAccept={onSimulateAccept}
                                 routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
                                 unreadCount={Object.values(unreadMessages[order.id] || {}).reduce((a, b) => a + (b || 0), 0)}
                                 isSelected={selectedOrderIds.includes(order.id)}

@@ -3131,6 +3131,7 @@ function App() {
                             onValidatePickup={handleValidatePickup}
                             onCancelOrder={handleCancelOrder}
                             onConfirmReturn={handleConfirmReturn}
+                            onSimulateAccept={handleSimulateAccept}
                             mapboxToken={MAPBOX_TOKEN}
                             onResetDatabase={handleResetDatabase}
                             onBulkAssign={handleBulkAssign}

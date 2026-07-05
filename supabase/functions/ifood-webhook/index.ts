@@ -683,6 +683,31 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         } else {
           console.log(`✅ Pedido do iFood ${orderId} marcado como cancelado.`);
         }
+
+        // Se o cancelamento partiu do cliente (CANCELLATION_REQUESTED), aceitamos automaticamente para concluir a transição
+        if (code === "CANCELLATION_REQUESTED" || code === "CAN") {
+          debugLogs.push(`Accepting cancellation request for order ${orderId} on iFood...`);
+          try {
+            const acceptResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/acceptCancellation`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({})
+            });
+            if (!acceptResp.ok) {
+              const acceptErr = await acceptResp.text();
+              console.error(`⚠️ Erro ao aceitar cancelamento no iFood: HTTP ${acceptResp.status} - ${acceptErr}`);
+              debugLogs.push(`⚠️ Erro ao aceitar cancelamento: ${acceptErr}`);
+            } else {
+              console.log(`✅ Cancelamento do pedido ${orderId} aceito com sucesso no iFood.`);
+              debugLogs.push(`✅ Cancelamento aceito com sucesso no iFood.`);
+            }
+          } catch (err: any) {
+            console.error(`❌ Falha na chamada de aceitar cancelamento:`, err.message);
+          }
+        }
       }
     } catch (err: any) {
       debugLogs.push(`❌ Falha interna no loop do evento ${eventId}: ${err.message}`);
@@ -776,9 +801,9 @@ Deno.serve(async (req: Request) => {
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/readyToPickup`;
       } else if (action === "cancelOrder") {
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/requestCancellation`;
+        // Para a API de Pedidos do iFood, o campo "reason" deve conter o CÓDIGO do motivo (string numérica, ex: "501")
         bodyData = {
-          reason: reason || "Lojista solicitou o cancelamento",
-          cancellationCode: "501" // Código iFood padrão para problemas operacionais / solicitação do lojista
+          reason: "501" // Código iFood padrão para problemas operacionais / solicitação do lojista
         };
       } else {
         return new Response(JSON.stringify({ error: "Ação inválida" }), {
