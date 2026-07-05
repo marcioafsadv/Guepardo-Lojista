@@ -3,7 +3,7 @@ import { StoreSettings, StoreProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { geocodeAddress } from '../utils/geocoding';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock } from 'lucide-react';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock, ExternalLink } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -320,13 +320,23 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">99Food Merchant ID</label>
-                            <input
-                                type="text"
-                                value={profileData.ninenineMerchantId}
-                                onChange={(e) => handleProfileChange('ninenineMerchantId', e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
-                                placeholder="ID do Estabelecimento na 99Food"
-                            />
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="text"
+                                    value={profileData.ninenineMerchantId}
+                                    onChange={(e) => handleProfileChange('ninenineMerchantId', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                    placeholder="ID do Estabelecimento na 99Food"
+                                />
+                                <a
+                                    href="https://merchant.99app.com/pt-BR/manager/app-authorize?app_id=5764607608634214376"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="self-start inline-flex items-center gap-1.5 text-[10px] font-bold text-guepardo-accent hover:text-white hover:bg-guepardo-accent/15 px-3 py-1.5 rounded-lg transition-all border border-guepardo-accent/20"
+                                >
+                                    <ExternalLink size={12} /> Vincular Loja na 99Food
+                                </a>
+                            </div>
                         </div>
                     </div>
                     <p className="text-[10px] text-gray-500 italic">Insira os identificadores fornecidos pelas respectivas plataformas para habilitar a sincronização em tempo real.</p>
