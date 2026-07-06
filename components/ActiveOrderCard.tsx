@@ -360,14 +360,7 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 )}
             </div>
 
-            {onSimulateAccept && (
-                <button
-                onClick={(e) => { e.stopPropagation(); onSimulateAccept(order.id); }}
-                className="mt-6 relative z-20 text-[10px] bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30 px-4 py-2 rounded-xl font-black uppercase tracking-widest transition-all scale-75 opacity-50 hover:opacity-100"
-                >
-                [DEBUG] FORÇAR ACEITE
-                </button>
-            )}
+
 
             {secondsWaiting > 120 && (
                 <div className="absolute bottom-4 left-4 right-4 bg-red-500/10 text-red-500 text-[10px] p-3 rounded-2xl border border-red-500/20 flex items-center gap-3 justify-center animate-pulse z-20 font-black uppercase tracking-wider">
