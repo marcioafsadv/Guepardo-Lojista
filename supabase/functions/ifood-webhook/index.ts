@@ -367,6 +367,29 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           debugLogs.push("✅ Pedido do iFood salvo com sucesso no banco.");
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
+
+        // Automação para homologação (confirmação automática)
+        if (merchantId === "5810f9ac-c56e-41e3-82cc-f803f66c4529") {
+          console.log(`🤖 [AUTO] Confirmando pedido de teste ${orderId} no iFood...`);
+          try {
+            const confirmResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/confirm`, {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${accessToken}`,
+                "Content-Type": "application/json",
+              }
+            });
+            if (confirmResp.ok) {
+              console.log(`🤖 [AUTO] Pedido ${orderId} confirmado com sucesso no iFood.`);
+              debugLogs.push("🤖 [AUTO] Pedido confirmado no iFood.");
+            } else {
+              const confirmErr = await confirmResp.text();
+              console.error(`🤖 [AUTO] Erro ao confirmar pedido: ${confirmErr}`);
+            }
+          } catch (err: any) {
+            console.error(`🤖 [AUTO] Falha ao chamar endpoint de confirmação:`, err.message);
+          }
+        }
       } 
       else if (code === "CONFIRMED" || code === "CON") {
         // Pedido confirmado no iFood (aceito pelo lojista ou automaticamente)
