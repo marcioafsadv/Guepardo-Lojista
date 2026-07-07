@@ -139,12 +139,19 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     // Bulk Actions State
     const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
 
-    // Sync drawer with active order
     useEffect(() => {
         if (activeOrder) {
             setShowDetailDrawer(true);
         }
     }, [activeOrder?.id]);
+
+    useEffect(() => {
+        const handleAutoOpenForm = () => {
+            setIsFormCollapsed(false);
+        };
+        window.addEventListener('fill-delivery-from-order', handleAutoOpenForm);
+        return () => window.removeEventListener('fill-delivery-from-order', handleAutoOpenForm);
+    }, []);
 
     const handleCloseDrawer = () => {
         setShowDetailDrawer(false);

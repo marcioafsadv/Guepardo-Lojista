@@ -450,7 +450,7 @@ const OrderContent: React.FC<{
                 )}
 
                 {/* Chamar Motoboy (Primary Action for External Orders) */}
-                {(displayedOrder.requestSource === 'WHATSAPP' || (displayedOrder.requestSource === 'IFOOD' && displayedOrder.status !== OrderStatus.PENDING)) && !order.courier && (
+                {(displayedOrder.requestSource === 'WHATSAPP' || (displayedOrder.requestSource === 'IFOOD' && (displayedOrder.status !== OrderStatus.PENDING || displayedOrder.acceptedAt))) && !order.courier && (
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
