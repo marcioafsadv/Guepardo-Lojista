@@ -54,6 +54,7 @@ interface GestaoDePedidosProps {
     onActivateHybridCourier?: (courierId: string) => Promise<void>;
     onReleaseHybridCourier?: (courierId: string) => Promise<void>;
     onSimulateAccept?: (orderId: string) => void;
+    onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
 }
 
 // Helper to calculate distance for the LED Logic
@@ -98,7 +99,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     onReleaseFixedCourier,
     onActivateHybridCourier,
     onReleaseHybridCourier,
-    onSimulateAccept
+    onSimulateAccept,
+    onDirectAssignCourier
 }) => {
     // --- UI STATES ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -824,6 +826,15 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                             theme="dark"
                             onAcceptIFoodOrder={onAcceptIFoodOrder}
                             onAccept99FoodOrder={onAccept99FoodOrder}
+                            onCallCourier={onDirectAssignCourier ? (o) => {
+                                // Show courier picker inline – handled inside OrderServiceDetail
+                                // Pass through to direct assign handler which updates in-place
+                                const event = new CustomEvent('fill-delivery-from-order', { detail: o });
+                                window.dispatchEvent(event);
+                                handleCloseDrawer();
+                            } : undefined}
+                            availableCouriers={availableCouriers}
+                            onDirectAssignCourier={onDirectAssignCourier}
                         />
                      </div>
                 </div>

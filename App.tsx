@@ -2496,7 +2496,83 @@ function App() {
         setTimeout(() => setNotification(null), 5000);
     };
 
+    // Direct courier assignment for iFood orders - updates existing delivery without creating a new one
+    const handleDirectAssignCourier = async (order: Order, courierId: string) => {
+        console.log("🚀 [handleDirectAssignCourier] Assigning courier", courierId, "to order", order.id);
+        try {
+            const courier = availableCouriers.find(c => c.id === courierId);
+            if (!courier) throw new Error("Entregador não encontrado");
+
+            // Check for active batches (batch the order if courier already has one)
+            const { data: activeDeliveries } = await supabase
+                .from('deliveries')
+                .select('*')
+                .eq('driver_id', courierId)
+                .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'returning']);
+
+            const existingBatchId = activeDeliveries?.find(d => d.batch_id)?.batch_id || null;
+            const isFixedDriver = !!(realStoreProfile?.active_fixed_drivers?.includes(courierId));
+            const isHybridDriver = !!(realStoreProfile?.active_hybrid_drivers?.includes(courierId));
+            const newStatus = (isFixedDriver || isHybridDriver || (activeDeliveries && activeDeliveries.length > 0)) ? 'accepted' : 'accepted';
+
+            // Update existing delivery record in-place (preserves display_id, external_order_id, collection_code)
+            // First fetch existing items to merge rather than overwrite
+            const { data: existingDelivery } = await supabase
+                .from('deliveries')
+                .select('items')
+                .eq('id', order.id)
+                .single();
+
+            const { error: updateErr } = await supabase
+                .from('deliveries')
+                .update({
+                    driver_id: courierId,
+                    status: newStatus,
+                    batch_id: existingBatchId,
+                    items: {
+                        ...(existingDelivery?.items || {}),
+                        targetCourierId: courierId,
+                    }
+                })
+                .eq('id', order.id);
+
+            if (updateErr) throw updateErr;
+
+            // Update local state optimistically
+            const newEvent: OrderEvent = {
+                status: OrderStatus.ACCEPTED,
+                label: "Entregador Atribuído",
+                timestamp: new Date(),
+                description: `${courier.name} (${courier.vehiclePlate}) foi atribuído ao pedido.`
+            };
+            const updatedOrder = { ...order, status: OrderStatus.ACCEPTED, courier, events: [...order.events, newEvent] };
+            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
+            setActiveOrder(updatedOrder);
+
+            // Send dispatch signal to iFood if this is an iFood order
+            if (order.external_source === 'IFOOD' && order.external_order_id) {
+                console.log("📡 [handleDirectAssignCourier] Sending readyToPickup + dispatch to iFood for order", order.external_order_id);
+                await supabase.functions.invoke('ifood-webhook', {
+                    body: { action: 'readyToPickup', orderId: order.external_order_id }
+                });
+                await supabase.functions.invoke('ifood-webhook', {
+                    body: { action: 'dispatchOrder', orderId: order.external_order_id }
+                });
+            }
+
+            setNotification({ title: "Entregador Atribuído!", message: `${courier.name} foi vinculado ao pedido #${order.display_id || order.id.slice(-4)}.` });
+            setTimeout(() => setNotification(null), 4000);
+            console.log("✅ [handleDirectAssignCourier] Done.");
+        } catch (err: any) {
+            console.error("❌ [handleDirectAssignCourier] Error:", err);
+            setNotification({ title: "Erro", message: "Falha ao atribuir entregador. Tente novamente." });
+            setTimeout(() => setNotification(null), 4000);
+            throw err;
+        }
+    };
+
     const handleAcceptIFoodOrder = async (orderId: string) => {
+
         console.log("👉 [handleAcceptIFoodOrder] Called with orderId:", orderId);
         const order = orders.find(o => o.id === orderId);
         if (!order) {
@@ -3269,6 +3345,7 @@ function App() {
                             onReleaseFixedCourier={handleReleaseFixedCourier}
                             onActivateHybridCourier={handleActivateHybridCourier}
                             onReleaseHybridCourier={handleReleaseHybridCourier}
+                            onDirectAssignCourier={handleDirectAssignCourier}
                         />
                     )}
 

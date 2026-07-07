@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { Order, OrderStatus, StoreProfile } from '../types';
+import { Order, OrderStatus, StoreProfile, Courier } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car, Bike
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car, Bike, UserCheck
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -22,9 +22,13 @@ const OrderContent: React.FC<{
     onAccept99FoodOrder?: (orderId: string) => void;
     theme?: string;
     isExpanded?: boolean;
-}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, onAccept99FoodOrder, theme, isExpanded = true }) => {
+    availableCouriers?: Courier[];
+    onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
+}> = ({ order, isEmbedded, onClose, onToggleExpand, handleContact, securityPin, getPaymentIcon, onCancelClick, onCallCourier, onAcceptIFoodOrder, onAccept99FoodOrder, theme, isExpanded = true, availableCouriers = [], onDirectAssignCourier }) => {
     const isDark = theme === 'dark'; // Helper for Explicit Theme
     const [isAccepting, setIsAccepting] = React.useState(false);
+    const [showCourierPicker, setShowCourierPicker] = React.useState(false);
+    const [isAssigning, setIsAssigning] = React.useState(false);
 
     const [selectedStopId, setSelectedStopId] = React.useState<string | null>(null);
 
@@ -451,22 +455,69 @@ const OrderContent: React.FC<{
 
                 {/* Chamar Motoboy (Primary Action for External Orders) */}
                 {(displayedOrder.requestSource === 'WHATSAPP' || (displayedOrder.requestSource === 'IFOOD' && (displayedOrder.status !== OrderStatus.PENDING || displayedOrder.acceptedAt))) && !order.courier && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (onCallCourier) {
-                                onCallCourier(displayedOrder);
-                            } else {
-                                // Fallback: Dispatch custom event for DeliveryForm
-                                const event = new CustomEvent('fill-delivery-from-order', { detail: displayedOrder });
-                                window.dispatchEvent(event);
-                                onClose?.();
-                            }
-                        }}
-                        className="flex-[2] h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.3)] transform active:scale-95"
-                    >
-                        <Truck size={18} /> Chamar Motoboy Guepardo
-                    </button>
+                    onDirectAssignCourier ? (
+                        <div className="flex-[2] flex flex-col gap-2">
+                            {!showCourierPicker ? (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); setShowCourierPicker(true); }}
+                                    className="h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.3)] transform active:scale-95 w-full"
+                                >
+                                    <Truck size={18} /> Chamar Motoboy Guepardo
+                                </button>
+                            ) : (
+                                <div className="flex flex-col gap-2 animate-in slide-in-from-bottom-2 duration-200">
+                                    <label className="text-[9px] font-black text-white/50 uppercase tracking-widest">Selecione o Entregador</label>
+                                    <select
+                                        className="w-full bg-black/60 border border-orange-500/40 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase text-white focus:border-orange-500 outline-none"
+                                        defaultValue=""
+                                        onChange={async (e) => {
+                                            const courierId = e.target.value;
+                                            if (!courierId) return;
+                                            setIsAssigning(true);
+                                            try {
+                                                await onDirectAssignCourier(displayedOrder, courierId);
+                                                setShowCourierPicker(false);
+                                                onClose?.();
+                                            } catch (err) {
+                                                console.error('Erro ao atribuir entregador:', err);
+                                            } finally {
+                                                setIsAssigning(false);
+                                            }
+                                        }}
+                                        disabled={isAssigning}
+                                    >
+                                        <option value="">Selecione um Guepardo...</option>
+                                        {availableCouriers.filter(c => c.isOnline).map(c => (
+                                            <option key={c.id} value={c.id}>{c.name} ({c.vehiclePlate})</option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setShowCourierPicker(false); }}
+                                        className="text-[9px] text-white/30 hover:text-white/60 transition-colors uppercase tracking-widest"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onCallCourier) {
+                                    onCallCourier(displayedOrder);
+                                } else {
+                                    // Fallback: Dispatch custom event for DeliveryForm
+                                    const event = new CustomEvent('fill-delivery-from-order', { detail: displayedOrder });
+                                    window.dispatchEvent(event);
+                                    onClose?.();
+                                }
+                            }}
+                            className="flex-[2] h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.3)] transform active:scale-95"
+                        >
+                            <Truck size={18} /> Chamar Motoboy Guepardo
+                        </button>
+                    )
                 )}
 
                 <button
@@ -503,18 +554,21 @@ interface OrderServiceDetailProps {
     order: Order;
     storeProfile: StoreProfile;
     onCancelClick?: (order: Order) => void;
+    onCallCourier?: (order: Order) => void;
     onConfirmReturn?: (orderId: string) => void;
     isExpanded?: boolean;
     onToggleExpand?: () => void;
     onClose?: () => void;
-    isEmbedded?: boolean; // New Prop
+    isEmbedded?: boolean;
     theme?: string;
     onAcceptIFoodOrder?: (orderId: string) => void;
     onAccept99FoodOrder?: (orderId: string) => void;
+    availableCouriers?: Courier[];
+    onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
 }
 
 export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
-    order, storeProfile, onCancelClick, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark', onAcceptIFoodOrder, onAccept99FoodOrder
+    order, storeProfile, onCancelClick, onCallCourier, onConfirmReturn, isExpanded = false, onToggleExpand, onClose, isEmbedded = false, theme = 'dark', onAcceptIFoodOrder, onAccept99FoodOrder, availableCouriers = [], onDirectAssignCourier
 }) => {
     // Generate PIN
     const securityPin = order.pickupCode || order.id.slice(-4);
@@ -566,9 +620,12 @@ export const OrderServiceDetail: React.FC<OrderServiceDetailProps> = ({
                 securityPin={securityPin}
                 getPaymentIcon={getPaymentIcon}
                 onCancelClick={onCancelClick}
+                onCallCourier={onCallCourier}
                 onAcceptIFoodOrder={onAcceptIFoodOrder}
                 onAccept99FoodOrder={onAccept99FoodOrder}
                 theme={theme}
+                availableCouriers={availableCouriers}
+                onDirectAssignCourier={onDirectAssignCourier}
             />
         );
     }
