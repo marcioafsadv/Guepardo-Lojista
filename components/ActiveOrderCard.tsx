@@ -215,8 +215,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
 
       {/* --- COLLAPSED HEADER --- */}
       <div className="flex justify-between items-start">
-        <div className="flex-1 min-w-0 pr-4">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="flex-1 min-w-0 pr-6">
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mb-2.5">
             {onToggleSelect && (
               <input
                 type="checkbox"
