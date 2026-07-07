@@ -1359,6 +1359,126 @@ function App() {
         try {
             if (!session?.user) throw new Error("No active session");
 
+            if (data.existingOrderId) {
+                console.log("💾 [App] Updating existing delivery:", data.existingOrderId);
+                
+                // Fetch the existing delivery first to get its items and current status/displayId
+                const { data: existingDelivery, error: fetchErr } = await supabase
+                    .from('deliveries')
+                    .select('*')
+                    .eq('id', data.existingOrderId)
+                    .single();
+                
+                if (fetchErr) throw fetchErr;
+                
+                const targetCourierId = data.targetCourierId;
+                let finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+                let targetStatusToUse = undefined;
+                let batchIdToUse = undefined;
+                
+                if (targetCourierId) {
+                    const { data: activeDeliveries } = await supabase
+                        .from('deliveries')
+                        .select('*')
+                        .eq('driver_id', targetCourierId)
+                        .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'arrived_at_customer', 'returning']);
+                    
+                    if (activeDeliveries && activeDeliveries.length > 0) {
+                        batchIdToUse = activeDeliveries.find(d => d.batch_id)?.batch_id || crypto.randomUUID();
+                        targetStatusToUse = activeDeliveries[0].status;
+                        finalPickupCode = activeDeliveries[0].collection_code || finalPickupCode;
+                    }
+                }
+                
+                const isFixedDriver = !!(targetCourierId && realStoreProfile?.active_fixed_drivers?.includes(targetCourierId));
+                const isHybridDriver = !!(targetCourierId && realStoreProfile?.active_hybrid_drivers?.includes(targetCourierId));
+                
+                const distMeters = (data.calculatedDistance || 1.2) * 1000;
+                let stopEarnings = 0;
+                if (isHybridDriver) {
+                    stopEarnings = 5.00;
+                } else if (!isFixedDriver) {
+                    stopEarnings = data.isBatch 
+                        ? calculateFreightBatching(distMeters).courierFee 
+                        : calculateFreight(distMeters).courierFee;
+                    if (data.isReturnRequired) {
+                        stopEarnings += calculateReturnFee(distMeters).courierFee;
+                    }
+                }
+                
+                const updatedStatus = targetStatusToUse 
+                    ? targetStatusToUse 
+                    : ((isFixedDriver || isHybridDriver) ? 'accepted' : 'pending');
+                
+                // Merge items
+                const updatedItems = {
+                    ...(existingDelivery.items || {}),
+                    paymentMethod: data.paymentMethod,
+                    deliveryValue: data.deliveryValue,
+                    isReturnRequired: data.isReturnRequired,
+                    targetCourierId: targetCourierId || null,
+                    addressNeighborhood: data.addressNeighborhood,
+                    addressComplement: data.addressComplement,
+                    addressCity: data.addressCity,
+                    addressCep: data.addressCep,
+                    changeFor: data.changeFor,
+                    storeFreight: isHybridDriver ? 7.00 : data.storeFreight,
+                    vehicleType: data.vehicleType || 'moto',
+                    batchId: batchIdToUse || null,
+                    pickupCode: finalPickupCode
+                };
+                
+                const { error: updateErr } = await supabase
+                    .from('deliveries')
+                    .update({
+                        collection_code: finalPickupCode,
+                        status: updatedStatus,
+                        driver_id: targetCourierId || null,
+                        batch_id: batchIdToUse || null,
+                        items: updatedItems,
+                        earnings: stopEarnings,
+                        delivery_distance: data.calculatedDistance || 1.2,
+                        payment_method: data.paymentMethod,
+                        delivery_value: data.deliveryValue
+                    })
+                    .eq('id', data.existingOrderId);
+                    
+                if (updateErr) throw updateErr;
+                
+                // Debit wallet
+                const totalFreightToDebit = data.storeFreight || 0;
+                if (totalFreightToDebit > 0) {
+                    console.log("💰 [App] Debiting wallet for existing order update:", totalFreightToDebit);
+                    
+                    // 1. Log Transaction
+                    const { error: txError } = await supabase.from('wallet_transactions').insert({
+                        store_id: session.user.id,
+                        amount: totalFreightToDebit,
+                        type: 'PAYMENT',
+                        status: 'CONFIRMED',
+                        description: `Entrega #${existingDelivery.items?.displayId || existingDelivery.collection_code}`,
+                        payment_method: 'SYSTEM'
+                    });
+
+                    if (txError) {
+                        console.error("❌ [App] Error logging wallet transaction:", txError);
+                    }
+
+                    // 2. Update Balance
+                    const { error: balanceError } = await supabase.rpc('decrement_wallet_balance', {
+                        row_id: session.user.id,
+                        amount: totalFreightToDebit
+                    });
+
+                    if (balanceError) {
+                        console.error("❌ [App] Error decrementing wallet balance:", balanceError);
+                    }
+                }
+                
+                setIsSubmittingOrder(false);
+                return;
+            }
+
             const stopsToProcess = [
                 {
                     clientName: data.clientName,

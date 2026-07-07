@@ -22,6 +22,7 @@ export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimat
   additionalStops?: any[]; // Simplified for internal use, mapping happens in App.tsx
   customerNote?: string | null;
   vehicleType?: 'moto' | 'bike' | 'carro';
+  existingOrderId?: string;
 };
 
 interface DeliveryFormProps {
@@ -106,6 +107,7 @@ export const DeliveryForm = ({
   // Client & Payment
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
+  const [existingOrderId, setExistingOrderId] = useState<string | null>(null);
 
   // Financial State
   const [paymentMethod, setPaymentMethod] = useState<'PIX' | 'CARD' | 'CASH'>('PIX');
@@ -121,6 +123,7 @@ export const DeliveryForm = ({
     const handleAutoFill = (e: any) => {
       const order = e.detail;
       if (order) {
+        if (order.id) setExistingOrderId(order.id);
         if (order.clientName) setClientName(order.clientName);
         if (order.clientPhone) setClientPhone(order.clientPhone);
         if (order.deliveryValue) setDeliveryValue(String(order.deliveryValue)); // Ensure it's a string
@@ -341,7 +344,8 @@ export const DeliveryForm = ({
       additionalStops: additionalStops.length > 0 ? additionalStops : undefined,
       storeFreight: totalFreight,
       scheduled_at: isScheduled && scheduledTime ? scheduledTime : undefined,
-      vehicleType
+      vehicleType,
+      existingOrderId: existingOrderId || undefined
     });
 
     // Reset form
@@ -363,6 +367,7 @@ export const DeliveryForm = ({
     setScheduledTime('');
     setAdditionalStops([]);
     setVehicleType('moto');
+    setExistingOrderId(null);
   };
 
   const addStop = () => {
