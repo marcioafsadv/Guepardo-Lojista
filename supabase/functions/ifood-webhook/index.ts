@@ -711,7 +711,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         if (code === "CANCELLATION_REQUESTED" || code === "CAN") {
           debugLogs.push(`Accepting cancellation request for order ${orderId} on iFood...`);
           try {
-            const acceptResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/acceptCancellation`, {
+            const acceptResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/cancellation/accept`, {
               method: "POST",
               headers: {
                 "Authorization": `Bearer ${accessToken}`,
