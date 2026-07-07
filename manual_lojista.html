@@ -357,6 +357,44 @@
       box-shadow: 0 0 10px var(--color-primary-glow);
     }
 
+    /* Sub-abas do Guepardo Híbrido */
+    .sub-tabs-container {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 6px;
+      background: rgba(18, 18, 18, 0.9);
+      padding: 4px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 107, 0, 0.2);
+      z-index: 100;
+    }
+
+    .sub-tab {
+      background: transparent;
+      border: none;
+      color: var(--color-text-muted);
+      padding: 4px 10px;
+      border-radius: 15px;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+    }
+
+    .sub-tab:hover {
+      color: white;
+    }
+
+    .sub-tab.active {
+      background: rgba(255, 107, 0, 0.2);
+      color: var(--color-primary);
+      border: 1px solid var(--color-primary);
+    }
+
     /* Pontos de Destaque (Hotspots) */
     .hotspot {
       position: absolute;
@@ -655,6 +693,32 @@
         padding: 6px 12px;
         font-size: 11px;
         border-radius: 15px;
+      }
+
+      .sub-tabs-container {
+        width: calc(100% - 24px);
+        left: 12px;
+        transform: none;
+        top: 60px;
+        display: none;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 4px;
+        gap: 6px;
+        border-radius: 15px;
+      }
+
+      .sub-tabs-container::-webkit-scrollbar {
+        display: none;
+      }
+
+      .sub-tab {
+        flex-shrink: 0;
+        padding: 4px 10px;
+        font-size: 10px;
+        border-radius: 12px;
       }
 
       /* Ajustes de Rodapé para caber em uma linha */
@@ -979,31 +1043,31 @@
             </p>
             <div class="feature-list">
               <div class="feature-item" onclick="activateHotspot(3, 1)">
-                <div class="feature-icon">💵</div>
+                <div class="feature-icon">⚡</div>
                 <div class="feature-content">
-                  <h4>Formas de Pagamento (Condições)</h4>
-                  <p>Selecione Pix, Cartão ou Dinheiro. **Importante:** para Cartão e Dinheiro, o retorno do entregador à loja para devolução da máquina ou dinheiro é **obrigatório**.</p>
+                  <h4>Guepardo Flash (Avulso)</h4>
+                  <p>Entrega sob demanda (avulsa). Ideal para chamados rápidos pagando a taxa calculada por quilometragem e paradas.</p>
                 </div>
               </div>
               <div class="feature-item" onclick="activateHotspot(3, 2)">
-                <div class="feature-icon">📍</div>
+                <div class="feature-icon">🏪</div>
                 <div class="feature-content">
-                  <h4>Múltiplas Paradas (Mais Lucro)</h4>
-                  <p>Clique em **"Adicionar Outra Parada (+)"** para rotas com vários destinos. A taxa é R$ 3,00 por parada adicional + R$ 1,34 por km. Muito mais lucro para a sua loja!</p>
+                  <h4>Guepardo Open (Turno Inteiro)</h4>
+                  <p>Self-service logístico: pague R$ 200,00 por turno e use o entregador de forma exclusiva. Turno extra à noite custa mais R$ 200,00.</p>
                 </div>
               </div>
               <div class="feature-item" onclick="activateHotspot(3, 3)">
-                <div class="feature-icon">⚡</div>
+                <div class="feature-icon">🤝</div>
                 <div class="feature-content">
-                  <h4>Roteirização Inteligente</h4>
-                  <p>Fique tranquilo: o sistema roteiriza automaticamente **até 4 entregas** simultâneas de forma otimizada, reduzindo custos e tempos de entrega.</p>
+                  <h4>Guepardo Híbrido (Fixo + Taxa)</h4>
+                  <p>Entregador fixo por R$ 50,00 o turno, e cada saída custa R$ 7,00 (R$ 2,00 para a plataforma e R$ 5,00 para o entregador).</p>
                 </div>
               </div>
               <div class="feature-item" onclick="activateHotspot(3, 4)">
-                <div class="feature-icon">🛵</div>
+                <div class="feature-icon">📍</div>
                 <div class="feature-content">
-                  <h4>Direcionar Entregador</h4>
-                  <p>Selecione o entregador disponível mais próximo clicando no mapa ou direcionando diretamente pela lista de entregadores ativos.</p>
+                  <h4>Gestão de Rotas & Paradas</h4>
+                  <p>Adicione paradas extras (R$ 3,00/parada + R$ 1,34/km), roteirize até 4 entregas ou selecione entregadores no mapa.</p>
                 </div>
               </div>
             </div>
@@ -1017,17 +1081,29 @@
           <!-- Alternador de Telas -->
           <div class="media-tabs">
             <button class="media-tab active" onclick="switchSlide3Media('chamar')">1. Novo Chamado</button>
-            <button class="media-tab" onclick="switchSlide3Media('paradas')">2. Adicionar Paradas</button>
-            <button class="media-tab" onclick="switchSlide3Media('roteiro')">3. Roteirização (Até 4)</button>
-            <button class="media-tab" onclick="switchSlide3Media('direcionar')">4. Direcionar Entregador</button>
+            <button class="media-tab" onclick="switchSlide3Media('hibrido')">2. Guepardo Híbrido</button>
+            <button class="media-tab" onclick="switchSlide3Media('paradas')">3. Adicionar Paradas</button>
+            <button class="media-tab" onclick="switchSlide3Media('roteiro')">4. Roteirização (Até 4)</button>
+            <button class="media-tab" onclick="switchSlide3Media('direcionar')">5. Direcionar Entregador</button>
+          </div>
+
+          <!-- Sub-abas do Guepardo Híbrido -->
+          <div class="sub-tabs-container" id="hibrido-subtabs">
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-selecionar')">1. Selecionar</button>
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-ativo')">2. Fixo Ativo</button>
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-cliente')">3. Dados Cliente</button>
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-paradas')">4. 3 Paradas</button>
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-checkout')">5. Checkout (R$21)</button>
+            <button class="sub-tab" onclick="switchSlide3Media('hibrido-liberar')">6. Encerrar Turno</button>
           </div>
           
           <div class="screenshot-wrapper" id="slide3-wrapper">
             <img id="slide3-img" src="public/manual/pedido_4_chamar.png" class="screenshot-img" alt="Chamar Guepardo">
             
             <!-- Hotspots de Criar Chamado (Ativos por padrão) -->
-            <div class="hotspot" id="hs-3-1" style="top: 42%; left: 68%;" onclick="showHotspotCard(3, 1, 'Forma de Pagamento', 'Escolha entre Pix, Cartão ou Dinheiro. Para Cartão (Maq.) e Dinheiro, o entregador retorna obrigatoriamente à loja.')">1</div>
-            <div class="hotspot" id="hs-3-2" style="top: 48%; left: 50%;" onclick="showHotspotCard(3, 2, 'Adicionar Paradas', 'Clique no botão \'Adicionar Outra Parada (+)\' para incluir múltiplos clientes em sequência e otimizar a sua logística.')">2</div>
+            <div class="hotspot" id="hs-3-1" style="top: 22%; left: 25%;" onclick="showHotspotCard(3, 1, 'Guepardo Flash (Avulso)', 'Modalidade de entrega sob demanda (avulsa). Ideal para chamados rápidos onde você paga a taxa calculada por quilometragem e quantidade de paradas.')">1</div>
+            <div class="hotspot" id="hs-3-2" style="top: 22%; left: 65%;" onclick="showHotspotCard(3, 2, 'Guepardo Open (Turno Inteiro)', 'Nosso self-service logístico: pague R$ 200,00 por turno e utilize o entregador de forma exclusiva durante todo o período (ex: almoço). Se utilizado também à noite, custa mais R$ 200,00 (cobrança por turno).')">2</div>
+            <div class="hotspot" id="hs-3-3" style="top: 88%; left: 16%;" onclick="showHotspotCard(3, 3, 'Guepardo Híbrido (Fixo + Taxa)', 'O entregador fica fixo na sua loja por R$ 50,00 o turno, e cada saída custa uma taxa fixa de R$ 7,00 (sendo R$ 2,00 pelo uso do aplicativo e R$ 5,00 pagos ao entregador).')">3</div>
           </div>
 
           <div id="card-3" class="hotspot-card">
@@ -1635,6 +1711,12 @@
         }
       });
 
+      // Auto-scroll a aba ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
       // Limpar hotspots antigos do slide 1
       const oldHotspots = slide1Wrapper.querySelectorAll('.hotspot');
       oldHotspots.forEach(hs => hs.remove());
@@ -1750,6 +1832,12 @@
         }
       });
 
+      // Auto-scroll a aba ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
       // Limpar hotspots antigos do slide 2
       const oldHotspots = slide2Wrapper.querySelectorAll('.hotspot');
       oldHotspots.forEach(hs => hs.remove());
@@ -1835,21 +1923,54 @@
     const slide3Wrapper = document.getElementById('slide3-wrapper');
 
     function switchSlide3Media(type) {
+      // Se clicar no Híbrido principal, redireciona para a primeira etapa do fluxo híbrido
+      if (type === 'hibrido') {
+        type = 'hibrido-selecionar';
+      }
+      
       if (type === slide3MediaState) return;
       slide3MediaState = type;
 
-      // Alterar botões ativos
+      // Alterar botões ativos das abas principais
       const tabs = document.querySelectorAll('#slide-3 .media-tab');
       tabs.forEach(tab => {
-        if ((type === 'chamar' && tab.innerText.includes('Chamado')) || 
-            (type === 'paradas' && tab.innerText.includes('Paradas')) ||
-            (type === 'roteiro' && tab.innerText.includes('Roteirização')) ||
-            (type === 'direcionar' && tab.innerText.includes('Direcionar'))) {
+        const isChamar = (type === 'chamar' && tab.innerText.includes('Chamado'));
+        const isHibrido = (type.startsWith('hibrido') && tab.innerText.includes('Híbrido'));
+        const isParadas = (type === 'paradas' && tab.innerText.includes('Paradas'));
+        const isRoteiro = (type === 'roteiro' && tab.innerText.includes('Roteirização'));
+        const isDirecionar = (type === 'direcionar' && tab.innerText.includes('Direcionar'));
+
+        if (isChamar || isHibrido || isParadas || isRoteiro || isDirecionar) {
           tab.classList.add('active');
         } else {
           tab.classList.remove('active');
         }
       });
+
+      // Auto-scroll a aba principal ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
+      // Mostrar/ocultar barra de sub-abas do híbrido
+      const subtabsContainer = document.getElementById('hibrido-subtabs');
+      if (type.startsWith('hibrido')) {
+        subtabsContainer.style.display = 'flex';
+        // Atualizar sub-aba ativa
+        const subtabs = subtabsContainer.querySelectorAll('.sub-tab');
+        subtabs.forEach(subtab => {
+          if (subtab.getAttribute('onclick').includes(`'${type}'`)) {
+            subtab.classList.add('active');
+            // Auto-scroll a sub-aba ativa no mobile
+            subtab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          } else {
+            subtab.classList.remove('active');
+          }
+        });
+      } else {
+        subtabsContainer.style.display = 'none';
+      }
 
       // Limpar hotspots antigos do slide 3
       const oldHotspots = slide3Wrapper.querySelectorAll('.hotspot');
@@ -1863,21 +1984,147 @@
         const hs1 = document.createElement('div');
         hs1.className = 'hotspot';
         hs1.id = 'hs-3-1';
-        hs1.style.top = '42%';
-        hs1.style.left = '68%';
+        hs1.style.top = '22%';
+        hs1.style.left = '25%';
         hs1.innerText = '1';
-        hs1.onclick = () => showHotspotCard(3, 1, 'Forma de Pagamento', 'Escolha entre Pix, Cartão ou Dinheiro. Para Cartão (Maq.) e Dinheiro, o entregador retorna obrigatoriamente à loja.');
+        hs1.onclick = () => showHotspotCard(3, 1, 'Guepardo Flash (Avulso)', 'Modalidade de entrega sob demanda (avulsa). Ideal para chamados rápidos onde você paga a taxa calculada por quilometragem e quantidade de paradas.');
         
         const hs2 = document.createElement('div');
         hs2.className = 'hotspot';
         hs2.id = 'hs-3-2';
-        hs2.style.top = '48%';
-        hs2.style.left = '50%';
+        hs2.style.top = '22%';
+        hs2.style.left = '65%';
         hs2.innerText = '2';
-        hs2.onclick = () => showHotspotCard(3, 2, 'Adicionar Paradas', 'Clique no botão \'Adicionar Outra Parada (+)\' para incluir múltiplos clientes em sequência e otimizar a sua logística.');
+        hs2.onclick = () => showHotspotCard(3, 2, 'Guepardo Open (Turno Inteiro)', 'Nosso self-service logístico: pague R$ 200,00 por turno e utilize o entregador de forma exclusiva durante todo o período (ex: almoço). Se utilizado também à noite, custa mais R$ 200,00 (cobrança por turno).');
+
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-3-3';
+        hs3.style.top = '88%';
+        hs3.style.left = '16%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(3, 3, 'Guepardo Híbrido (Fixo + Taxa)', 'O entregador fica fixo na sua loja por R$ 50,00 o turno, e cada saída custa uma taxa fixa de R$ 7,00 (sendo R$ 2,00 pelo uso do aplicativo e R$ 5,00 pagos ao entregador).');
 
         slide3Wrapper.appendChild(hs1);
         slide3Wrapper.appendChild(hs2);
+        slide3Wrapper.appendChild(hs3);
+      } else if (type === 'hibrido-selecionar') {
+        slide3Img.src = 'public/manual/hibrido_1_selecionar.png';
+
+        const hs1 = document.createElement('div');
+        hs1.className = 'hotspot';
+        hs1.id = 'hs-3-1';
+        hs1.style.top = '50%';
+        hs1.style.left = '47%';
+        hs1.innerText = '1';
+        hs1.onclick = () => showHotspotCard(3, 1, 'Ativar Híbrido no Turno', 'O lojista abre a lista de entregadores híbridos ativos cadastrados na plataforma para selecionar qual deles ficará fixo na loja pelo valor diário de R$ 50,00 por turno.');
+
+        const hs2 = document.createElement('div');
+        hs2.className = 'hotspot';
+        hs2.id = 'hs-3-2';
+        hs2.style.top = '50%';
+        hs2.style.left = '87%';
+        hs2.innerText = '2';
+        hs2.onclick = () => showHotspotCard(3, 2, 'Botão Ativar', 'Após selecionar o entregador da lista, clique em \'ATIVAR\' para vincular o entregador ao seu estabelecimento para aquele turno.');
+
+        slide3Wrapper.appendChild(hs1);
+        slide3Wrapper.appendChild(hs2);
+      } else if (type === 'hibrido-ativo') {
+        slide3Img.src = 'public/manual/hibrido_2_ativo.png';
+
+        const hs3 = document.createElement('div');
+        hs3.className = 'hotspot';
+        hs3.id = 'hs-3-3';
+        hs3.style.top = '60%';
+        hs3.style.left = '50%';
+        hs3.innerText = '3';
+        hs3.onclick = () => showHotspotCard(3, 3, 'Entregador Vinculado', 'O entregador selecionado (ex: Márcio Augusto Ferreira da Silva) aparece como ativo no painel, garantindo exclusividade de atendimento durante todo o período.');
+
+        const hs4 = document.createElement('div');
+        hs4.className = 'hotspot';
+        hs4.id = 'hs-3-4';
+        hs4.style.top = '60%';
+        hs4.style.left = '85%';
+        hs4.innerText = '4';
+        hs4.onclick = () => showHotspotCard(3, 4, 'Liberar Entregador', 'Ao final do turno, ou se precisar trocar de entregador, clique em \'LIBERAR\' para desvincular o profissional do seu estabelecimento.');
+
+        slide3Wrapper.appendChild(hs3);
+        slide3Wrapper.appendChild(hs4);
+      } else if (type === 'hibrido-cliente') {
+        slide3Img.src = 'public/manual/hibrido_3_cliente.png';
+
+        const hs5 = document.createElement('div');
+        hs5.className = 'hotspot';
+        hs5.id = 'hs-3-5';
+        hs5.style.top = '72%';
+        hs5.style.left = '25%';
+        hs5.innerText = '5';
+        hs5.onclick = () => showHotspotCard(3, 5, 'Preenchimento do Cliente', 'O lojista preenche o nome (ex: Teste 2), telefone e o endereço normalmente. O valor padrão exibido refere-se aos produtos (ex: R$ 50,00).');
+
+        const hs6 = document.createElement('div');
+        hs6.className = 'hotspot';
+        hs6.id = 'hs-3-6';
+        hs6.style.top = '72%';
+        hs6.style.left = '65%';
+        hs6.innerText = '6';
+        hs6.onclick = () => showHotspotCard(3, 6, 'Forma de Pagamento', 'Selecione a forma de pagamento do cliente. Independentemente de ser Pix, Cartão ou Dinheiro, a taxa de entrega nesta modalidade é unificada em R$ 7,00 por saída.');
+
+        slide3Wrapper.appendChild(hs5);
+        slide3Wrapper.appendChild(hs6);
+      } else if (type === 'hibrido-paradas') {
+        slide3Img.src = 'public/manual/hibrido_4_paradas.png';
+
+        const hs7 = document.createElement('div');
+        hs7.className = 'hotspot';
+        hs7.id = 'hs-3-7';
+        hs7.style.top = '50%';
+        hs7.style.left = '50%';
+        hs7.innerText = '7';
+        hs7.onclick = () => showHotspotCard(3, 7, 'Múltiplas Paradas', 'Exemplo de preenchimento de rota com 3 paradas acumuladas (Parada 1, Parada 2 e Parada 3). O lojista pode adicionar múltiplos destinos clicando em \'ADICIONAR PARADA (+)\' para otimizar a viagem.');
+
+        slide3Wrapper.appendChild(hs7);
+      } else if (type === 'hibrido-checkout') {
+        slide3Img.src = 'public/manual/hibrido_5_checkout.png';
+
+        const hs8 = document.createElement('div');
+        hs8.className = 'hotspot';
+        hs8.id = 'hs-3-8';
+        hs8.style.top = '65%';
+        hs8.style.left = '50%';
+        hs8.innerText = '8';
+        hs8.onclick = () => showHotspotCard(3, 8, 'Custo Logístico Unificado (Híbrido)', 'A modalidade Híbrido cobra R$ 7,00 fixos por saída de entrega (independentemente de distância ou método de pagamento). Para uma rota contendo 3 paradas com retorno, o resumo mostra: Taxa Híbrido (R$ 7,00) + 2 Paradas Adicionais (R$ 14,00), totalizando R$ 21,00.');
+
+        const hs9 = document.createElement('div');
+        hs9.className = 'hotspot';
+        hs9.id = 'hs-3-9';
+        hs9.style.top = '88%';
+        hs9.style.left = '56%';
+        hs9.innerText = '9';
+        hs9.onclick = () => showHotspotCard(3, 9, 'Chamar Guepardo Híbrido', 'Clique em \'CHAMAR GUEPARDO\' para enviar a rota diretamente para o seu entregador fixo, iniciando o fluxo de entregas com total agilidade.');
+
+        slide3Wrapper.appendChild(hs8);
+        slide3Wrapper.appendChild(hs9);
+      } else if (type === 'hibrido-liberar') {
+        slide3Img.src = 'public/manual/hibrido_6_liberar.png';
+
+        const hs10 = document.createElement('div');
+        hs10.className = 'hotspot';
+        hs10.id = 'hs-3-10';
+        hs10.style.top = '25%';
+        hs10.style.left = '80%';
+        hs10.innerText = '10';
+        hs10.onclick = () => showHotspotCard(3, 10, 'Encerramento do Turno Híbrido', 'Ao final do turno, o lojista deve liberar o entregador no sistema. O sistema então exibe a mensagem de confirmação informando que o valor da diária de R$ 50,00 será creditado na carteira dele.');
+
+        const hs11 = document.createElement('div');
+        hs11.className = 'hotspot';
+        hs11.id = 'hs-3-11';
+        hs11.style.top = '70%';
+        hs11.style.left = '21%';
+        hs11.innerText = '11';
+        hs11.onclick = () => showHotspotCard(3, 11, 'Confirmação e Crédito', 'Ao clicar em \'OK\', o turno do entregador fixado é finalizado no sistema de forma transparente, enviando o crédito correspondente de R$ 50,00 diretamente para o saldo do entregador.');
+
+        slide3Wrapper.appendChild(hs10);
+        slide3Wrapper.appendChild(hs11);
       } else if (type === 'paradas') {
         slide3Img.src = 'public/manual/pedido_4_paradas.png';
 
@@ -1951,6 +2198,12 @@
           tab.classList.remove('active');
         }
       });
+
+      // Auto-scroll a aba ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
 
       // Limpar hotspots antigos do slide 8
       const oldHotspots = slide8Wrapper.querySelectorAll('.hotspot');
@@ -2050,6 +2303,12 @@
           tab.classList.remove('active');
         }
       });
+
+      // Auto-scroll a aba ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
 
       // Limpar hotspots antigos do slide 9
       const oldHotspots = slide9Wrapper.querySelectorAll('.hotspot');
@@ -2200,6 +2459,12 @@
           tab.classList.remove('active');
         }
       });
+
+      // Auto-scroll a aba ativa no mobile
+      const activeTab = Array.from(tabs).find(tab => tab.classList.contains('active'));
+      if (activeTab) {
+        activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
 
       // Limpar hotspots antigos do slide 10
       const oldHotspots = slide10Wrapper.querySelectorAll('.hotspot');
@@ -2408,6 +2673,18 @@
           else if (index === 1 && (hsNumber === 4 || hsNumber === 5 || hsNumber === 6)) isMatch = true;
           else if (index === 2 && hsNumber === 7) isMatch = true;
           else if (index === 3 && (hsNumber === 8 || hsNumber === 9 || hsNumber === 10 || hsNumber === 11 || hsNumber === 12)) isMatch = true;
+        } else if (slideIdx === 3) {
+          if (slide3MediaState === 'chamar') {
+            if (index === 0 && hsNumber === 1) isMatch = true;
+            else if (index === 1 && hsNumber === 2) isMatch = true;
+            else if (index === 2 && hsNumber === 3) isMatch = true;
+          } else if (slide3MediaState.startsWith('hibrido')) {
+            // Todos os hotspots da aba Híbrido referem-se ao item 3 ("Guepardo Híbrido")
+            if (index === 2) isMatch = true;
+          } else {
+            // Nas abas paradas/roteiro/direcionar, os hotspots referem-se à Gestão de Rotas & Paradas (item 4 / index 3)
+            if (index === 3 && (hsNumber === 3 || hsNumber === 4 || hsNumber === 5 || hsNumber === 6)) isMatch = true;
+          }
         } else if (slideIdx === 10) {
           if (index === 0 && (hsNumber === 1 || hsNumber === 2 || hsNumber === 3)) isMatch = true;
           else if (index === 1 && (hsNumber === 4 || hsNumber === 5)) isMatch = true;
@@ -2442,6 +2719,47 @@
 
     // Ativar hotspot através de clique nos itens de texto
     function activateHotspot(slideIdx, featureIdx) {
+      // Tratamento especial para o slide 3 para evitar conflito de números entre abas
+      if (slideIdx === 3) {
+        if (featureIdx === 1) {
+          switchSlide3Media('chamar');
+          setTimeout(() => {
+            const hs = document.getElementById('hs-3-1');
+            if (hs) hs.click();
+          }, 100);
+        } else if (featureIdx === 2) {
+          switchSlide3Media('chamar');
+          setTimeout(() => {
+            const hs = document.getElementById('hs-3-2');
+            if (hs) hs.click();
+          }, 100);
+        } else if (featureIdx === 3) {
+          switchSlide3Media('hibrido-selecionar');
+          setTimeout(() => {
+            const hs = document.getElementById('hs-3-1');
+            if (hs) hs.click();
+          }, 100);
+        } else if (featureIdx === 4) {
+          if (slide3MediaState === 'paradas') {
+            const hs = document.getElementById('hs-3-4');
+            if (hs) hs.click();
+          } else if (slide3MediaState === 'roteiro') {
+            const hs = document.getElementById('hs-3-5');
+            if (hs) hs.click();
+          } else if (slide3MediaState === 'direcionar') {
+            const hs = document.getElementById('hs-3-6');
+            if (hs) hs.click();
+          } else {
+            switchSlide3Media('paradas');
+            setTimeout(() => {
+              const hs = document.getElementById('hs-3-4');
+              if (hs) hs.click();
+            }, 100);
+          }
+        }
+        return;
+      }
+
       // Simula o clique no hotspot correspondente com base no índice
       const hotspots = document.querySelectorAll(`#slide-${slideIdx} .hotspot`);
       let foundHs = null;
