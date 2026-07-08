@@ -2060,26 +2060,30 @@ function App() {
                     await fetchStoreProfile();
                 }
 
+                // Fetch existing items from DB to merge cleanly (don't spread the whole Order object)
+                const { data: existingDbRow } = await supabase
+                    .from('deliveries')
+                    .select('items, external_order_id, external_source')
+                    .eq('id', order.id)
+                    .single();
+
                 const updatePayload: any = {
                     driver_id: courierId,
                     batch_id: batchIdToUse,
                     collection_code: finalCollectionCode,
                     earnings: targetEarnings,
                     stop_number: stopNum,
+                    // Always set accepted — never leave iFood orders in pending after assignment
+                    status: targetStatusToUse || 'accepted',
                     items: {
-                        ...order, // Keep existing items
+                        ...(existingDbRow?.items || {}),
                         storeFreight: targetStoreFreight,
                         stopNumber: stopNum,
                         batchId: batchIdToUse,
-                        pickupCode: finalCollectionCode
+                        pickupCode: finalCollectionCode,
+                        targetCourierId: courierId,
                     }
                 };
-
-                if (targetStatusToUse) {
-                    updatePayload.status = targetStatusToUse;
-                } else if (isFixedDriver || isHybridDriver) {
-                    updatePayload.status = 'accepted';
-                }
 
                 const { error } = await supabase
                     .from('deliveries')
@@ -2087,7 +2091,20 @@ function App() {
                     .eq('id', order.id);
 
                 if (error) throw error;
-            }
+
+                // Send dispatch signal to iFood to prevent webhook from creating a duplicate
+                if (existingDbRow?.external_source === 'IFOOD' && existingDbRow?.external_order_id) {
+                    console.log(`📡 [handleBulkAssign] Dispatching iFood order ${existingDbRow.external_order_id}`);
+                    await supabase.functions.invoke('ifood-webhook', {
+                        body: { action: 'readyToPickup', orderId: existingDbRow.external_order_id }
+                    });
+                    await supabase.functions.invoke('ifood-webhook', {
+                        body: { action: 'dispatchOrder', orderId: existingDbRow.external_order_id }
+                    });
+                }
+
+
+            } // end for loop sortedOrders
 
             console.log("✅ [App] Bulk assignment successful");
             // Refresh orders to get latest state from DB
