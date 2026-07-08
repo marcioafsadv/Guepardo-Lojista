@@ -83,6 +83,59 @@ async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
 }
 
 /**
+ * Registra uma mensagem de log de integração na coluna 'items' de um pedido
+ */
+async function appendIntegrationLog(orderId: string, message: string) {
+  try {
+    const cleanOrderId = String(orderId || "").trim().toLowerCase();
+    if (!cleanOrderId) return;
+
+    // Busca a delivery atual
+    const { data: delivery, error: fetchError } = await supabaseAdmin
+      .from("deliveries")
+      .select("id, items")
+      .eq("external_source", "IFOOD")
+      .eq("external_order_id", cleanOrderId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error(`[LOG INTEGRATION] Erro ao buscar delivery ${cleanOrderId}:`, fetchError.message);
+      return;
+    }
+
+    if (!delivery) {
+      console.warn(`[LOG INTEGRATION] Delivery não encontrada no banco local para o orderId: ${cleanOrderId}`);
+      return;
+    }
+
+    const items = delivery.items || {};
+    const integrationLogs = items.integration_logs || [];
+    integrationLogs.push({
+      timestamp: new Date().toISOString(),
+      message: message
+    });
+
+    const { error: updateError } = await supabaseAdmin
+      .from("deliveries")
+      .update({
+        items: {
+          ...items,
+          integration_logs: integrationLogs
+        }
+      })
+      .eq("id", delivery.id);
+
+    if (updateError) {
+      console.error(`[LOG INTEGRATION] Erro ao gravar log para delivery ${delivery.id}:`, updateError.message);
+    } else {
+      console.log(`[LOG INTEGRATION] Log gravado para delivery ${delivery.id}: "${message}"`);
+    }
+  } catch (err: any) {
+    console.error(`[LOG INTEGRATION] Falha crítica ao registrar log:`, err.message);
+  }
+}
+
+/**
  * Busca os detalhes completos de um pedido no iFood
  */
 async function fetchIFoodOrderDetails(accessToken: string, orderId: string, retryCount = 0): Promise<any> {
@@ -691,44 +744,90 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
         }
       }
       else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN" || code === "CAR") {
-        // Pedido cancelado no iFood
-        const { error: cancelError } = await supabaseAdmin
-          .from("deliveries")
-          .update({ 
-            status: "cancelled", 
-            cancellation_reason: "Cancelado pelo cliente no iFood" 
-          })
-          .eq("external_source", "IFOOD")
-          .eq("external_order_id", orderId);
-
-        if (cancelError) {
-          console.error(`❌ Erro ao cancelar pedido no banco:`, cancelError.message);
-        } else {
-          console.log(`✅ Pedido do iFood ${orderId} marcado como cancelado.`);
-        }
-
-        // Se o cancelamento partiu do cliente (CANCELLATION_REQUESTED ou CAR), aceitamos automaticamente para concluir a transição
-        if (code === "CANCELLATION_REQUESTED" || code === "CAR") {
+        const isRequest = code === "CANCELLATION_REQUESTED" || code === "CAR";
+        
+        if (isRequest) {
+          console.log(`📥 Recebida solicitação de cancelamento do cliente no iFood para o pedido ${orderId} (${code})`);
+          await appendIntegrationLog(orderId, `Recebida solicitação de cancelamento do cliente no iFood (Event Code: ${code}). Tentando aceitar automaticamente...`);
+          
           debugLogs.push(`Accepting cancellation request for order ${orderId} on iFood...`);
+          let isAccepted = false;
+          let errorText = "";
+          let statusHttp = 0;
+          
           try {
+            // Chamada POST sem corpo e sem Content-Type para evitar problemas de validação no gateway do iFood
             const acceptResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/cancellation/accept`, {
               method: "POST",
               headers: {
-                "Authorization": `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({})
+                "Authorization": `Bearer ${accessToken}`
+              }
             });
+            
+            statusHttp = acceptResp.status;
             if (!acceptResp.ok) {
-              const acceptErr = await acceptResp.text();
-              console.error(`⚠️ Erro ao aceitar cancelamento no iFood: HTTP ${acceptResp.status} - ${acceptErr}`);
-              debugLogs.push(`⚠️ Erro ao aceitar cancelamento: ${acceptErr}`);
+              errorText = await acceptResp.text();
+              console.error(`⚠️ Erro ao aceitar cancelamento no iFood: HTTP ${statusHttp} - ${errorText}`);
+              debugLogs.push(`⚠️ Erro ao aceitar cancelamento: ${errorText}`);
             } else {
+              isAccepted = true;
               console.log(`✅ Cancelamento do pedido ${orderId} aceito com sucesso no iFood.`);
               debugLogs.push(`✅ Cancelamento aceito com sucesso no iFood.`);
             }
           } catch (err: any) {
-            console.error(`❌ Falha na chamada de aceitar cancelamento:`, err.message);
+            console.error(`❌ Falha na conexão ao aceitar cancelamento:`, err.message);
+            errorText = err.message;
+          }
+          
+          if (isAccepted) {
+            await appendIntegrationLog(orderId, `Cancelamento aceito com sucesso no iFood. HTTP ${statusHttp}`);
+            // Atualiza status local do pedido para cancelado
+            const { error: cancelError } = await supabaseAdmin
+              .from("deliveries")
+              .update({ 
+                status: "cancelled", 
+                cancellation_reason: "Cancelado pelo cliente no iFood (Aceito automaticamente)" 
+              })
+              .eq("external_source", "IFOOD")
+              .eq("external_order_id", orderId);
+              
+            if (cancelError) {
+              console.error(`❌ Erro ao cancelar pedido no banco local:`, cancelError.message);
+            }
+          } else {
+            await appendIntegrationLog(orderId, `Erro ao aceitar cancelamento no iFood: HTTP ${statusHttp} - ${errorText}`);
+            // Atualiza localmente de qualquer forma para liberar o fluxo interno do Guepardo Lojista, mas com motivo claro
+            const { error: cancelError } = await supabaseAdmin
+              .from("deliveries")
+              .update({ 
+                status: "cancelled", 
+                cancellation_reason: `Cancelado pelo cliente (Falha ao aceitar no iFood: ${statusHttp})` 
+              })
+              .eq("external_source", "IFOOD")
+              .eq("external_order_id", orderId);
+              
+            if (cancelError) {
+              console.error(`❌ Erro ao cancelar pedido no banco local pós-falha:`, cancelError.message);
+            }
+          }
+        } else {
+          // Cancelamento definitivo (CANCELLED ou CAN)
+          console.log(`📥 Recebido cancelamento definitivo do iFood para o pedido ${orderId} (${code})`);
+          await appendIntegrationLog(orderId, `Recebido cancelamento definitivo do iFood (Event Code: ${code}). Atualizando banco local.`);
+          
+          const { error: cancelError } = await supabaseAdmin
+            .from("deliveries")
+            .update({ 
+              status: "cancelled", 
+              cancellation_reason: "Cancelado pelo cliente no iFood" 
+            })
+            .eq("external_source", "IFOOD")
+            .eq("external_order_id", orderId);
+
+          if (cancelError) {
+            console.error(`❌ Erro ao cancelar pedido no banco local:`, cancelError.message);
+          } else {
+            console.log(`✅ Pedido do iFood ${orderId} marcado como cancelado.`);
           }
         }
       }
@@ -871,12 +970,14 @@ Deno.serve(async (req: Request) => {
       if (!ifoodResp.ok) {
         const errorDetail = await ifoodResp.text();
         console.error(`❌ Erro retornado pela API do iFood: HTTP ${ifoodResp.status} - ${errorDetail}`);
+        await appendIntegrationLog(orderId, `Falha na ação ${action}: HTTP ${ifoodResp.status} - ${errorDetail}`);
         return new Response(JSON.stringify({ error: errorDetail }), {
           status: ifoodResp.status,
           headers: { ...corsHeaders, "Content-Type": "application/json" }
         });
       }
 
+      await appendIntegrationLog(orderId, `Ação ${action} executada com sucesso no iFood.`);
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
