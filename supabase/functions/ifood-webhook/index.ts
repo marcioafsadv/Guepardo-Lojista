@@ -922,7 +922,19 @@ Deno.serve(async (req: Request) => {
       } else if (action === "readyToPickup") {
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/readyToPickup`;
       } else if (action === "cancelOrder") {
-        let cancellationCode = "501"; // Fallback padrão
+        // Mapeamento inteligente de fallback baseado no motivo textual selecionado pelo lojista
+        let cancellationCode = "CUSTOMER_REQUEST";
+        const cleanReason = String(reason || "").trim().toLowerCase();
+        
+        if (cleanReason.includes("desistiu") || cleanReason.includes("cliente")) {
+          cancellationCode = "CUSTOMER_REQUEST";
+        } else if (cleanReason.includes("prato") || cleanReason.includes("ingrediente") || cleanReason.includes("indisponível") || cleanReason.includes("falta")) {
+          cancellationCode = "ITEM_UNAVAILABLE";
+        } else if (cleanReason.includes("demora") || cleanReason.includes("motoboy") || cleanReason.includes("entregador") || cleanReason.includes("busca")) {
+          cancellationCode = "OPERATIONAL_ISSUE";
+        } else {
+          cancellationCode = "RESTAURANT_ISSUE";
+        }
         
         try {
           console.log(`🔍 Buscando motivos de cancelamento válidos para o pedido ${orderId}...`);
@@ -935,8 +947,9 @@ Deno.serve(async (req: Request) => {
           if (reasonsResp.ok) {
             const reasonsData = await reasonsResp.json();
             if (reasonsData && reasonsData.reasons && reasonsData.reasons.length > 0) {
+              // Se a API do iFood retornou motivos válidos, usamos o primeiro que seja compatível
               cancellationCode = reasonsData.reasons[0].code;
-              console.log(`✅ Motivo selecionado automaticamente: ${cancellationCode} (${reasonsData.reasons[0].description})`);
+              console.log(`✅ Motivo selecionado automaticamente pela API: ${cancellationCode} (${reasonsData.reasons[0].description})`);
             }
           } else {
             console.warn(`⚠️ Falha ao buscar motivos de cancelamento: HTTP ${reasonsResp.status}`);
@@ -946,9 +959,10 @@ Deno.serve(async (req: Request) => {
         }
 
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/requestCancellation`;
-        // Para a API de Pedidos do iFood, o campo "reason" deve conter o CÓDIGO do motivo (string numérica, ex: "501")
+        // O iFood Merchant API v1.0 exige 'cancellationCode' e 'reason' no corpo da requisição
         bodyData = {
-          reason: cancellationCode
+          cancellationCode: cancellationCode,
+          reason: reason || "Cancelamento solicitado pelo lojista"
         };
       } else {
         return new Response(JSON.stringify({ error: "Ação inválida" }), {
