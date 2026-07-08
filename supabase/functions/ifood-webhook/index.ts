@@ -690,7 +690,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           }
         }
       }
-      else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN") {
+      else if (code === "ORDER_CANCELLED" || code === "CANCELLED" || code === "CANCELLATION_REQUESTED" || code === "CAN" || code === "CAR") {
         // Pedido cancelado no iFood
         const { error: cancelError } = await supabaseAdmin
           .from("deliveries")
@@ -707,8 +707,8 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           console.log(`✅ Pedido do iFood ${orderId} marcado como cancelado.`);
         }
 
-        // Se o cancelamento partiu do cliente (CANCELLATION_REQUESTED), aceitamos automaticamente para concluir a transição
-        if (code === "CANCELLATION_REQUESTED" || code === "CAN") {
+        // Se o cancelamento partiu do cliente (CANCELLATION_REQUESTED ou CAR), aceitamos automaticamente para concluir a transição
+        if (code === "CANCELLATION_REQUESTED" || code === "CAR") {
           debugLogs.push(`Accepting cancellation request for order ${orderId} on iFood...`);
           try {
             const acceptResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/cancellation/accept`, {
