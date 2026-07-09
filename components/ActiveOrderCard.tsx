@@ -228,7 +228,9 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 className="w-4 h-4 rounded border-white/20 bg-black/60 text-guepardo-accent checked:bg-guepardo-accent focus:ring-0 cursor-pointer accent-orange-500"
               />
             )}
-            <span className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-white/10 text-white text-[11px] font-black uppercase tracking-[0.1em] border border-white/15 shadow-md">
+            <span className={`inline-flex items-center gap-1 font-black uppercase tracking-[0.05em] border border-white/15 shadow-md rounded-lg bg-white/10 text-white transition-all duration-300
+              ${isExpanded ? 'px-4 py-2 text-lg md:text-2xl' : 'px-3 py-1.5 text-base md:text-xl'}
+            `}>
               #{order.display_id || order.id.slice(-4)}
             </span>
             
