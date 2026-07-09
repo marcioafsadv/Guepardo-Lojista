@@ -79,42 +79,64 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
                                 Cancelar <br />
                                 <span className="text-orange-500 text-shadow-glow">Solicitação</span>
                             </h2>
-                            {/* Número do pedido externo (iFood / 99Food) em destaque */}
-                            {order.external_source && order.display_id && (
-                                <div className="mt-3 md:mt-4 flex items-center gap-2.5 animate-in fade-in slide-in-from-left-2 duration-500">
-                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
-                                        order.external_source === 'IFOOD' 
-                                        ? 'bg-red-600/20 text-red-400 border-red-500/30' 
-                                        : 'bg-blue-600/20 text-blue-400 border-blue-500/30'
-                                    }`}>
-                                        {order.external_source === 'IFOOD' ? 'iFood' : '99Food'}
-                                    </span>
-                                    <span className="text-white font-black text-xl md:text-2xl tracking-tight" style={{ textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
-                                        #{order.display_id}
-                                    </span>
-                                </div>
-                            )}
-                            {/* OS interna (sempre visível, secundária) */}
-                            <div className="flex items-center gap-3 mt-2 md:mt-2.5">
-                                <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-black text-white/30 uppercase tracking-[0.2em] border border-white/5">OS #{order.id.slice(-4)}</span>
-                                {!order.external_source && (
-                                    <>
-                                        <span className="text-white/10 italic text-sm">/</span>
-                                        <span className="text-sm font-bold text-white/50">{order.clientName}</span>
-                                    </>
-                                )}
-                            </div>
                         </div>
                     </div>
                     <button 
                         onClick={onClose} 
-                        className="p-2.5 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all text-white/30 hover:text-white border border-white/5 shadow-xl"
+                        className="p-2.5 md:p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all text-white/30 hover:text-white border border-white/5 shadow-xl self-start"
                     >
                         <X className="w-5 h-5 md:w-6 md:h-6" />
                     </button>
                 </div>
 
-                <div className="px-6 md:px-10 pb-6 md:pb-10 space-y-6 md:space-y-8">
+                {/* Card: Número do Pedido — estilo igual ao painel de detalhes */}
+                {order.external_source && order.display_id && (
+                    <div className="mx-6 md:mx-10 -mt-2 mb-0 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="relative rounded-[1.5rem] md:rounded-[2rem] overflow-hidden border border-orange-500/40 bg-gradient-to-br from-orange-600/15 via-orange-500/5 to-transparent p-5 md:p-6 shadow-[0_0_40px_rgba(255,122,0,0.12)]">
+                            
+                            {/* Background glow */}
+                            <div className="absolute -right-10 -top-10 w-40 h-40 bg-orange-500/20 blur-[60px] pointer-events-none" />
+                            
+                            {/* Label */}
+                            <div className="flex items-center justify-between mb-3 relative z-10">
+                                <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.35em] text-orange-400/80">
+                                    Número do Pedido
+                                </span>
+                                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
+                                    order.external_source === 'IFOOD' 
+                                    ? 'bg-red-600/20 text-red-400 border-red-500/30' 
+                                    : 'bg-blue-600/20 text-blue-400 border-blue-500/30'
+                                }`}>
+                                    {order.external_source === 'IFOOD' ? 'iFood' : '99Food'}
+                                </span>
+                            </div>
+
+                            {/* Número grande — igual ao #1349 no painel */}
+                            <div className="relative z-10 flex items-baseline gap-4">
+                                <span 
+                                    className="text-4xl md:text-5xl font-black tracking-tight text-white leading-none"
+                                    style={{ textShadow: '0 0 30px rgba(255,255,255,0.4), 0 0 60px rgba(255,122,0,0.15)' }}
+                                >
+                                    #{order.display_id}
+                                </span>
+                                <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] pb-1">
+                                    OS #{order.id.slice(-4)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* OS interna apenas quando não for pedido externo */}
+                {!order.external_source && (
+                    <div className="flex items-center gap-3 px-6 md:px-10 -mt-2">
+                        <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-black text-white/30 uppercase tracking-[0.2em] border border-white/5">OS #{order.id.slice(-4)}</span>
+                        <span className="text-white/10 italic text-sm">/</span>
+                        <span className="text-sm font-bold text-white/50">{order.clientName}</span>
+                    </div>
+                )}
+
+                <div className="px-6 md:px-10 pb-6 md:pb-10 space-y-6 md:space-y-8 mt-6">
 
                     {/* 1. Ultra-Premium Glass Financial Panel */}
                     <div className={`rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 border transition-all duration-700 relative overflow-hidden ${
