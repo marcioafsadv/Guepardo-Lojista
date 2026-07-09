@@ -63,7 +63,7 @@ async function getIFoodAccessToken(): Promise<string> {
 async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
   if (eventIds.length === 0) return;
   
-  console.log(`✉️ Enviando confirmação (ack) para ${eventIds.length} eventos no iFood...`);
+  console.log(`✉️ Enviando confirmação (ack) para ${eventIds.length} eventos no iFood: ${JSON.stringify(eventIds)}`);
   try {
     const ackResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/events/acknowledgment`, {
       method: "POST",
@@ -75,7 +75,10 @@ async function acknowledgeEvents(accessToken: string, eventIds: string[]) {
     });
     
     if (!ackResp.ok) {
-      console.error(`⚠️ Erro ao enviar confirmação de eventos para o iFood: HTTP ${ackResp.status}`);
+      const ackErrBody = await ackResp.text();
+      console.error(`⚠️ Erro ao enviar confirmação de eventos para o iFood: HTTP ${ackResp.status} - ${ackErrBody}`);
+    } else {
+      console.log(`✅ Ack enviado com sucesso para ${eventIds.length} eventos.`);
     }
   } catch (err) {
     console.error("❌ Falha na conexão de confirmação de eventos:", err);
@@ -834,11 +837,15 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
     } catch (err: any) {
       debugLogs.push(`❌ Falha interna no loop do evento ${eventId}: ${err.message}`);
       console.error(`❌ Falha no processamento do evento ${eventId}:`, err.message);
-      throw new Error(`Falha no evento ${eventId} (${code}): ${err.message} - Stack: ${err.stack}`);
+      // IMPORTANTE: NÃO relançar o erro aqui para garantir que o ack seja sempre enviado
+      // ao iFood, mesmo que um evento específico falhe no processamento.
+      // O iFood exige o ack para remover o evento da fila - sem ele, o evento é reenviado
+      // repetidamente e pode causar reprovação na homologação.
     }
   }
 
   // Envia confirmação (Acknowledge) para que o iFood remova esses eventos da fila
+  // SEMPRE enviamos o ack, independente de erros de processamento
   debugLogs.push(`✉️ Confirmando recebimento de ${eventIdsToAck.length} eventos no iFood...`);
   await acknowledgeEvents(accessToken, eventIdsToAck);
   debugLogs.push("✅ Confirmação enviada.");
@@ -923,19 +930,12 @@ Deno.serve(async (req: Request) => {
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/readyToPickup`;
       } else if (action === "cancelOrder") {
         // Mapeamento inteligente de fallback baseado no motivo textual selecionado pelo lojista
-        let cancellationCode = "CUSTOMER_REQUEST";
+        // O iFood aceita APENAS os códigos retornados por /cancellationReasons (numéricos ou strings da API)
+        let cancellationCode: string | number | null = null;
         const cleanReason = String(reason || "").trim().toLowerCase();
         
-        if (cleanReason.includes("desistiu") || cleanReason.includes("cliente")) {
-          cancellationCode = "CUSTOMER_REQUEST";
-        } else if (cleanReason.includes("prato") || cleanReason.includes("ingrediente") || cleanReason.includes("indisponível") || cleanReason.includes("falta")) {
-          cancellationCode = "ITEM_UNAVAILABLE";
-        } else if (cleanReason.includes("demora") || cleanReason.includes("motoboy") || cleanReason.includes("entregador") || cleanReason.includes("busca")) {
-          cancellationCode = "OPERATIONAL_ISSUE";
-        } else {
-          cancellationCode = "RESTAURANT_ISSUE";
-        }
-        
+        // Passo 1: Tenta buscar o motivo de cancelamento válido da API do iFood
+        let reasonsFetched = false;
         try {
           console.log(`🔍 Buscando motivos de cancelamento válidos para o pedido ${orderId}...`);
           const reasonsResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/cancellationReasons`, {
@@ -946,22 +946,61 @@ Deno.serve(async (req: Request) => {
           
           if (reasonsResp.ok) {
             const reasonsData = await reasonsResp.json();
-            if (reasonsData && reasonsData.reasons && reasonsData.reasons.length > 0) {
-              // Se a API do iFood retornou motivos válidos, usamos o primeiro que seja compatível
-              cancellationCode = reasonsData.reasons[0].code;
-              console.log(`✅ Motivo selecionado automaticamente pela API: ${cancellationCode} (${reasonsData.reasons[0].description})`);
+            const reasons = reasonsData?.reasons || reasonsData?.cancellationReasons || (Array.isArray(reasonsData) ? reasonsData : []);
+            if (reasons.length > 0) {
+              // Tenta achar um motivo compatível com o texto do usuário
+              const matchedReason = reasons.find((r: any) => {
+                const desc = String(r.description || r.name || "").toLowerCase();
+                return desc.includes("cliente") || desc.includes("customer") || desc.includes("restaurante") || desc.includes("restaurant");
+              }) || reasons[0];
+              cancellationCode = matchedReason.code ?? matchedReason.cancellationCode ?? matchedReason.id;
+              console.log(`✅ Motivo selecionado automaticamente pela API: ${cancellationCode} (${matchedReason.description || matchedReason.name})`);
+              reasonsFetched = true;
+            } else {
+              console.warn(`⚠️ API retornou lista de motivos vazia para pedido ${orderId}.`);
             }
           } else {
-            console.warn(`⚠️ Falha ao buscar motivos de cancelamento: HTTP ${reasonsResp.status}`);
+            const reasonsErrText = await reasonsResp.text();
+            console.warn(`⚠️ Falha ao buscar motivos de cancelamento: HTTP ${reasonsResp.status} - ${reasonsErrText}`);
           }
         } catch (err: any) {
           console.error(`⚠️ Erro ao buscar motivos de cancelamento:`, err.message);
         }
 
+        // Passo 2: Se não conseguiu motivo válido da API, usa /cancellation/accept como fallback
+        // (o iFood pode ter enviado CANCELLATION_REQUESTED antes, neste caso accept resolve)
+        if (!reasonsFetched || cancellationCode === null) {
+          console.log(`🔄 Tentando /cancellation/accept como fallback para o pedido ${orderId}...`);
+          try {
+            const acceptFallbackResp = await fetch(`${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/cancellation/accept`, {
+              method: "POST",
+              headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+            if (acceptFallbackResp.ok) {
+              console.log(`✅ Cancelamento aceito via /cancellation/accept para pedido ${orderId}.`);
+              await appendIntegrationLog(orderId, `Ação cancelOrder executada via /cancellation/accept com sucesso no iFood.`);
+              // Cancela localmente também
+              await supabaseAdmin.from("deliveries").update({
+                status: "cancelled",
+                cancellation_reason: reason || "Cancelamento solicitado pelo lojista"
+              }).eq("external_source", "IFOOD").eq("external_order_id", orderId.toLowerCase());
+              return new Response(JSON.stringify({ success: true, method: "cancellation/accept" }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" }
+              });
+            } else {
+              const acceptErr = await acceptFallbackResp.text();
+              console.warn(`⚠️ /cancellation/accept também falhou: HTTP ${acceptFallbackResp.status} - ${acceptErr}`);
+            }
+          } catch (acceptErr: any) {
+            console.error(`⚠️ Erro no /cancellation/accept fallback:`, acceptErr.message);
+          }
+        }
+
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/requestCancellation`;
-        // O iFood Merchant API v1.0 exige 'cancellationCode' e 'reason' no corpo da requisição
+        // O iFood Merchant API exige 'cancellationCode' (retornado por /cancellationReasons) e 'reason'
+        // Se não temos código válido, usamos a string padrão como último recurso
         bodyData = {
-          cancellationCode: cancellationCode,
+          cancellationCode: cancellationCode ?? "RESTAURANT_CANCELLATION",
           reason: reason || "Cancelamento solicitado pelo lojista"
         };
       } else {
@@ -1005,7 +1044,14 @@ Deno.serve(async (req: Request) => {
       const eventsList = Array.isArray(payload) ? payload : [payload];
       const debugLogs: string[] = [];
       // Processa os eventos e aguarda a conclusão antes de retornar
-      await processIFoodEvents(eventsList, debugLogs);
+      // IMPORTANTE: Mesmo que o processamento falhe, retornamos HTTP 202 para o iFood
+      // para evitar que ele interprete como falha e deixe de enviar mais eventos
+      try {
+        await processIFoodEvents(eventsList, debugLogs);
+      } catch (processErr: any) {
+        console.error("❌ Erro crítico ao processar eventos iFood (ack pode não ter sido enviado):", processErr.message);
+        debugLogs.push(`❌ Erro crítico no processamento: ${processErr.message}`);
+      }
       
       return new Response(JSON.stringify({ received: true, logs: debugLogs }), {
         status: 202,
