@@ -79,10 +79,30 @@ export const CancellationModal: React.FC<CancellationModalProps> = ({ order, onC
                                 Cancelar <br />
                                 <span className="text-orange-500 text-shadow-glow">Solicitação</span>
                             </h2>
-                            <div className="flex items-center gap-3 mt-3 md:mt-4">
-                                <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-black text-white/40 uppercase tracking-[0.2em] border border-white/5">OS #{order.id.slice(-4)}</span>
-                                <span className="text-white/10 italic text-sm">/</span>
-                                <span className="text-sm font-bold text-white/50">{order.clientName}</span>
+                            {/* Número do pedido externo (iFood / 99Food) em destaque */}
+                            {order.external_source && order.display_id && (
+                                <div className="mt-3 md:mt-4 flex items-center gap-2.5 animate-in fade-in slide-in-from-left-2 duration-500">
+                                    <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] border ${
+                                        order.external_source === 'IFOOD' 
+                                        ? 'bg-red-600/20 text-red-400 border-red-500/30' 
+                                        : 'bg-blue-600/20 text-blue-400 border-blue-500/30'
+                                    }`}>
+                                        {order.external_source === 'IFOOD' ? 'iFood' : '99Food'}
+                                    </span>
+                                    <span className="text-white font-black text-xl md:text-2xl tracking-tight" style={{ textShadow: '0 0 20px rgba(255,255,255,0.3)' }}>
+                                        #{order.display_id}
+                                    </span>
+                                </div>
+                            )}
+                            {/* OS interna (sempre visível, secundária) */}
+                            <div className="flex items-center gap-3 mt-2 md:mt-2.5">
+                                <span className="bg-white/5 px-3 py-1 rounded-full text-[10px] font-black text-white/30 uppercase tracking-[0.2em] border border-white/5">OS #{order.id.slice(-4)}</span>
+                                {!order.external_source && (
+                                    <>
+                                        <span className="text-white/10 italic text-sm">/</span>
+                                        <span className="text-sm font-bold text-white/50">{order.clientName}</span>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </div>
