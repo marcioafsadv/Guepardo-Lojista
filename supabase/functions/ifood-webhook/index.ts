@@ -997,12 +997,11 @@ Deno.serve(async (req: Request) => {
         }
 
         ifoodEndpoint = `${IFOOD_BASE_URL}/order/v1.0/orders/${orderId}/requestCancellation`;
-        // FORMATO CORRETO confirmado na homologação de 06/07 que funcionou:
-        // O iFood aceita APENAS o campo "reason" com o CÓDIGO NUMÉRICO (ex: "501")
-        // NÃO enviar "cancellationCode" com strings de texto — o iFood valida como enum e rejeita
-        const finalCode = String(cancellationCode ?? "501"); // "501" = código padrão de cancelamento pelo restaurante
+        // O iFood Merchant API v1.0 exige 'cancellationCode' (código numérico em string ex: "501") E 'reason' (texto descritivo)
+        const finalCode = String(cancellationCode ?? "501");
         bodyData = {
-          reason: finalCode  // Único campo aceito: código numérico como string ("501", "502", etc.)
+          cancellationCode: finalCode,
+          reason: reason || "Cancelamento solicitado pelo lojista"
         };
       } else {
         return new Response(JSON.stringify({ error: "Ação inválida" }), {
