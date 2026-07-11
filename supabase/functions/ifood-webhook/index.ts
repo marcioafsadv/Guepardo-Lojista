@@ -221,7 +221,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`🔍 Buscando loja cadastrada com ifood_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode")
+        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode, ifood_receiving_orders")
         .eq("ifood_merchant_id", merchantId)
         .single();
 
@@ -231,6 +231,11 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
 
       if (storeError || !store) {
         debugLogs.push(`⚠️ Nenhuma loja encontrada com o ifood_merchant_id '${merchantId}'. Ignorando evento.`);
+        continue;
+      }
+
+      if (store.ifood_receiving_orders === false) {
+        debugLogs.push(`ℹ️ Integração do iFood desativada pelo lojista (${store.fantasy_name}). Ignorando evento.`);
         continue;
       }
       debugLogs.push(`✅ Loja encontrada: ${store.fantasy_name || store.id}`);

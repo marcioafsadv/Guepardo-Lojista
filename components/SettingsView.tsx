@@ -36,7 +36,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         state: '',
         cep: '',
         ifoodMerchantId: storeProfile?.ifood_merchant_id || '',
-        ninenineMerchantId: storeProfile?.ninenine_merchant_id || ''
+        ninenineMerchantId: storeProfile?.ninenine_merchant_id || '',
+        ifoodReceivingOrders: storeProfile?.ifood_receiving_orders !== false,
+        ninenineReceivingOrders: storeProfile?.ninenine_receiving_orders !== false
     });
 
     // Initialize address from storeProfile string or fetch from DB if needed
@@ -49,7 +51,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         if (storeProfile) {
             // We need to fetch the structured address since storeProfile only has the concatenated string
             const fetchStructuredAddress = async () => {
-                const { data } = await supabase.from('stores').select('address, fantasy_name, ifood_merchant_id, ninenine_merchant_id').eq('id', storeProfile.id).single();
+                const { data } = await supabase.from('stores').select('address, fantasy_name, ifood_merchant_id, ninenine_merchant_id, ifood_receiving_orders, ninenine_receiving_orders').eq('id', storeProfile.id).single();
                 if (data) {
                     setProfileData({
                         name: data.fantasy_name || storeProfile.name,
@@ -60,7 +62,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         state: data.address?.state || '',
                         cep: data.address?.zip_code || data.address?.cep || '',
                         ifoodMerchantId: data.ifood_merchant_id || '',
-                        ninenineMerchantId: data.ninenine_merchant_id || ''
+                        ninenineMerchantId: data.ninenine_merchant_id || '',
+                        ifoodReceivingOrders: data.ifood_receiving_orders !== false,
+                        ninenineReceivingOrders: data.ninenine_receiving_orders !== false
                     });
                 }
             };
@@ -103,6 +107,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                     fantasy_name: profileData.name,
                     ifood_merchant_id: profileData.ifoodMerchantId || null,
                     ninenine_merchant_id: profileData.ninenineMerchantId || null,
+                    ifood_receiving_orders: profileData.ifoodReceivingOrders,
+                    ninenine_receiving_orders: profileData.ninenineReceivingOrders,
                     address: {
                         street: profileData.street,
                         number: profileData.number,
@@ -309,7 +315,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                 <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">iFood Merchant ID</label>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">iFood Merchant ID</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-gray-400">RECEBER PEDIDOS</span>
+                                    <button
+                                        onClick={() => handleProfileChange('ifoodReceivingOrders', !profileData.ifoodReceivingOrders)}
+                                        className={`w-10 h-6 rounded-full p-0.5 transition-colors ${profileData.ifoodReceivingOrders ? 'bg-green-500' : 'bg-gray-300 dark:bg-guepardo-gray-750'}`}
+                                    >
+                                        <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${profileData.ifoodReceivingOrders ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <input
                                     type="text"
@@ -329,7 +346,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">99Food Merchant ID</label>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">99Food Merchant ID</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-gray-400">RECEBER PEDIDOS</span>
+                                    <button
+                                        onClick={() => handleProfileChange('ninenineReceivingOrders', !profileData.ninenineReceivingOrders)}
+                                        className={`w-10 h-6 rounded-full p-0.5 transition-colors ${profileData.ninenineReceivingOrders ? 'bg-green-500' : 'bg-gray-300 dark:bg-guepardo-gray-750'}`}
+                                    >
+                                        <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${profileData.ninenineReceivingOrders ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                            </div>
                             <div className="flex flex-col gap-2">
                                 <input
                                     type="text"

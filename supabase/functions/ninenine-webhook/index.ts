@@ -144,7 +144,7 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
       debugLogs.push(`🔍 Buscando loja cadastrada com ninenine_merchant_id: ${merchantId}...`);
       const { data: store, error: storeError } = await supabaseAdmin
         .from("stores")
-        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode")
+        .select("id, lat, lng, fantasy_name, company_name, address, is_open_mode, ninenine_receiving_orders")
         .eq("ninenine_merchant_id", merchantId)
         .single();
 
@@ -154,6 +154,11 @@ async function processNinenineEvents(events: any[], debugLogs: string[]) {
 
       if (storeError || !store) {
         debugLogs.push(`⚠️ Nenhuma loja encontrada com o ninenine_merchant_id '${merchantId}'. Ignorando evento.`);
+        continue;
+      }
+
+      if (store.ninenine_receiving_orders === false) {
+        debugLogs.push(`ℹ️ Integração da 99Food desativada pelo lojista (${store.fantasy_name}). Ignorando evento.`);
         continue;
       }
       debugLogs.push(`✅ Loja encontrada: ${store.fantasy_name || store.id}`);
