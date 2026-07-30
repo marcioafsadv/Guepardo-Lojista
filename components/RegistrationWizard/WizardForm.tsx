@@ -3,11 +3,13 @@ import { WizardFormData } from './types';
 import Step1Company from './Step1Company';
 import Step2Address from './Step2Address';
 import Step3Access from './Step3Access';
+import Step4Contract from './Step4Contract';
 
 import WelcomeScreen from './WelcomeScreen';
 import { ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { geocodeAddress } from '../../utils/geocoding';
+import { CONTRACT_VERSION } from './contractTemplate';
 
 const WizardForm: React.FC = () => {
     const [currentStep, setCurrentStep] = useState(0); // Start at Welcome Screen
@@ -27,7 +29,10 @@ const WizardForm: React.FC = () => {
         nomeResponsavel: '',
         email: '',
         senha: '',
-        confirmarSenha: ''
+        confirmarSenha: '',
+        // Contract (Step 4) — defaults
+        contractAccepted: false,
+        contractVersion: CONTRACT_VERSION,
     });
     const [errors, setErrors] = useState<Partial<Record<keyof WizardFormData, string>>>({});
 
@@ -36,7 +41,7 @@ const WizardForm: React.FC = () => {
     };
 
     const nextStep = () => {
-        if (currentStep === 3) {
+        if (currentStep === 4) {
             handleFinish();
             return;
         }
@@ -132,7 +137,12 @@ const WizardForm: React.FC = () => {
                             district: bairro,
                             city: cidade,
                             state: estado
-                        }
+                        },
+                        // ── Audit Trail do Aceite Eletrônico do Contrato ──
+                        contract_accepted_at: formData.contractAcceptedAt || new Date().toISOString(),
+                        contract_ip_address:  formData.contractIpAddress  || null,
+                        contract_user_agent:  formData.contractUserAgent  || navigator.userAgent,
+                        contract_version:     formData.contractVersion    || CONTRACT_VERSION,
                     });
 
                 if (storeError) {
@@ -194,6 +204,15 @@ const WizardForm: React.FC = () => {
                         setErrors={setErrors}
                     />
                 );
+            case 4:
+                return (
+                    <Step4Contract
+                        formData={formData}
+                        updateFormData={updateFormData}
+                        nextStep={nextStep}
+                        prevStep={prevStep}
+                    />
+                );
             default:
                 return null;
         }
@@ -211,11 +230,13 @@ const WizardForm: React.FC = () => {
                             <span className={`text-sm font-semibold ${currentStep >= 2 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Endereço</span>
                             <ChevronRight className="w-4 h-4 text-zinc-600" />
                             <span className={`text-sm font-semibold ${currentStep >= 3 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Acesso</span>
+                            <ChevronRight className="w-4 h-4 text-zinc-600" />
+                            <span className={`text-sm font-semibold ${currentStep >= 4 ? 'text-[#FF6B00]' : 'text-zinc-500'}`}>Contrato</span>
                         </div>
                         <div className="h-2 bg-zinc-800/50 rounded-full overflow-hidden">
                             <div
                                 className="h-full bg-[#FF6B00] transition-all duration-300 ease-in-out"
-                                style={{ width: `${((currentStep) / 3) * 100}%` }}
+                                style={{ width: `${(currentStep / 4) * 100}%` }}
                             />
                         </div>
                     </div>
