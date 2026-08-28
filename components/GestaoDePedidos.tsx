@@ -259,15 +259,36 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             // 4. Calculate Final Optimized Route Geometry
             const stats = await calculateRoute(finalCoords);
             if (stats) {
-                setRouteStats(stats);
+                let returnDistance = stats.distanceValue;
+                if (finalCoords.length > 2) {
+                    const lastStop = finalCoords[finalCoords.length - 1];
+                    const store = finalCoords[0];
+                    const returnStats = await calculateRoute([lastStop, store]);
+                    if (returnStats) {
+                        returnDistance = returnStats.distanceValue;
+                    } else {
+                        returnDistance = calculateDistance(lastStop[0], lastStop[1], store[0], store[1]) * 1000 * 1.2;
+                    }
+                }
+                setRouteStats({
+                    ...stats,
+                    returnDistanceValue: returnDistance
+                });
             } else {
                 // Fallback to straight-line if Routing API fails
                 const dist = calculateDistance(storeProfile.lat, storeProfile.lng, destCoords.lat, destCoords.lng);
+                let returnDistance = dist * 1000;
+                if (finalCoords.length > 2) {
+                    const lastStop = finalCoords[finalCoords.length - 1];
+                    const store = finalCoords[0];
+                    returnDistance = calculateDistance(lastStop[0], lastStop[1], store[0], store[1]) * 1000 * 1.2;
+                }
                 setRouteStats({
                     distanceText: `${dist.toFixed(1)} km`,
                     durationText: `${Math.round(dist * 2.5)} min`, 
                     distanceValue: dist * 1000,
-                    durationValue: dist * 1000 * 2.5 * 60
+                    durationValue: dist * 1000 * 2.5 * 60,
+                    returnDistanceValue: returnDistance
                 });
             }
         };

@@ -99,6 +99,7 @@ export interface Order {
   // Logistics
   isReturnRequired?: boolean; // If courier must return to store (e.g. Card Machine)
   returnFee?: number; // The extra cost for the return trip
+  returnDistanceKm?: number;
 
   // Timeline history
   events: OrderEvent[];
@@ -178,6 +179,7 @@ export interface RouteStats {
   durationText: string;
   durationValue: number; // seconds
   geometry?: [number, number][]; // Road-snapped coordinates
+  returnDistanceValue?: number; // meters
 }
 
 export interface AddressComponents {

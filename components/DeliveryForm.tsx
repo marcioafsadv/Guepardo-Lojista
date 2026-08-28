@@ -269,8 +269,9 @@ export const DeliveryForm = ({
 
   // ── Taxa de retorno ───────────────────────────────────────────────────
   const returnFeeActive = settings?.returnFeeActive ?? true;
+  const returnDistanceMeters = routeStats?.returnDistanceValue ?? distanceMeters;
   const returnFeeResult = (isReturnRequired && returnFeeActive)
-    ? calculateReturnFee(distanceMeters)
+    ? calculateReturnFee(returnDistanceMeters)
     : null;
   const returnFee = (isReturnRequired && returnFeeActive && !isFixedDriver && !isHybridFixedDriver) ? (returnFeeResult?.storeFee ?? 0) : 0;
   const returnCourierEarnings = (isReturnRequired && returnFeeActive && !isFixedDriver && !isHybridFixedDriver) ? (returnFeeResult?.courierFee ?? 0) : 0;
@@ -336,6 +337,7 @@ export const DeliveryForm = ({
       isReturnRequired,
       // Pass calculated values to parent (distância em KM para compatibilidade)
       calculatedDistance: distanceMeters / 1000,
+      returnDistanceKm: returnDistanceMeters / 1000,
       calculatedEarnings: isHybridFixedDriver
         ? 5.00 * (1 + additionalStops.length)
         : Number((baseCourierEarnings + returnCourierEarnings).toFixed(2)),

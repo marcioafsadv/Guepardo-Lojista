@@ -420,10 +420,11 @@ function App() {
             createdAt: new Date(d.created_at),
             estimatedPrice: Number(d.earnings) || 0,
             storeFreight: Number(items.storeFreight) || 0,
-            distanceKm: 1.2,
+            distanceKm: Number(d.delivery_distance) || Number(items.calculatedDistance) || 1.2,
             events: synthesizeTimeline(d),
             pickupCode: d.collection_code,
             isReturnRequired: items.isReturnRequired,
+            returnDistanceKm: items.returnDistanceKm,
             destinationLat: items.destinationLat,
             destinationLng: items.destinationLng,
             clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
@@ -1402,7 +1403,8 @@ function App() {
                         ? calculateFreightBatching(distMeters).courierFee 
                         : calculateFreight(distMeters).courierFee;
                     if (data.isReturnRequired) {
-                        stopEarnings += calculateReturnFee(distMeters).courierFee;
+                        const returnDistMeters = (data.returnDistanceKm !== undefined ? data.returnDistanceKm : (data.calculatedDistance || 1.2)) * 1000;
+                        stopEarnings += calculateReturnFee(returnDistMeters).courierFee;
                     }
                 }
                 
@@ -1416,6 +1418,7 @@ function App() {
                     paymentMethod: data.paymentMethod,
                     deliveryValue: data.deliveryValue,
                     isReturnRequired: data.isReturnRequired,
+                    returnDistanceKm: data.returnDistanceKm,
                     targetCourierId: targetCourierId || null,
                     addressNeighborhood: data.addressNeighborhood,
                     addressComplement: data.addressComplement,
@@ -1624,7 +1627,8 @@ function App() {
                         : calculateFreight(distMeters).courierFee;
                         
                     if (data.isReturnRequired) {
-                        totalBatchEarnings += calculateReturnFee(distMeters).courierFee;
+                        const returnDistMeters = (data.returnDistanceKm !== undefined ? data.returnDistanceKm : (data.calculatedDistance || 1.2)) * 1000;
+                        totalBatchEarnings += calculateReturnFee(returnDistMeters).courierFee;
                     }
                     
                     // Divide the total earning equally among all stops in the batch
@@ -1662,6 +1666,7 @@ function App() {
                         paymentMethod: stop.paymentMethod,
                         deliveryValue: stop.deliveryValue,
                         isReturnRequired: stop.isReturnRequired,
+                        returnDistanceKm: data.returnDistanceKm,
                         destinationLat: finalLat,
                         destinationLng: finalLng,
                         targetCourierId: targetCourierId,
@@ -1908,6 +1913,7 @@ function App() {
             for (let i = 0; i < sortedOrders.length; i++) {
                 const order = sortedOrders[i];
                 const distMeters = (order.distanceKm || 1.2) * 1000;
+                const returnDistMeters = (order.returnDistanceKm !== undefined ? order.returnDistanceKm : (order.distanceKm || 1.2)) * 1000;
                 
                 let newEarnings = 0;
                 let calculatedStoreFreight = 0;
@@ -1918,7 +1924,7 @@ function App() {
                         : calculateFreightBatching(distMeters).courierFee;
 
                     if (order.isReturnRequired) {
-                        newEarnings += calculateReturnFee(distMeters).courierFee;
+                        newEarnings += calculateReturnFee(returnDistMeters).courierFee;
                     }
                     newEarnings = Number(newEarnings.toFixed(2));
 
@@ -1926,7 +1932,7 @@ function App() {
                         ? calculateFreight(distMeters).storeFee
                         : calculateFreightBatching(distMeters).storeFee;
                     if (order.isReturnRequired) {
-                        calculatedStoreFreight += calculateReturnFee(distMeters).storeFee;
+                        calculatedStoreFreight += calculateReturnFee(returnDistMeters).storeFee;
                     }
                     calculatedStoreFreight = Number(calculatedStoreFreight.toFixed(2));
                 }
