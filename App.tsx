@@ -1498,7 +1498,9 @@ function App() {
                     changeFor: data.changeFor,
                     isReturnRequired: data.isReturnRequired,
                     customerNote: data.customerNote,
-                    scheduled_at: data.scheduled_at
+                    scheduled_at: data.scheduled_at,
+                    destinationLat: data.destinationLat,
+                    destinationLng: data.destinationLng
                 },
                 ...(data.additionalStops || []).map(s => ({
                     clientName: s.clientName || '',
@@ -1515,7 +1517,9 @@ function App() {
                     changeFor: s.paymentMethod === 'CASH' && s.changeFor ? parseFloat(s.changeFor) : null,
                     isReturnRequired: s.paymentMethod === 'CARD',
                     customerNote: '',
-                    scheduled_at: undefined
+                    scheduled_at: undefined,
+                    destinationLat: s.destinationLat || s.lat,
+                    destinationLng: s.destinationLng || s.lng
                 }))
             ];
 
@@ -1546,6 +1550,10 @@ function App() {
             // 2. Geocode all stops (Main + Additional)
             console.log("📍 [App] Geocoding stops...");
             const geocodedStops = await Promise.all(stopsToProcess.map(async (stop) => {
+                if (typeof stop.destinationLat === 'number' && typeof stop.destinationLng === 'number') {
+                    console.log("📍 [App] Direct GPS coordinates used for stop:", stop.destinationLat, stop.destinationLng);
+                    return { ...stop, coords: { lat: stop.destinationLat, lng: stop.destinationLng } };
+                }
                 const coords = await geocodeAddress({
                     street: stop.addressStreet,
                     number: stop.addressNumber,

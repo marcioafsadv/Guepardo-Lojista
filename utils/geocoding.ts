@@ -22,6 +22,11 @@ export async function geocodeAddress(
     address: string | AddressComponents,
     proximity?: { lat: number, lng: number }
 ): Promise<{ lat: number, lng: number } | null> {
+    // If coordinates are already provided, return them directly
+    if (typeof address === 'object' && typeof address.lat === 'number' && typeof address.lng === 'number' && !isNaN(address.lat) && !isNaN(address.lng)) {
+        return { lat: address.lat, lng: address.lng };
+    }
+
     // 1. Try Mapbox if token is available
     if (MAPBOX_TOKEN) {
         return geocodeWithMapbox(address, proximity);
@@ -165,3 +170,148 @@ async function geocodeWithNominatim(address: string | AddressComponents): Promis
         return null;
     }
 }
+
+/**
+ * Valida se os valores de latitude e longitude estão em faixas geográficas aceitáveis.
+ */
+export function isValidLatLng(lat: number, lng: number): boolean {
+    return typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+/**
+ * Tenta converter uma string de coordenadas ou link de mapa em { lat, lng }
+ * Suporta formatos:
+ * - Decimais: "-23.275812, -47.310245", "-23.275812 -47.310245"
+ * - Links: "https://maps.google.com/?q=-23.275812,-47.310245", "/@ -23.275812,-47.310245"
+ * - Graus, Minutos e Segundos: 23°16'32.9"S 47°18'36.9"W
+ */
+export function parseCoordinates(input: string): { lat: number, lng: number } | null {
+    if (!input || typeof input !== 'string') return null;
+    const clean = input.trim();
+
+    // 1. URL pattern (Google Maps / Waze / Apple Maps)
+    const urlMatch = clean.match(/(?:[?&]q=|[?&]ll=|\/@)(-?\d{1,2}\.\d+)[,\s]+(-?\d{1,3}\.\d+)/i);
+    if (urlMatch) {
+        const lat = parseFloat(urlMatch[1]);
+        const lng = parseFloat(urlMatch[2]);
+        if (isValidLatLng(lat, lng)) return { lat, lng };
+    }
+
+    // 2. Standard decimal: -23.123456, -47.123456 or with parentheses/semicolon
+    const decimalMatch = clean.match(/(-?\d{1,2}(?:\.\d+)?)[,\s;]+(-?\d{1,3}(?:\.\d+)?)/);
+    if (decimalMatch) {
+        const lat = parseFloat(decimalMatch[1]);
+        const lng = parseFloat(decimalMatch[2]);
+        if (isValidLatLng(lat, lng)) return { lat, lng };
+    }
+
+    // 3. DMS: 23°16'32.9"S 47°18'36.9"W
+    const dmsRegex = /(\d+)[°º\s]+(\d+)['′\s]+([\d.]+)?["″\s]*([NSns])[,\s]+(\d+)[°º\s]+(\d+)['′\s]+([\d.]+)?["″\s]*([EWOew\s])/i;
+    const dmsMatch = clean.match(dmsRegex);
+    if (dmsMatch) {
+        let lat = parseInt(dmsMatch[1], 10) + parseInt(dmsMatch[2], 10) / 60 + (parseFloat(dmsMatch[3] || '0') / 3600);
+        if (dmsMatch[4].toUpperCase() === 'S') lat = -lat;
+
+        let lng = parseInt(dmsMatch[5], 10) + parseInt(dmsMatch[6], 10) / 60 + (parseFloat(dmsMatch[7] || '0') / 3600);
+        if (['W', 'O'].includes(dmsMatch[8].toUpperCase().trim())) lng = -lng;
+
+        if (isValidLatLng(lat, lng)) return { lat, lng };
+    }
+
+    return null;
+}
+
+/**
+ * Geocodificação reversa para obter nome de rua, bairro e cidade a partir de coordenadas.
+ */
+export async function reverseGeocodeAddress(
+    lat: number,
+    lng: number
+): Promise<{
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+    cep?: string;
+    formatted?: string;
+} | null> {
+    if (!isValidLatLng(lat, lng)) return null;
+
+    // 1. Try Mapbox if token is available
+    if (MAPBOX_TOKEN) {
+        try {
+            const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=pt&types=address,poi,neighborhood,locality,place`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.features && data.features.length > 0) {
+                    const feature = data.features[0];
+                    let street = feature.text || '';
+                    let number = feature.address || '';
+                    let neighborhood = '';
+                    let city = 'Itu';
+                    let cep = '';
+
+                    if (feature.context) {
+                        for (const ctx of feature.context) {
+                            if (ctx.id.startsWith('neighborhood')) neighborhood = ctx.text;
+                            else if (ctx.id.startsWith('place')) city = ctx.text;
+                            else if (ctx.id.startsWith('postcode')) cep = ctx.text;
+                        }
+                    }
+
+                    return {
+                        street: street || feature.place_name?.split(',')[0]?.trim() || 'Estrada / Área Rural',
+                        number: number || 'S/N',
+                        neighborhood: neighborhood || 'Zona Rural',
+                        city: `${city}/SP`,
+                        cep: cep || '13300-000',
+                        formatted: feature.place_name
+                    };
+                }
+            }
+        } catch (err) {
+            console.warn("⚠️ [reverseGeocode] Mapbox error:", err);
+        }
+    }
+
+    // 2. Fallback to Nominatim
+    try {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+        const res = await fetch(url, {
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'GuepardoDelivery/1.0'
+            }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.address) {
+                const addr = data.address;
+                const street = addr.road || addr.pedestrian || addr.suburb || addr.hamlet || addr.isolated_dwelling || '';
+                const neighborhood = addr.neighbourhood || addr.suburb || addr.village || 'Zona Rural';
+                const city = addr.city || addr.town || addr.municipality || 'Itu';
+                const cep = addr.postcode || '13300-000';
+                return {
+                    street: street || 'Estrada / Área Rural',
+                    number: addr.house_number || 'S/N',
+                    neighborhood,
+                    city: `${city}/SP`,
+                    cep,
+                    formatted: data.display_name
+                };
+            }
+        }
+    } catch (err) {
+        console.warn("⚠️ [reverseGeocode] Nominatim error:", err);
+    }
+
+    return {
+        street: 'Estrada / Localização por GPS',
+        number: 'S/N',
+        neighborhood: 'Zona Rural',
+        city: 'Itu/SP',
+        cep: '13300-000'
+    };
+}
+

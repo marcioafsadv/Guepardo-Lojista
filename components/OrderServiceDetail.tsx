@@ -4,7 +4,8 @@ import { Order, OrderStatus, StoreProfile, Courier } from '../types';
 import {
     Smartphone, MessageCircle, Clock, Calendar, CheckCircle2, Share2, Printer,
     Wallet, AlertTriangle, User, Banknote, CreditCard, QrCode, Trash2, ArrowLeftRight, CheckCheck,
-    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car, Bike, UserCheck
+    ChevronUp, ChevronDown, X, Globe, Phone, Medal, Trophy, Star, UserPlus, Hash, Truck, Copy, ShoppingBag, Car, Bike, UserCheck,
+    MapPin, Navigation
 } from 'lucide-react';
 
 // Sub-component for the Inner Content (Reusable)
@@ -344,6 +345,71 @@ const OrderContent: React.FC<{
                                 className="h-10 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 border border-blue-600/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
                             >
                                 <Smartphone size={16} /> Ligar Cliente
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Endereço de Entrega & Navegação GPS */}
+                <div className={`rounded-3xl p-5 border transition-all ${isDark ? 'bg-white/[0.03] border-white/5' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start gap-3">
+                            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${isDark ? 'bg-white/5 text-orange-500' : 'bg-white text-orange-600 shadow-sm border border-gray-200'}`}>
+                                <MapPin size={20} />
+                            </div>
+                            <div>
+                                <span className={`text-[10px] uppercase font-black tracking-widest block mb-1 ${isDark ? 'text-white/30' : 'text-gray-500'}`}>Destino da Entrega</span>
+                                <p className={`text-sm font-bold leading-snug ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {displayedOrder.destination || `${displayedOrder.addressStreet || ''}, ${displayedOrder.addressNumber || ''} - ${displayedOrder.addressNeighborhood || ''}`}
+                                </p>
+                                {displayedOrder.destinationLat && displayedOrder.destinationLng && (
+                                    <p className="text-[10px] font-mono text-white/50 mt-1 flex items-center gap-1">
+                                        <span>GPS:</span>
+                                        <span className="text-orange-400 font-bold">{displayedOrder.destinationLat.toFixed(6)}, {displayedOrder.destinationLng.toFixed(6)}</span>
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Botões de Abertura no Waze / Google Maps */}
+                    {(displayedOrder.destinationLat && displayedOrder.destinationLng) ? (
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/5">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = `https://waze.com/ul?ll=${displayedOrder.destinationLat},${displayedOrder.destinationLng}&navigate=yes`;
+                                    window.open(url, '_blank');
+                                }}
+                                className="h-10 bg-cyan-600/15 hover:bg-cyan-600/25 text-cyan-400 border border-cyan-500/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all shadow-glow-cyan"
+                            >
+                                <Navigation size={15} /> Abrir Waze
+                            </button>
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const url = `https://www.google.com/maps/dir/?api=1&destination=${displayedOrder.destinationLat},${displayedOrder.destinationLng}`;
+                                    window.open(url, '_blank');
+                                }}
+                                className="h-10 bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-400 border border-emerald-500/30 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all shadow-glow-green"
+                            >
+                                <MapPin size={15} /> Google Maps
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="pt-2 border-t border-white/5">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const query = encodeURIComponent(`${displayedOrder.addressStreet || ''}, ${displayedOrder.addressNumber || ''}, ${displayedOrder.addressNeighborhood || ''}, ${displayedOrder.addressCity || 'Itu, SP'}`);
+                                    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+                                }}
+                                className="w-full h-9 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 rounded-xl flex items-center justify-center gap-2 text-xs font-bold uppercase transition-all"
+                            >
+                                <Navigation size={14} /> Ver no Google Maps
                             </button>
                         </div>
                     )}

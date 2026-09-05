@@ -189,6 +189,9 @@ export interface AddressComponents {
   neighborhood?: string;
   city: string;
   cep?: string;
+  lat?: number;
+  lng?: number;
+  isCoordinates?: boolean;
 }
 
 

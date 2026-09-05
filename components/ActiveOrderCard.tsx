@@ -434,6 +434,38 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 </div>
             </div>
 
+            {/* Quick GPS Navigation */}
+            {order.destinationLat && order.destinationLng && (
+              <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/5">
+                <span className="text-[9px] font-black uppercase text-white/40 tracking-wider">GPS:</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const url = `https://waze.com/ul?ll=${order.destinationLat},${order.destinationLng}&navigate=yes`;
+                    window.open(url, '_blank');
+                  }}
+                  className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                >
+                  <Navigation size={10} /> Waze
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const url = `https://www.google.com/maps/dir/?api=1&destination=${order.destinationLat},${order.destinationLng}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 transition-all"
+                >
+                  <MapPin size={10} /> Maps
+                </button>
+                <span className="text-[8px] font-mono text-white/30 ml-auto truncate">
+                  {order.destinationLat.toFixed(5)}, {order.destinationLng.toFixed(5)}
+                </span>
+              </div>
+            )}
+
             <div className="flex gap-2 mt-6">
                 {(order.status === OrderStatus.ACCEPTED || order.status === OrderStatus.TO_STORE || order.status === OrderStatus.ARRIVED_AT_STORE) && (
                 <button 

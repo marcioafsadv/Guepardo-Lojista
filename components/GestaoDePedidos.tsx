@@ -115,6 +115,10 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
     const [activeRouteStats, setActiveRouteStats] = useState<RouteStats | null>(null);
     const [draftAdditionalStops, setDraftAdditionalStops] = useState<any[]>([]);
 
+    // Map Location Selection (Pin Drop Mode)
+    const [isSelectingLocationOnMap, setIsSelectingLocationOnMap] = useState(false);
+    const [selectedMapLocation, setSelectedMapLocation] = useState<{ lat: number, lng: number } | null>(null);
+
     // Drawer State
     const [showDetailDrawer, setShowDetailDrawer] = useState(false);
 
@@ -173,7 +177,13 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             console.log("📍 [GestaoDePedidos] Auto-calculating route metrics...");
             
             // 1. Geocode Destination
-            const destCoords = await geocodeAddress(draftAddress, { lat: storeProfile.lat, lng: storeProfile.lng });
+            let destCoords: { lat: number, lng: number } | null = null;
+            if (typeof draftAddress === 'object' && typeof draftAddress.lat === 'number' && typeof draftAddress.lng === 'number') {
+                destCoords = { lat: draftAddress.lat, lng: draftAddress.lng };
+            } else {
+                destCoords = await geocodeAddress(draftAddress, { lat: storeProfile.lat, lng: storeProfile.lng });
+            }
+
             if (!destCoords) {
                 console.warn("⚠️ [GestaoDePedidos] Could not geocode main address");
                 setRouteStats(null);
@@ -468,6 +478,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         // Reset local draft states
         setDraftAddress('');
         setDraftAddressCoords(null);
+        setSelectedMapLocation(null);
+        setIsSelectingLocationOnMap(false);
         setRouteStats(null);
         setDraftAdditionalStops([]);
         setTargetCourierId('');
@@ -617,8 +629,17 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                     onCardClick={handleOrderSelect}
                     mapboxToken={mapboxToken}
                     activeRouteStats={activeRouteStats}
-                    showDrafts={!isFormCollapsed && !!draftAddress}
+                    showDrafts={!isFormCollapsed && (!!draftAddress || !!draftAddressCoords)}
                     mainDestStopNumber={mainDestStopNumber}
+                    isSelectingLocationOnMap={isSelectingLocationOnMap}
+                    onLocationSelected={(coords) => {
+                        setSelectedMapLocation(coords);
+                        setDraftAddressCoords(coords);
+                    }}
+                    onCancelMapLocationSelection={() => {
+                        setIsSelectingLocationOnMap(false);
+                        if (window.innerWidth < 768) setIsFormCollapsed(false);
+                    }}
                 />
             </div>
 
@@ -627,18 +648,18 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                 <div className="left-sidebar-container pointer-events-auto flex flex-col gap-4 md:gap-6 h-full overflow-hidden">
                     {/* Delivery Form */}
                     <DeliveryForm
-                    onSubmit={handleNewOrderSubmit}
-                    isSubmitting={false}
-                    existingCustomers={customers}
-                    onAddressChange={setDraftAddress}
-                    onAdditionalStopsChange={setDraftAdditionalStops}
-                                routeStats={routeStats}
-                                settings={settings}
-                                balance={balance}
-                                availableCouriers={availableCouriers}
-                    allOrders={orders}
-                    isSelecting={isSelectingCourier}
-                    onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
+                        onSubmit={handleNewOrderSubmit}
+                        isSubmitting={false}
+                        existingCustomers={customers}
+                        onAddressChange={setDraftAddress}
+                        onAdditionalStopsChange={setDraftAdditionalStops}
+                        routeStats={routeStats}
+                        settings={settings}
+                        balance={balance}
+                        availableCouriers={availableCouriers}
+                        allOrders={orders}
+                        isSelecting={isSelectingCourier}
+                        onToggleSelection={() => setIsSelectingCourier(!isSelectingCourier)}
                         externalTargetId={targetCourierId}
                         onClearSelection={() => setTargetCourierId('')}
                         onNavigateToWallet={() => onSelectView?.('wallet')}
@@ -649,6 +670,17 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         onReleaseFixedCourier={onReleaseFixedCourier}
                         onActivateHybridCourier={onActivateHybridCourier}
                         onReleaseHybridCourier={onReleaseHybridCourier}
+                        isSelectingLocationOnMap={isSelectingLocationOnMap}
+                        onToggleMapLocationSelection={() => {
+                            setIsSelectingLocationOnMap(prev => {
+                                const next = !prev;
+                                if (next && window.innerWidth < 768) {
+                                    setIsFormCollapsed(true);
+                                }
+                                return next;
+                            });
+                        }}
+                        selectedMapLocation={selectedMapLocation}
                     />
 
                     {/* --- MONITORING PANEL (Moved below Form) --- */}

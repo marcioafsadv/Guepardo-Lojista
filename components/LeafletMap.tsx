@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, ZoomControl, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents, ZoomControl, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Order, OrderStatus, Courier, StoreProfile, RouteStats } from '../types';
@@ -234,6 +234,24 @@ const MapSubscriber = ({ setMap }: { setMap: (map: L.Map) => void }) => {
     return null;
 };
 
+const MapEventsHandler = ({
+    isSelectingLocation,
+    onLocationSelected
+}: {
+    isSelectingLocation: boolean;
+    onLocationSelected?: (coords: { lat: number; lng: number }) => void;
+}) => {
+    useMapEvents({
+        click(e) {
+            if (isSelectingLocation && onLocationSelected) {
+                console.log("📍 [LeafletMap] Map clicked at coords:", e.latlng);
+                onLocationSelected({ lat: e.latlng.lat, lng: e.latlng.lng });
+            }
+        }
+    });
+    return null;
+};
+
 const ZoomButtons = ({ map }: { map: L.Map | null }) => {
     if (!map) return null;
     return (
@@ -280,6 +298,9 @@ interface LeafletMapProps {
     mapboxToken?: string;
     showDrafts?: boolean;
     mainDestStopNumber?: number;
+    isSelectingLocationOnMap?: boolean;
+    onLocationSelected?: (coords: { lat: number; lng: number }) => void;
+    onCancelMapLocationSelection?: () => void;
 }
 
 export const LeafletMap: React.FC<LeafletMapProps> = ({ 
@@ -297,7 +318,10 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     mapboxToken,
     draftAddressCoords,
     showDrafts = true,
-    mainDestStopNumber = 1
+    mainDestStopNumber = 1,
+    isSelectingLocationOnMap = false,
+    onLocationSelected,
+    onCancelMapLocationSelection
 }) => {
     const [isManualFocus, setIsManualFocus] = useState(false);
     const [mapTheme, setMapTheme] = useState<'dark' | 'standard' | 'satellite'>('standard');
@@ -464,7 +488,31 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
     }, [orders]);
 
     return (
-        <div className="w-full h-full relative group/map">
+        <div className={`w-full h-full relative group/map ${isSelectingLocationOnMap ? 'cursor-crosshair' : ''}`}>
+            {/* --- SELECTION BANNER --- */}
+            {isSelectingLocationOnMap && (
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[1002] bg-[#1A0900]/95 backdrop-blur-md border-2 border-orange-500 rounded-2xl px-5 py-3 shadow-[0_10px_30px_rgba(255,107,0,0.4)] flex items-center gap-4 animate-in slide-in-from-top duration-300 pointer-events-auto">
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center animate-pulse border border-orange-500/40">
+                        <MapPin size={20} />
+                    </div>
+                    <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-white">
+                            Modo de Marcação no Mapa
+                        </p>
+                        <p className="text-[10px] text-white/60 font-medium">
+                            Clique no mapa para posicionar ou arraste o alfinete até o local exato da entrega.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => onCancelMapLocationSelection?.()}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-glow"
+                    >
+                        Concluir
+                    </button>
+                </div>
+            )}
+
             <MapContainer
                 center={storeCoords}
                 zoom={15}
@@ -525,6 +573,7 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                 />
 
                 <MapSubscriber setMap={setMapInstance} />
+                <MapEventsHandler isSelectingLocation={isSelectingLocationOnMap} onLocationSelected={onLocationSelected} />
 
                 {/* 1. STORE MARKER (Home Base) */}
                 <Marker position={storeCoords} icon={getStoreIcon(storeProfile.logo_url)}>
@@ -625,42 +674,52 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                     );
                 })}
 
-                {/* 4. DRAFT MARKERS (Route line removed) */}
-                {routePolyline && routePolyline.length > 0 && (
+                {/* 4. DRAFT MARKERS */}
+                {showDrafts && (
                     <>
-
-                        {showDrafts && (
-                            <>
-                                {destinationCoords && (
-                                     <Marker position={destinationCoords} icon={createStopMarker(mainDestStopNumber, draftAddressName, COLORS.orange)}>
-                                        <Popup>
-                                            <div className="text-xs font-black">
-                                                <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
-                                                <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #{mainDestStopNumber} (Rascunho)</p>
-                                            </div>
-                                        </Popup>
-                                     </Marker>
-                                )}
-                                {/* Additional Draft Stops */}
-                                {draftAdditionalStops.map((stop, idx) => {
-                                    if (!stop.lat || !stop.lng) return null;
-                                    return (
-                                        <Marker 
-                                            key={`draft-${stop.id}`}
-                                            position={[stop.lat, stop.lng]} 
-                                            icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
-                                        >
-                                            <Popup>
-                                                <div className="text-xs">
-                                                    <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
-                                                    <p className="text-gray-500">Parada #{idx + 2} (Rascunho)</p>
-                                                </div>
-                                            </Popup>
-                                        </Marker>
-                                    );
-                                })}
-                            </>
+                        {destinationCoords && (
+                            <Marker 
+                                position={destinationCoords} 
+                                icon={createStopMarker(mainDestStopNumber, draftAddressName, COLORS.orange)}
+                                draggable={true}
+                                eventHandlers={{
+                                    dragend(e) {
+                                        const marker = e.target;
+                                        const pos = marker.getLatLng();
+                                        console.log("📍 [LeafletMap] Destination pin dragged to:", pos);
+                                        onLocationSelected?.({ lat: pos.lat, lng: pos.lng });
+                                    }
+                                }}
+                            >
+                                <Popup>
+                                    <div className="text-xs font-black">
+                                        <p className="uppercase tracking-widest text-guepardo-accent">{draftAddressName}</p>
+                                        <p className="text-white/40 mt-1 uppercase text-[8px]">Parada #{mainDestStopNumber} (Arraste para ajustar)</p>
+                                        <p className="text-white/60 text-[8px] mt-1 font-mono">
+                                            {destinationCoords[0].toFixed(5)}, {destinationCoords[1].toFixed(5)}
+                                        </p>
+                                    </div>
+                                </Popup>
+                            </Marker>
                         )}
+                        {/* Additional Draft Stops */}
+                        {draftAdditionalStops.map((stop, idx) => {
+                            if (!stop.lat || !stop.lng) return null;
+                            return (
+                                <Marker 
+                                    key={`draft-${stop.id}`}
+                                    position={[stop.lat, stop.lng]} 
+                                    icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
+                                >
+                                    <Popup>
+                                        <div className="text-xs">
+                                            <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
+                                            <p className="text-gray-500">Parada #{idx + 2} (Rascunho)</p>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            );
+                        })}
                     </>
                 )}
             </MapContainer>

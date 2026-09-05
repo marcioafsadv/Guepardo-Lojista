@@ -1,10 +1,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car } from 'lucide-react';
+import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car, Target } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents, StoreProfile } from '../types';
 import { BalanceAlertModal } from './BalanceAlertModal';
 import { StoreClosedAlertModal } from './StoreClosedAlertModal';
 import { classifyClient } from '../utils/clientClassifier';
+import { parseCoordinates, reverseGeocodeAddress } from '../utils/geocoding';
 import {
   calculateFreight,
   calculateFreightBatching,
@@ -23,6 +24,8 @@ export type OrderFormData = Omit<Order, 'id' | 'status' | 'createdAt' | 'estimat
   customerNote?: string | null;
   vehicleType?: 'moto' | 'bike' | 'carro';
   existingOrderId?: string;
+  destinationLat?: number;
+  destinationLng?: number;
 };
 
 interface DeliveryFormProps {
@@ -49,6 +52,9 @@ interface DeliveryFormProps {
   onReleaseFixedCourier?: (courierId: string) => Promise<void>;
   onActivateHybridCourier?: (courierId: string) => Promise<void>;
   onReleaseHybridCourier?: (courierId: string) => Promise<void>;
+  isSelectingLocationOnMap?: boolean;
+  onToggleMapLocationSelection?: () => void;
+  selectedMapLocation?: { lat: number; lng: number } | null;
 }
 
 export const DeliveryForm = ({
@@ -74,7 +80,10 @@ export const DeliveryForm = ({
   onActivateFixedCourier,
   onReleaseFixedCourier,
   onActivateHybridCourier,
-  onReleaseHybridCourier
+  onReleaseHybridCourier,
+  isSelectingLocationOnMap = false,
+  onToggleMapLocationSelection,
+  selectedMapLocation
 }: DeliveryFormProps) => {
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   const [showBalanceAlert, setShowBalanceAlert] = useState(false);
@@ -173,6 +182,54 @@ export const DeliveryForm = ({
   const [complement, setComplement] = useState('');
   const [targetCourierId, setTargetCourierId] = useState<string>('');
   const [additionalStops, setAdditionalStops] = useState<any[]>([]);
+
+  // Location Mode & GPS Coordinates
+  const [addressMode, setAddressMode] = useState<'address' | 'coordinates'>('address');
+  const [coordinatesInput, setCoordinatesInput] = useState('');
+  const [customCoordinates, setCustomCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLoadingReverseGeocode, setIsLoadingReverseGeocode] = useState(false);
+
+  // Sync selection from LeafletMap
+  useEffect(() => {
+    if (selectedMapLocation) {
+      setCustomCoordinates(selectedMapLocation);
+      setCoordinatesInput(`${selectedMapLocation.lat.toFixed(6)}, ${selectedMapLocation.lng.toFixed(6)}`);
+      setAddressMode('coordinates');
+      handleReverseGeocode(selectedMapLocation.lat, selectedMapLocation.lng);
+    }
+  }, [selectedMapLocation]);
+
+  const handleReverseGeocode = async (lat: number, lng: number) => {
+    setIsLoadingReverseGeocode(true);
+    try {
+      const info = await reverseGeocodeAddress(lat, lng);
+      if (info) {
+        if (!street || street.includes('Localização') || street.includes('Estrada') || street.includes('GPS') || street === '') {
+          setStreet(info.street || 'Estrada / Área Rural');
+        }
+        if (!number) setNumber(info.number || 'S/N');
+        if (!neighborhood || neighborhood === 'Zona Rural') setNeighborhood(info.neighborhood || 'Zona Rural');
+        if (info.city) setCityState(info.city);
+        if (info.cep && !cep) setCep(info.cep);
+      }
+    } catch (err) {
+      console.warn("⚠️ [DeliveryForm] reverseGeocode error:", err);
+    } finally {
+      setIsLoadingReverseGeocode(false);
+    }
+  };
+
+  const handleCoordinatesChange = (val: string) => {
+    setCoordinatesInput(val);
+    const parsed = parseCoordinates(val);
+    if (parsed) {
+      setCustomCoordinates(parsed);
+      if (!number) setNumber('S/N');
+      if (!neighborhood) setNeighborhood('Zona Rural');
+      if (!cep) setCep('13300-000');
+      handleReverseGeocode(parsed.lat, parsed.lng);
+    }
+  };
 
   // Sync external target changes (from Map selection)
   useEffect(() => {
@@ -281,11 +338,23 @@ export const DeliveryForm = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("📝 [DeliveryForm] handleSubmit triggered", { clientName, street, number, targetCourierId, additionalStopsCount: additionalStops.length });
+    console.log("📝 [DeliveryForm] handleSubmit triggered", { clientName, street, number, targetCourierId, additionalStopsCount: additionalStops.length, addressMode, customCoordinates });
 
-    if (!clientName || !street || !number) {
-      console.warn("⚠️ [DeliveryForm] Missing required fields, aborting submit");
+    if (!clientName) {
+      alert("Por favor, preencha o nome do cliente.");
       return;
+    }
+
+    if (addressMode === 'coordinates') {
+      if (!customCoordinates) {
+        alert("Por favor, informe as coordenadas GPS ou clique em 'Marcar no Mapa' para definir o local.");
+        return;
+      }
+    } else {
+      if (!street || !number) {
+        console.warn("⚠️ [DeliveryForm] Missing required fields, aborting submit");
+        return;
+      }
     }
 
     if (activeTab === 'hybrid') {
@@ -304,7 +373,12 @@ export const DeliveryForm = ({
       }
     }
 
-    const fullAddress = `${street}, ${number}${complement ? ' - ' + complement : ''} - ${neighborhood}, ${cityState}`;
+    const effectiveStreet = street || (addressMode === 'coordinates' ? 'Estrada / Localização por GPS' : '');
+    const effectiveNumber = number || (addressMode === 'coordinates' ? 'S/N' : '');
+    const effectiveNeighborhood = neighborhood || (addressMode === 'coordinates' ? 'Zona Rural' : '');
+    const fullAddress = addressMode === 'coordinates' && customCoordinates
+      ? `${effectiveStreet}, ${effectiveNumber}${complement ? ' - ' + complement : ''} - ${effectiveNeighborhood}, ${cityState} (GPS: ${customCoordinates.lat.toFixed(6)}, ${customCoordinates.lng.toFixed(6)})`
+      : `${street}, ${number}${complement ? ' - ' + complement : ''} - ${neighborhood}, ${cityState}`;
 
     // --- NEW: STORE STATUS VALIDATION ---
     if (storeStatus !== 'aberta') {
@@ -325,12 +399,12 @@ export const DeliveryForm = ({
       clientName,
       clientPhone,
       destination: fullAddress,
-      addressStreet: street,
-      addressNumber: number,
+      addressStreet: effectiveStreet,
+      addressNumber: effectiveNumber,
       addressComplement: complement,
-      addressNeighborhood: neighborhood,
+      addressNeighborhood: effectiveNeighborhood,
       addressCity: cityState,
-      addressCep: cep,
+      addressCep: cep || (addressMode === 'coordinates' ? '13300-000' : ''),
       deliveryValue: parseFloat(deliveryValue) || 0,
       paymentMethod,
       changeFor: paymentMethod === 'CASH' && changeFor ? parseFloat(changeFor) : null,
@@ -347,7 +421,9 @@ export const DeliveryForm = ({
       storeFreight: totalFreight,
       scheduled_at: isScheduled && scheduledTime ? scheduledTime : undefined,
       vehicleType,
-      existingOrderId: existingOrderId || undefined
+      existingOrderId: existingOrderId || undefined,
+      destinationLat: customCoordinates?.lat,
+      destinationLng: customCoordinates?.lng
     });
 
     // Reset form
@@ -370,6 +446,9 @@ export const DeliveryForm = ({
     setAdditionalStops([]);
     setVehicleType('moto');
     setExistingOrderId(null);
+    setCoordinatesInput('');
+    setCustomCoordinates(null);
+    setAddressMode('address');
   };
 
   const addStop = () => {
@@ -411,9 +490,20 @@ export const DeliveryForm = ({
 
   // --- ADDRESS CHANGE DEBOUNCER ---
   useEffect(() => {
-    // Only trigger if we have at least Street
     const timer = setTimeout(() => {
-      if (street) {
+      if (addressMode === 'coordinates' && customCoordinates) {
+        onAddressChange({
+          name: clientName || 'Destino Rural',
+          street: street || 'Estrada / Localização por GPS',
+          number: number || 'S/N',
+          neighborhood: neighborhood || 'Zona Rural',
+          city: cityState || 'Itu/SP',
+          cep: cep || '13300-000',
+          lat: customCoordinates.lat,
+          lng: customCoordinates.lng,
+          isCoordinates: true
+        });
+      } else if (street) {
         // We now send structured data for better geocoding precision
         onAddressChange({
           name: clientName,
@@ -430,7 +520,7 @@ export const DeliveryForm = ({
     }, 600); // 0.6 second debounce (optimized for real-time feel)
 
     return () => clearTimeout(timer);
-  }, [street, number, neighborhood, cityState, cep, onAddressChange]);
+  }, [street, number, neighborhood, cityState, cep, addressMode, customCoordinates, clientName, onAddressChange]);
 
   // --- AUTOCOMPLETE LOGIC ---
   const filteredCustomers = clientName.length > 1
@@ -922,78 +1012,197 @@ export const DeliveryForm = ({
             </div>
           )}
 
-          {/* ADDRESS ROW 1 */}
-          <div className="flex gap-3">
-            <div className="relative group/input w-1/3 min-w-[90px]">
-              <input
-                type="text"
-                placeholder="CEP"
-                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={cep}
-                onChange={handleCepChange}
-                maxLength={9}
-                required
-              />
-            </div>
-            <div className="relative group/input flex-1">
-              <input
-                type="text"
-                placeholder="Rua"
-                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={street}
-                onChange={(e) => setStreet(e.target.value)}
-                required
-              />
-            </div>
+          {/* LOCATION MODE TOGGLE: ENDEREÇO vs COORDENADAS / MAPA */}
+          <div className="flex bg-black/50 p-1 rounded-2xl border border-white/10 mb-1">
+            <button
+              type="button"
+              onClick={() => setAddressMode('address')}
+              className={`flex-1 py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                addressMode === 'address'
+                  ? 'bg-guepardo-accent text-white shadow-glow'
+                  : 'text-white/40 hover:text-white'
+              }`}
+            >
+              <Home size={12} /> Endereço Padrão
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAddressMode('coordinates');
+                if (!number) setNumber('S/N');
+                if (!neighborhood) setNeighborhood('Zona Rural');
+                if (!cep) setCep('13300-000');
+              }}
+              className={`flex-1 py-1.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                addressMode === 'coordinates'
+                  ? 'bg-guepardo-accent text-white shadow-glow'
+                  : 'text-white/40 hover:text-white'
+              }`}
+            >
+              <MapPin size={12} /> Coordenadas / Mapa
+            </button>
           </div>
 
-          {/* ADDRESS ROW 2 */}
-          <div className="flex gap-3">
-            <div className="relative group/input w-1/4">
-              <input
-                ref={numberInputRef}
-                type="text"
-                placeholder="Nº"
-                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={number}
-                onChange={(e) => setNumber(e.target.value)}
-                required
-              />
-            </div>
-            <div className="relative group/input flex-1">
-              <input
-                type="text"
-                placeholder="Comp (apto, bloco...)"
-                className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={complement}
-                onChange={(e) => setComplement(e.target.value)}
-              />
-            </div>
-          </div>
+          {addressMode === 'coordinates' ? (
+            /* GPS COORDINATES & MAP PIN SECTION */
+            <div className="space-y-2 mb-2 p-3 bg-white/[0.03] border border-orange-500/30 rounded-2xl animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-guepardo-accent uppercase tracking-wider flex items-center gap-1">
+                  <MapPin size={12} className="animate-pulse text-orange-400" />
+                  Coordenadas GPS ou Link do Mapa
+                </label>
+                {customCoordinates && (
+                  <span className="text-[9px] font-mono text-green-400 font-black bg-green-500/10 px-2 py-0.5 rounded-md border border-green-500/20">
+                    GPS OK
+                  </span>
+                )}
+              </div>
 
-          {/* ADDRESS ROW 3: Neighborhood & City (Visible fallback) */}
-          <div className="flex gap-3">
-            <div className="relative group/input flex-1">
-              <input
-                type="text"
-                placeholder="Bairro"
-                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={neighborhood}
-                onChange={(e) => setNeighborhood(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <div className="relative group/input flex-1">
+                  <input
+                    type="text"
+                    placeholder="Ex: -23.275812, -47.310245 ou link do Maps"
+                    className="w-full px-3 py-2.5 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 transition-all font-mono font-bold text-white placeholder-white/40"
+                    value={coordinatesInput}
+                    onChange={(e) => handleCoordinatesChange(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleMapLocationSelection?.()}
+                  className={`px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 border ${
+                    isSelectingLocationOnMap
+                      ? 'bg-green-600 text-white border-green-400 shadow-glow-green animate-pulse'
+                      : 'bg-orange-500/20 hover:bg-orange-500 text-orange-400 hover:text-white border-orange-500/40'
+                  }`}
+                  title="Clique para marcar ou arrastar o alfinete direto no mapa"
+                >
+                  <Target size={14} />
+                  {isSelectingLocationOnMap ? 'Marcando...' : 'Marcar no Mapa'}
+                </button>
+              </div>
+
+              {/* Description / Reference */}
+              <div className="relative group/input">
+                <input
+                  type="text"
+                  placeholder="Descrição / Referência (ex: Estrada de terra, Chácara 3, Porteira azul)"
+                  className="w-full px-3 py-2.5 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 transition-all font-black text-white placeholder-white/40"
+                  value={street}
+                  onChange={(e) => setStreet(e.target.value)}
+                  required={addressMode === 'coordinates'}
+                />
+              </div>
+
+              {/* Complementary fields: Nº, Bairro, CEP */}
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Nº / KM"
+                    className="w-full px-2.5 py-1.5 bg-black/60 border border-white/20 rounded-xl text-[11px] font-bold text-white placeholder-white/40"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Bairro"
+                    className="w-full px-2.5 py-1.5 bg-black/60 border border-white/20 rounded-xl text-[11px] font-bold text-white placeholder-white/40"
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Cidade/UF"
+                    className="w-full px-2.5 py-1.5 bg-black/60 border border-white/20 rounded-xl text-[11px] font-bold text-white placeholder-white/40"
+                    value={cityState}
+                    onChange={(e) => setCityState(e.target.value)}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="relative group/input w-1/3">
-              <input
-                type="text"
-                placeholder="Cidade/UF"
-                className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-                value={cityState}
-                onChange={(e) => setCityState(e.target.value)}
-                required
-              />
-            </div>
-          </div>
+          ) : (
+            /* STANDARD ADDRESS SECTION */
+            <>
+              {/* ADDRESS ROW 1 */}
+              <div className="flex gap-3">
+                <div className="relative group/input w-1/3 min-w-[90px]">
+                  <input
+                    type="text"
+                    placeholder="CEP"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={cep}
+                    onChange={handleCepChange}
+                    maxLength={9}
+                    required={addressMode === 'address'}
+                  />
+                </div>
+                <div className="relative group/input flex-1">
+                  <input
+                    type="text"
+                    placeholder="Rua"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={street}
+                    onChange={(e) => setStreet(e.target.value)}
+                    required={addressMode === 'address'}
+                  />
+                </div>
+              </div>
+
+              {/* ADDRESS ROW 2 */}
+              <div className="flex gap-3">
+                <div className="relative group/input w-1/4">
+                  <input
+                    ref={numberInputRef}
+                    type="text"
+                    placeholder="Nº"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={number}
+                    onChange={(e) => setNumber(e.target.value)}
+                    required={addressMode === 'address'}
+                  />
+                </div>
+                <div className="relative group/input flex-1">
+                  <input
+                    type="text"
+                    placeholder="Comp (apto, bloco...)"
+                    className="w-full px-4 py-3 bg-black/60 border border-white/20 rounded-2xl text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={complement}
+                    onChange={(e) => setComplement(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* ADDRESS ROW 3: Neighborhood & City (Visible fallback) */}
+              <div className="flex gap-3">
+                <div className="relative group/input flex-1">
+                  <input
+                    type="text"
+                    placeholder="Bairro"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={neighborhood}
+                    onChange={(e) => setNeighborhood(e.target.value)}
+                    required={addressMode === 'address'}
+                  />
+                </div>
+                <div className="relative group/input w-1/3">
+                  <input
+                    type="text"
+                    placeholder="Cidade/UF"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    value={cityState}
+                    onChange={(e) => setCityState(e.target.value)}
+                    required={addressMode === 'address'}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* FINANCEIROS - LINHA 1: VALOR E METODO */}
           <div className="grid grid-cols-2 gap-4">
