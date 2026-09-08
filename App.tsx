@@ -2279,7 +2279,7 @@ function App() {
                 const phone = digits.startsWith('55') ? digits : `55${digits}`;
                 if (digits.length >= 10) {
                     const instanceName = localStorage.getItem('evolution_instance_name') || 'lojista';
-                    const evolutionUrl = 'http://localhost:8080';
+                    const evolutionUrl = localStorage.getItem('evolution_api_url') || 'http://localhost:8080';
                     fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
                         method: 'POST',
                         headers: {
@@ -2296,6 +2296,7 @@ function App() {
                         console.log("✅ Mensagem WhatsApp invisível enviada com sucesso");
                     }).catch(err => {
                         console.error("❌ Falha ao enviar WhatsApp invisível:", err);
+                        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
                     });
                 }
             }
