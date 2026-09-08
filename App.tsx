@@ -2278,7 +2278,25 @@ function App() {
                 const digits = orderToUpdate.clientPhone.replace(/\D/g, '') || '';
                 const phone = digits.startsWith('55') ? digits : `55${digits}`;
                 if (digits.length >= 10) {
-                    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+                    const instanceName = localStorage.getItem('evolution_instance_name') || 'lojista';
+                    const evolutionUrl = 'http://localhost:8080';
+                    fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': 'sb_secret_qHGa2O1Tfmcf_KesbX0HMg_LqX78sjL'
+                        },
+                        body: JSON.stringify({
+                            number: phone,
+                            text: message,
+                            delay: 1200,
+                            linkPreview: true
+                        })
+                    }).then(res => {
+                        console.log("✅ Mensagem WhatsApp invisível enviada com sucesso");
+                    }).catch(err => {
+                        console.error("❌ Falha ao enviar WhatsApp invisível:", err);
+                    });
                 }
             }
 
