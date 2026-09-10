@@ -107,7 +107,8 @@ export const RechargeModal: React.FC<RechargeModalProps> = ({ isOpen, onClose, s
         setStep('PROCESSING');
 
         try {
-            const finalAmount = activeMethod === 'PIX' ? Number(amount) + 1.99 : Number(amount);
+            // Enviamos o valor base solicitado; a Edge Function adiciona a taxa de 1.99 para o Asaas e preserva o valor base na carteira
+            const finalAmount = Number(amount);
 
             const body: any = { 
                 storeId, 
