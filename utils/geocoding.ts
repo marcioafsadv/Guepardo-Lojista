@@ -29,7 +29,8 @@ export async function geocodeAddress(
 
     // 1. Try Mapbox if token is available
     if (MAPBOX_TOKEN) {
-        return geocodeWithMapbox(address, proximity);
+        const res = await geocodeWithMapbox(address, proximity);
+        if (res) return res;
     }
 
     // 2. Fallback to Nominatim
@@ -85,9 +86,20 @@ async function geocodeWithMapbox(
         const data = await response.json();
 
         if (data.features && data.features.length > 0) {
-            const [lng, lat] = data.features[0].center;
-            console.log("✅ [Mapbox] Found:", lat, lng, " - Result type:", data.features[0].place_type);
-            console.log("📝 [Mapbox] Full name:", data.features[0].place_name);
+            const first = data.features[0];
+            const placeTypes: string[] = first.place_type || [];
+
+            // If we are searching for a specific street or address, but Mapbox only matched a broad 'place' or 'region'
+            // without matching the specific address or postcode, reject to prevent dropping the pin at the generic city center
+            const hasStreet = typeof address === 'object' ? !!address.street : query.includes(',');
+            if (hasStreet && placeTypes.includes('place') && !placeTypes.some(t => ['address', 'postcode', 'poi', 'neighborhood'].includes(t))) {
+                console.warn("⚠️ [Mapbox] Matched broad city instead of specific address, rejecting:", first.place_name);
+                return null;
+            }
+
+            const [lng, lat] = first.center;
+            console.log("✅ [Mapbox] Found:", lat, lng, " - Result type:", placeTypes);
+            console.log("📝 [Mapbox] Full name:", first.place_name);
             return { lat, lng };
         }
     } catch (error) {

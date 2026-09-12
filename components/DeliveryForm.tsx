@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car, Target } from 'lucide-react';
+import { DollarSign, MapPin, User, Bike, Clock, Search, Loader2, Home, Hash, FileText, FlaskConical, Phone, Star, AlertCircle, CreditCard, Banknote, QrCode, ArrowLeftRight, CheckCheck, HardHat, ChevronDown, ChevronUp, Trash2, Wallet, Car, Target, Lock } from 'lucide-react';
 import { Order, Customer, SavedAddress, RouteStats, StoreSettings, Courier, OrderStatus, AddressComponents, StoreProfile } from '../types';
 import { BalanceAlertModal } from './BalanceAlertModal';
 import { StoreClosedAlertModal } from './StoreClosedAlertModal';
@@ -274,6 +274,7 @@ export const DeliveryForm = ({
   const [scheduledTime, setScheduledTime] = useState('');
 
   // Ref for auto-focus
+  const cepInputRef = useRef<HTMLInputElement>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -351,9 +352,31 @@ export const DeliveryForm = ({
         return;
       }
     } else {
-      if (!street || !number) {
-        console.warn("⚠️ [DeliveryForm] Missing required fields, aborting submit");
+      const cleanCep = (cep || '').replace(/\D/g, '');
+      if (cleanCep.length !== 8 || !street.trim()) {
+        alert("Por favor, digite um CEP válido (8 dígitos) para carregar o endereço automaticamente.\n\nCaso o local não possua CEP ou seja área rural, selecione a aba 'COORDENADAS / MAPA' para marcar o local no mapa.");
+        cepInputRef.current?.focus();
         return;
+      }
+      if (!number.trim()) {
+        alert("Por favor, informe o Número do endereço (ou S/N).");
+        numberInputRef.current?.focus();
+        return;
+      }
+    }
+
+    if (additionalStops.length > 0) {
+      for (let i = 0; i < additionalStops.length; i++) {
+        const stop = additionalStops[i];
+        const cleanStopCep = (stop.addressCep || '').replace(/\D/g, '');
+        if (cleanStopCep.length !== 8 || !stop.addressStreet?.trim()) {
+          alert(`Parada ${i + 2}: Por favor, informe um CEP válido para carregar o endereço da parada.`);
+          return;
+        }
+        if (!stop.addressNumber?.trim()) {
+          alert(`Parada ${i + 2}: Por favor, informe o Número do endereço da parada.`);
+          return;
+        }
       }
     }
 
@@ -503,8 +526,8 @@ export const DeliveryForm = ({
           lng: customCoordinates.lng,
           isCoordinates: true
         });
-      } else if (street) {
-        // We now send structured data for better geocoding precision
+      } else if (addressMode === 'address' && cep.replace(/\D/g, '').length === 8 && street) {
+        // We send structured data for geocoding precision ONLY when CEP is valid and street is filled
         onAddressChange({
           name: clientName,
           street,
@@ -514,7 +537,7 @@ export const DeliveryForm = ({
           cep
         });
       } else {
-        console.log("📡 [DeliveryForm] Debouncer: empty street, clearing map");
+        console.log("📡 [DeliveryForm] Debouncer: empty street or pending CEP, clearing map");
         onAddressChange('');
       }
     }, 600); // 0.6 second debounce (optimized for real-time feel)
@@ -567,13 +590,18 @@ export const DeliveryForm = ({
   // Format CEP and fetch address
   const handleCepChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 5) value = value.replace(/^(\d{5})(\d)/, '$1-$2');
-    setCep(value);
+    if (value.length > 8) value = value.slice(0, 8);
+    let formatted = value;
+    if (value.length > 5) formatted = value.replace(/^(\d{5})(\d)/, '$1-$2');
+    setCep(formatted);
 
-    if (value.replace(/\D/g, '').length === 8) {
-      const clean = value.replace(/\D/g, '');
-      console.log("🔍 [DeliveryForm] Valid CEP detected, fetching:", clean);
-      fetchAddress(clean);
+    if (value.length === 8) {
+      console.log("🔍 [DeliveryForm] Valid CEP detected, fetching:", value);
+      fetchAddress(value);
+    } else {
+      // Clear auto-populated fields if CEP is modified or incomplete
+      setStreet('');
+      setNeighborhood('');
     }
   };
 
@@ -588,7 +616,7 @@ export const DeliveryForm = ({
       if (!data.erro) {
         setStreet(data.logradouro || '');
         setNeighborhood(data.bairro || '');
-        setCityState(`${data.localidade || ''}/${data.uf || ''}`);
+        setCityState(`${data.localidade || 'Itu'}/${data.uf || 'SP'}`);
 
         console.log("📍 [DeliveryForm] Address set:", {
           street: data.logradouro,
@@ -597,14 +625,16 @@ export const DeliveryForm = ({
         });
 
         // Focus number input after finding address
-        setTimeout(() => numberInputRef.current?.focus(), 100);
+        setTimeout(() => numberInputRef.current?.focus(), 150);
       } else {
         console.warn("⚠️ [DeliveryForm] ViaCEP returned error for CEP:", cleanCep);
         setStreet('');
-        alert("CEP não encontrado!");
+        setNeighborhood('');
+        alert("CEP não encontrado!\n\nVerifique o CEP digitado. Caso o endereço não possua CEP próprio ou seja zona rural/chácara, selecione a aba 'COORDENADAS / MAPA' para marcar o local.");
       }
     } catch (error) {
       console.error("❌ [DeliveryForm] Error fetching CEP:", error);
+      alert("Erro ao consultar o CEP. Verifique sua conexão com a internet ou utilize a aba 'COORDENADAS / MAPA'.");
     } finally {
       setIsLoadingCep(false);
     }
@@ -1129,28 +1159,56 @@ export const DeliveryForm = ({
           ) : (
             /* STANDARD ADDRESS SECTION */
             <>
+              {!street && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-orange-500/20 rounded-xl mb-2 text-[10px] text-white/70">
+                  <Lock size={12} className="text-orange-400 shrink-0" />
+                  <span>Insira o CEP para carregar a rua automaticamente. Se não tiver CEP ou for zona rural, use <strong>Coordenadas / Mapa</strong>.</span>
+                </div>
+              )}
+
               {/* ADDRESS ROW 1 */}
               <div className="flex gap-3">
-                <div className="relative group/input w-1/3 min-w-[90px]">
+                <div className="relative group/input w-1/3 min-w-[100px]">
                   <input
+                    ref={cepInputRef}
                     type="text"
-                    placeholder="CEP"
-                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    placeholder="CEP *"
+                    className={`w-full px-4 py-2.5 md:py-3 bg-black/60 border rounded-2xl text-xs md:text-sm focus:outline-none transition-all font-black italic text-white placeholder-white/45 ${
+                      isLoadingCep
+                        ? 'border-orange-500/80 ring-2 ring-orange-500/20'
+                        : 'border-white/20 focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10'
+                    }`}
                     value={cep}
                     onChange={handleCepChange}
                     maxLength={9}
                     required={addressMode === 'address'}
                   />
+                  {isLoadingCep && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-orange-400 animate-spin">
+                      <Loader2 size={16} />
+                    </div>
+                  )}
                 </div>
-                <div className="relative group/input flex-1">
+                <div 
+                  className="relative group/input flex-1 cursor-not-allowed"
+                  onClick={() => {
+                    if (!street && !cep) {
+                      cepInputRef.current?.focus();
+                    }
+                  }}
+                  title={street ? "Preenchido automaticamente pelo CEP" : "Insira o CEP ao lado para carregar a rua"}
+                >
                   <input
                     type="text"
-                    placeholder="Rua"
-                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    placeholder={isLoadingCep ? "Buscando CEP..." : "Rua (automático via CEP)"}
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/40 border border-white/10 rounded-2xl text-xs md:text-sm font-black italic text-white/90 placeholder-white/30 cursor-not-allowed select-none focus:outline-none pr-9"
                     value={street}
-                    onChange={(e) => setStreet(e.target.value)}
+                    readOnly
                     required={addressMode === 'address'}
                   />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                    <Lock size={14} />
+                  </div>
                 </div>
               </div>
 
@@ -1160,7 +1218,7 @@ export const DeliveryForm = ({
                   <input
                     ref={numberInputRef}
                     type="text"
-                    placeholder="Nº"
+                    placeholder="Nº *"
                     className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
                     value={number}
                     onChange={(e) => setNumber(e.target.value)}
@@ -1178,25 +1236,34 @@ export const DeliveryForm = ({
                 </div>
               </div>
 
-              {/* ADDRESS ROW 3: Neighborhood & City (Visible fallback) */}
+              {/* ADDRESS ROW 3: Neighborhood & City (Locked - filled via CEP) */}
               <div className="flex gap-3">
-                <div className="relative group/input flex-1">
+                <div 
+                  className="relative group/input flex-1 cursor-not-allowed"
+                  title="Preenchido automaticamente pelo CEP"
+                >
                   <input
                     type="text"
-                    placeholder="Bairro"
-                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    placeholder="Bairro (automático via CEP)"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/40 border border-white/10 rounded-2xl text-xs md:text-sm font-black italic text-white/90 placeholder-white/30 cursor-not-allowed select-none focus:outline-none pr-9"
                     value={neighborhood}
-                    onChange={(e) => setNeighborhood(e.target.value)}
+                    readOnly
                     required={addressMode === 'address'}
                   />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                    <Lock size={14} />
+                  </div>
                 </div>
-                <div className="relative group/input w-1/3">
+                <div 
+                  className="relative group/input w-1/3 cursor-not-allowed"
+                  title="Preenchido automaticamente pelo CEP"
+                >
                   <input
                     type="text"
                     placeholder="Cidade/UF"
-                    className="w-full px-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                    className="w-full px-4 py-2.5 md:py-3 bg-black/40 border border-white/10 rounded-2xl text-xs md:text-sm font-black italic text-white/90 placeholder-white/30 cursor-not-allowed select-none focus:outline-none"
                     value={cityState}
-                    onChange={(e) => setCityState(e.target.value)}
+                    readOnly
                     required={addressMode === 'address'}
                   />
                 </div>
@@ -1404,16 +1471,19 @@ export const DeliveryForm = ({
                   <div className="flex gap-3">
                     <input
                       type="text"
-                      placeholder="CEP"
+                      placeholder="CEP *"
                       className="w-28 px-4 py-2 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 text-white font-black italic placeholder-white/45"
                       value={stop.addressCep}
+                      maxLength={9}
                       onChange={(e) => {
                         let val = e.target.value.replace(/\D/g, '');
-                        if (val.length > 5) val = val.replace(/^(\d{5})(\d)/, '$1-$2');
-                        updateStop(stop.id, 'addressCep', val);
-                        if (val.replace(/\D/g, '').length === 8) {
+                        if (val.length > 8) val = val.slice(0, 8);
+                        let formatted = val;
+                        if (val.length > 5) formatted = val.replace(/^(\d{5})(\d)/, '$1-$2');
+                        updateStop(stop.id, 'addressCep', formatted);
+                        if (val.length === 8) {
                           // Inline mini-fetch for additional stops
-                          fetch(`https://viacep.com.br/ws/${val.replace(/\D/g, '')}/json/`)
+                          fetch(`https://viacep.com.br/ws/${val}/json/`)
                             .then(res => res.json())
                             .then(data => {
                               if (!data.erro) {
@@ -1421,28 +1491,49 @@ export const DeliveryForm = ({
                                   ...s,
                                   addressStreet: data.logradouro || '',
                                   addressNeighborhood: data.bairro || '',
-                                  addressCity: `${data.localidade || ''}/${data.uf || ''}`
+                                  addressCity: `${data.localidade || 'Itu'}/${data.uf || 'SP'}`
+                                } : s));
+                              } else {
+                                alert("CEP da parada não encontrado! Verifique o número informado.");
+                                setAdditionalStops(prev => prev.map(s => s.id === stop.id ? {
+                                  ...s,
+                                  addressStreet: '',
+                                  addressNeighborhood: '',
                                 } : s));
                               }
-                            }).catch(() => { });
+                            }).catch(() => {
+                              alert("Erro ao consultar o CEP da parada.");
+                            });
+                        } else {
+                          // Clear auto-populated if CEP modified
+                          setAdditionalStops(prev => prev.map(s => s.id === stop.id ? {
+                            ...s,
+                            addressStreet: '',
+                            addressNeighborhood: '',
+                          } : s));
                         }
                       }}
                     />
-                    <input
-                      type="text"
-                      placeholder="Rua"
-                      className="flex-1 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
-                      value={stop.addressStreet}
-                      onChange={(e) => updateStop(stop.id, 'addressStreet', e.target.value)}
-                      required
-                    />
+                    <div className="relative flex-1 cursor-not-allowed" title="Preenchido automaticamente pelo CEP">
+                      <input
+                        type="text"
+                        placeholder="Rua (via CEP)"
+                        className="w-full px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs font-black italic text-white/90 placeholder-white/30 cursor-not-allowed pr-8"
+                        value={stop.addressStreet}
+                        readOnly
+                        required
+                      />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                        <Lock size={12} />
+                      </div>
+                    </div>
                   </div>
 
                   {/* NÚMERO E COMPLEMENTO */}
                   <div className="flex gap-3">
                     <input
                       type="text"
-                      placeholder="Nº"
+                      placeholder="Nº *"
                       className="w-16 px-3 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic text-center"
                       value={stop.addressNumber}
                       onChange={(e) => updateStop(stop.id, 'addressNumber', e.target.value)}
@@ -1459,22 +1550,29 @@ export const DeliveryForm = ({
 
                   {/* BAIRRO E CIDADE */}
                   <div className="flex gap-3">
-                    <input
-                      type="text"
-                      placeholder="Bairro"
-                      className="flex-1 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
-                      value={stop.addressNeighborhood}
-                      onChange={(e) => updateStop(stop.id, 'addressNeighborhood', e.target.value)}
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Cidade/UF"
-                      className="w-28 px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/50 text-white font-black italic"
-                      value={stop.addressCity}
-                      onChange={(e) => updateStop(stop.id, 'addressCity', e.target.value)}
-                      required
-                    />
+                    <div className="relative flex-1 cursor-not-allowed" title="Preenchido automaticamente pelo CEP">
+                      <input
+                        type="text"
+                        placeholder="Bairro (via CEP)"
+                        className="w-full px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs font-black italic text-white/90 placeholder-white/30 cursor-not-allowed pr-8"
+                        value={stop.addressNeighborhood}
+                        readOnly
+                        required
+                      />
+                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none">
+                        <Lock size={12} />
+                      </div>
+                    </div>
+                    <div className="relative w-28 cursor-not-allowed" title="Preenchido automaticamente pelo CEP">
+                      <input
+                        type="text"
+                        placeholder="Cidade/UF"
+                        className="w-full px-4 py-2 bg-black/40 border border-white/5 rounded-xl text-xs font-black italic text-white/90 placeholder-white/30 cursor-not-allowed"
+                        value={stop.addressCity}
+                        readOnly
+                        required
+                      />
+                    </div>
                   </div>
 
                   {/* VALOR E FORMA DE PAGAMENTO */}
