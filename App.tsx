@@ -57,7 +57,9 @@ const SOUNDS = {
     guitar: '/sounds/guitar-notification.mp3',
     beep: '/sounds/beep-notification.mp3',
     ifood: '/sounds/ifood.mp3',
-    ninenine: '/sounds/99-pop.mp3'
+    ninenine: '/sounds/99-pop.mp3',
+    courierAccepted: '/sounds/entregador-aceitou.mp3',
+    courierArrived: '/sounds/entregador-chegou.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -126,6 +128,9 @@ function App() {
     const storeProfileRef = useRef<StoreProfile | null>(null);
     const playedIFoodAlertsRef = useRef<Set<string>>(new Set());
     const playedNineNineAlertsRef = useRef<Set<string>>(new Set());
+    const playedAcceptedAlertsRef = useRef<Set<string>>(new Set());
+    const playedArrivedAlertsRef = useRef<Set<string>>(new Set());
+    const isFirstLoadDoneRef = useRef(false);
 
     // Keep Refs synced
     useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -240,6 +245,29 @@ function App() {
                 document.removeEventListener('click', handleInteraction);
                 document.removeEventListener('keydown', handleInteraction);
             };
+        }
+    }, [orders]);
+ 
+    // Synchronize already accepted/arrived orders on initial load & cleanup finished ones
+    useEffect(() => {
+        if (!isFirstLoadDoneRef.current && orders.length > 0) {
+            orders.forEach(o => {
+                if (o.status !== OrderStatus.PENDING) {
+                    playedAcceptedAlertsRef.current.add(o.id);
+                }
+                if (o.status === OrderStatus.ARRIVED_AT_STORE || o.status === OrderStatus.READY_FOR_PICKUP || o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.DELIVERED) {
+                    playedArrivedAlertsRef.current.add(o.id);
+                }
+            });
+            isFirstLoadDoneRef.current = true;
+        }
+
+        const activeIds = new Set(orders.map(o => o.id));
+        for (const id of playedAcceptedAlertsRef.current) {
+            if (!activeIds.has(id)) playedAcceptedAlertsRef.current.delete(id);
+        }
+        for (const id of playedArrivedAlertsRef.current) {
+            if (!activeIds.has(id)) playedArrivedAlertsRef.current.delete(id);
         }
     }, [orders]);
 
@@ -682,9 +710,15 @@ function App() {
                         return existing;
                     }
 
-                    // Alert on arrival
-                    if (existing.status !== newOrder.status && newOrder.status === OrderStatus.ARRIVED_AT_STORE) {
-                        playAlert('beep');
+                    // Voice alerts on acceptance and arrival at store
+                    if (existing.status !== newOrder.status) {
+                        if (newOrder.status === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(newOrder.id)) {
+                            playedArrivedAlertsRef.current.add(newOrder.id);
+                            playAlert('courierArrived');
+                        } else if ((newOrder.status === OrderStatus.ACCEPTED || newOrder.status === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(newOrder.id)) {
+                            playedAcceptedAlertsRef.current.add(newOrder.id);
+                            playAlert('courierAccepted');
+                        }
                     }
 
                     // Check if anything meaningful changed (status or courier info)
@@ -756,8 +790,14 @@ function App() {
                         const existing = ordersRef.current.find(o => o.id === fullRecord.id);
                         const mappedStatus = mapSupabaseStatusToLocal(fullRecord.status);
 
-                        if (existing && existing.status !== mappedStatus && mappedStatus === OrderStatus.ARRIVED_AT_STORE) {
-                            playAlert('beep');
+                        if (existing && existing.status !== mappedStatus) {
+                            if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(fullRecord.id)) {
+                                playedArrivedAlertsRef.current.add(fullRecord.id);
+                                playAlert('courierArrived');
+                            } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(fullRecord.id)) {
+                                playedAcceptedAlertsRef.current.add(fullRecord.id);
+                                playAlert('courierAccepted');
+                            }
                         }
 
                         const updatedOrder = await processDeliveryRecord(fullRecord);
@@ -776,6 +816,19 @@ function App() {
                     const start = performance.now();
                     
                     const delivery = payload.payload;
+                    const existing = ordersRef.current.find(o => o.id === delivery.id);
+                    const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
+
+                    if (existing && existing.status !== mappedStatus) {
+                        if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(delivery.id)) {
+                            playedArrivedAlertsRef.current.add(delivery.id);
+                            playAlert('courierArrived');
+                        } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(delivery.id)) {
+                            playedAcceptedAlertsRef.current.add(delivery.id);
+                            playAlert('courierAccepted');
+                        }
+                    }
+
                     const updatedOrder = await processDeliveryRecord(delivery);
                     
                     setOrders(prev => {
@@ -1351,7 +1404,8 @@ function App() {
         // Update Couriers State (Remove used one)
         setAvailableCouriers(prev => prev.filter(c => c.id !== selectedCourier.id));
 
-        // playAlert(); // REMOVED: Only arrive at store should play
+        playedAcceptedAlertsRef.current.add(orderId);
+        playAlert('courierAccepted');
     };
 
     const handleNewOrder = async (data: OrderFormData) => {
