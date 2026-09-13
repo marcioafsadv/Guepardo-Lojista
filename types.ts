@@ -89,6 +89,7 @@ export interface Order {
   destinationLng?: number;
 
   pickupCode: string; // The security code for validation
+  rawStatus?: string; // Raw database status ('arrived_pickup', 'picking_up', etc.)
   cancellationReason?: string; // Reason for cancellation
   storeArrivalTimestamp?: Date; // When courier arrived at store
 

@@ -59,7 +59,8 @@ const SOUNDS = {
     ifood: '/sounds/ifood.mp3',
     ninenine: '/sounds/99-pop.mp3',
     courierAccepted: '/sounds/entregador-aceitou.mp3',
-    courierArrived: '/sounds/entregador-chegou.mp3'
+    courierArrived: '/sounds/entregador-chegou.mp3',
+    confirmPickup: '/sounds/confirmar-coleta.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -130,6 +131,7 @@ function App() {
     const playedNineNineAlertsRef = useRef<Set<string>>(new Set());
     const playedAcceptedAlertsRef = useRef<Set<string>>(new Set());
     const playedArrivedAlertsRef = useRef<Set<string>>(new Set());
+    const playedPickingUpAlertsRef = useRef<Set<string>>(new Set());
     const isFirstLoadDoneRef = useRef(false);
 
     // Keep Refs synced
@@ -248,7 +250,7 @@ function App() {
         }
     }, [orders]);
  
-    // Synchronize already accepted/arrived orders on initial load & cleanup finished ones
+    // Synchronize already accepted/arrived/picking_up orders on initial load & cleanup finished ones
     useEffect(() => {
         if (!isFirstLoadDoneRef.current && orders.length > 0) {
             orders.forEach(o => {
@@ -257,6 +259,9 @@ function App() {
                 }
                 if (o.status === OrderStatus.ARRIVED_AT_STORE || o.status === OrderStatus.READY_FOR_PICKUP || o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.DELIVERED) {
                     playedArrivedAlertsRef.current.add(o.id);
+                }
+                if (o.rawStatus === 'picking_up' || o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.DELIVERED) {
+                    playedPickingUpAlertsRef.current.add(o.id);
                 }
             });
             isFirstLoadDoneRef.current = true;
@@ -268,6 +273,9 @@ function App() {
         }
         for (const id of playedArrivedAlertsRef.current) {
             if (!activeIds.has(id)) playedArrivedAlertsRef.current.delete(id);
+        }
+        for (const id of playedPickingUpAlertsRef.current) {
+            if (!activeIds.has(id)) playedPickingUpAlertsRef.current.delete(id);
         }
     }, [orders]);
 
@@ -445,6 +453,7 @@ function App() {
             paymentMethod: items.paymentMethod || 'PIX',
             changeFor: items.changeFor ? Number(items.changeFor) : null,
             status: parsedStatus,
+            rawStatus: d.status,
             createdAt: new Date(d.created_at),
             estimatedPrice: Number(d.earnings) || 0,
             storeFreight: Number(items.storeFreight) || 0,
@@ -710,11 +719,24 @@ function App() {
                         return existing;
                     }
 
-                    // Voice alerts on acceptance and arrival at store
-                    if (existing.status !== newOrder.status) {
-                        if (newOrder.status === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(newOrder.id)) {
+                    // Voice alerts on acceptance, arrival at store, and collection code confirmation
+                    if (existing.status !== newOrder.status || existing.rawStatus !== newOrder.rawStatus) {
+                        if (newOrder.rawStatus === 'picking_up' && !playedPickingUpAlertsRef.current.has(newOrder.id)) {
+                            playedPickingUpAlertsRef.current.add(newOrder.id);
+                            playAlert('confirmPickup');
+                            setNotification({
+                                title: "Código de Coleta",
+                                message: "Confirme o código de coleta clicando em coletar"
+                            });
+                            setTimeout(() => setNotification(null), 6000);
+                        } else if (newOrder.status === OrderStatus.ARRIVED_AT_STORE && existing.status !== OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(newOrder.id)) {
                             playedArrivedAlertsRef.current.add(newOrder.id);
                             playAlert('courierArrived');
+                            setNotification({
+                                title: "Entregador na Loja",
+                                message: "Verifique se o pedido está pronto e confirme"
+                            });
+                            setTimeout(() => setNotification(null), 6000);
                         } else if ((newOrder.status === OrderStatus.ACCEPTED || newOrder.status === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(newOrder.id)) {
                             playedAcceptedAlertsRef.current.add(newOrder.id);
                             playAlert('courierAccepted');
@@ -723,6 +745,7 @@ function App() {
 
                     // Check if anything meaningful changed (status or courier info)
                     if (existing.status !== newOrder.status || 
+                        existing.rawStatus !== newOrder.rawStatus ||
                         existing.courier?.id !== newOrder.courier?.id ||
                         existing.pickupCode !== newOrder.pickupCode ||
                         existing.batch_id !== newOrder.batch_id) {
@@ -790,13 +813,28 @@ function App() {
                         const existing = ordersRef.current.find(o => o.id === fullRecord.id);
                         const mappedStatus = mapSupabaseStatusToLocal(fullRecord.status);
 
-                        if (existing && existing.status !== mappedStatus) {
-                            if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(fullRecord.id)) {
-                                playedArrivedAlertsRef.current.add(fullRecord.id);
-                                playAlert('courierArrived');
-                            } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(fullRecord.id)) {
-                                playedAcceptedAlertsRef.current.add(fullRecord.id);
-                                playAlert('courierAccepted');
+                        if (existing) {
+                            if (fullRecord.status === 'picking_up' && !playedPickingUpAlertsRef.current.has(fullRecord.id)) {
+                                playedPickingUpAlertsRef.current.add(fullRecord.id);
+                                playAlert('confirmPickup');
+                                setNotification({
+                                    title: "Código de Coleta",
+                                    message: "Confirme o código de coleta clicando em coletar"
+                                });
+                                setTimeout(() => setNotification(null), 6000);
+                            } else if (existing.status !== mappedStatus) {
+                                if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(fullRecord.id)) {
+                                    playedArrivedAlertsRef.current.add(fullRecord.id);
+                                    playAlert('courierArrived');
+                                    setNotification({
+                                        title: "Entregador na Loja",
+                                        message: "Verifique se o pedido está pronto e confirme"
+                                    });
+                                    setTimeout(() => setNotification(null), 6000);
+                                } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(fullRecord.id)) {
+                                    playedAcceptedAlertsRef.current.add(fullRecord.id);
+                                    playAlert('courierAccepted');
+                                }
                             }
                         }
 
@@ -819,13 +857,28 @@ function App() {
                     const existing = ordersRef.current.find(o => o.id === delivery.id);
                     const mappedStatus = mapSupabaseStatusToLocal(delivery.status);
 
-                    if (existing && existing.status !== mappedStatus) {
-                        if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(delivery.id)) {
-                            playedArrivedAlertsRef.current.add(delivery.id);
-                            playAlert('courierArrived');
-                        } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(delivery.id)) {
-                            playedAcceptedAlertsRef.current.add(delivery.id);
-                            playAlert('courierAccepted');
+                    if (existing) {
+                        if (delivery.status === 'picking_up' && !playedPickingUpAlertsRef.current.has(delivery.id)) {
+                            playedPickingUpAlertsRef.current.add(delivery.id);
+                            playAlert('confirmPickup');
+                            setNotification({
+                                title: "Código de Coleta",
+                                message: "Confirme o código de coleta clicando em coletar"
+                            });
+                            setTimeout(() => setNotification(null), 6000);
+                        } else if (existing.status !== mappedStatus) {
+                            if (mappedStatus === OrderStatus.ARRIVED_AT_STORE && !playedArrivedAlertsRef.current.has(delivery.id)) {
+                                playedArrivedAlertsRef.current.add(delivery.id);
+                                playAlert('courierArrived');
+                                setNotification({
+                                    title: "Entregador na Loja",
+                                    message: "Verifique se o pedido está pronto e confirme"
+                                });
+                                setTimeout(() => setNotification(null), 6000);
+                            } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(delivery.id)) {
+                                playedAcceptedAlertsRef.current.add(delivery.id);
+                                playAlert('courierAccepted');
+                            }
                         }
                     }
 

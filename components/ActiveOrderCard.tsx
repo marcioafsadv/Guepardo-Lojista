@@ -513,7 +513,8 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                     }
                     }}
                     className={`flex-[2] h-12 flex items-center justify-center gap-3 rounded-xl text-white hover:brightness-110 transition-all text-xs font-black italic uppercase tracking-widest shadow-glow 
-                    ${(order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'bg-green-600 shadow-glow-green' : 'bg-brand-gradient'}`}
+                    ${(order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'bg-green-600 shadow-glow-green' : 'bg-brand-gradient'}
+                    ${order.rawStatus === 'picking_up' ? 'animate-pulse ring-2 ring-white shadow-[0_0_25px_rgba(34,197,94,0.9)] scale-[1.02]' : ''}`}
                 >
                     { (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? <PackageCheck size={20} strokeWidth={3} /> : <Navigation size={18} strokeWidth={3} className="drop-shadow-glow" /> }
                     <span className="text-shadow-glow uppercase tracking-wider">{ (order.status === OrderStatus.READY_FOR_PICKUP || order.status === OrderStatus.ARRIVED_AT_STORE || order.status === OrderStatus.TO_STORE) ? 'Coletar' : 'Acompanhar' }</span>
