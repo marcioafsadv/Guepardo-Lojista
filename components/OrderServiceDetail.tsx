@@ -605,7 +605,7 @@ const OrderContent: React.FC<{
                                 alert('Link de rastreamento copiado!');
                             });
                         }}
-                        className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.3)]"
+                        className="w-full h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-[0_10px_20px_rgba(211,84,0,0.4)] animate-pulse shadow-glow-orange ring-1 ring-orange-400/50 active:scale-95"
                     >
                         <Copy size={18} />
                         Copiar Link de Rastreio

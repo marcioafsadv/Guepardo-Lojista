@@ -60,7 +60,8 @@ const SOUNDS = {
     ninenine: '/sounds/99-pop.mp3',
     courierAccepted: '/sounds/entregador-aceitou.mp3',
     courierArrived: '/sounds/entregador-chegou.mp3',
-    confirmPickup: '/sounds/confirmar-coleta.mp3'
+    confirmPickup: '/sounds/confirmar-coleta.mp3',
+    sendTrackingLink: '/sounds/enviar-link-rastreio.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -132,6 +133,7 @@ function App() {
     const playedAcceptedAlertsRef = useRef<Set<string>>(new Set());
     const playedArrivedAlertsRef = useRef<Set<string>>(new Set());
     const playedPickingUpAlertsRef = useRef<Set<string>>(new Set());
+    const playedInTransitAlertsRef = useRef<Set<string>>(new Set());
     const isFirstLoadDoneRef = useRef(false);
 
     // Keep Refs synced
@@ -263,6 +265,9 @@ function App() {
                 if (o.rawStatus === 'picking_up' || o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.DELIVERED) {
                     playedPickingUpAlertsRef.current.add(o.id);
                 }
+                if (o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.DELIVERED) {
+                    playedInTransitAlertsRef.current.add(o.id);
+                }
             });
             isFirstLoadDoneRef.current = true;
         }
@@ -276,6 +281,9 @@ function App() {
         }
         for (const id of playedPickingUpAlertsRef.current) {
             if (!activeIds.has(id)) playedPickingUpAlertsRef.current.delete(id);
+        }
+        for (const id of playedInTransitAlertsRef.current) {
+            if (!activeIds.has(id)) playedInTransitAlertsRef.current.delete(id);
         }
     }, [orders]);
 
@@ -728,6 +736,15 @@ function App() {
                                 message: "Verifique se o pedido está pronto e confirme"
                             });
                             setTimeout(() => setNotification(null), 6000);
+                        } else if (newOrder.status === OrderStatus.IN_TRANSIT && existing.status !== OrderStatus.IN_TRANSIT && !playedInTransitAlertsRef.current.has(newOrder.id)) {
+                            console.log("🔊 [pollData] Order in transit! Playing sendTrackingLink alert...");
+                            playedInTransitAlertsRef.current.add(newOrder.id);
+                            playAlert('sendTrackingLink');
+                            setNotification({
+                                title: "Link de Rastreio",
+                                message: "Envie o link de rastreio ao cliente"
+                            });
+                            setTimeout(() => setNotification(null), 6000);
                         } else if ((newOrder.status === OrderStatus.ACCEPTED || newOrder.status === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(newOrder.id)) {
                             playedAcceptedAlertsRef.current.add(newOrder.id);
                             playAlert('courierAccepted');
@@ -832,6 +849,14 @@ function App() {
                                         message: "Verifique se o pedido está pronto e confirme"
                                     });
                                     setTimeout(() => setNotification(null), 6000);
+                                } else if (mappedStatus === OrderStatus.IN_TRANSIT && existing.status !== OrderStatus.IN_TRANSIT && !playedInTransitAlertsRef.current.has(fullRecord.id)) {
+                                    playedInTransitAlertsRef.current.add(fullRecord.id);
+                                    playAlert('sendTrackingLink');
+                                    setNotification({
+                                        title: "Link de Rastreio",
+                                        message: "Envie o link de rastreio ao cliente"
+                                    });
+                                    setTimeout(() => setNotification(null), 6000);
                                 } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(fullRecord.id)) {
                                     playedAcceptedAlertsRef.current.add(fullRecord.id);
                                     playAlert('courierAccepted');
@@ -874,6 +899,14 @@ function App() {
                                 setNotification({
                                     title: "Entregador na Loja",
                                     message: "Verifique se o pedido está pronto e confirme"
+                                });
+                                setTimeout(() => setNotification(null), 6000);
+                            } else if (mappedStatus === OrderStatus.IN_TRANSIT && existing.status !== OrderStatus.IN_TRANSIT && !playedInTransitAlertsRef.current.has(delivery.id)) {
+                                playedInTransitAlertsRef.current.add(delivery.id);
+                                playAlert('sendTrackingLink');
+                                setNotification({
+                                    title: "Link de Rastreio",
+                                    message: "Envie o link de rastreio ao cliente"
                                 });
                                 setTimeout(() => setNotification(null), 6000);
                             } else if ((mappedStatus === OrderStatus.ACCEPTED || mappedStatus === OrderStatus.TO_STORE) && existing.status === OrderStatus.PENDING && !playedAcceptedAlertsRef.current.has(delivery.id)) {
@@ -2430,9 +2463,10 @@ function App() {
             setTimeout(() => setNotification(null), 4000);
         }
 
-        // playAlert(); // REMOVED: Only arrive at store should play
-        setNotification({ title: "Segurança Confirmada", message: "Pedido(s) despachado(s) com sucesso." });
-        setTimeout(() => setNotification(null), 4000);
+        orderIds.forEach(id => playedInTransitAlertsRef.current.add(id));
+        playAlert('sendTrackingLink');
+        setNotification({ title: "Link de Rastreio", message: "Envie o link de rastreio ao cliente" });
+        setTimeout(() => setNotification(null), 6000);
 
         // High-Speed Broadcast to driver(s)
         orderIds.forEach(id => {
