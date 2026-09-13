@@ -288,8 +288,8 @@ function App() {
             case 'accepted': return OrderStatus.ACCEPTED;
             case 'to_store': return OrderStatus.ACCEPTED;          // Courier heading to store → show as accepted
             case 'arrived_pickup': return OrderStatus.ARRIVED_AT_STORE;
-            case 'picking_up': return OrderStatus.ARRIVED_AT_STORE; // Validating code → still at store for Lojista
             case 'ready_for_pickup': return OrderStatus.READY_FOR_PICKUP;
+            case 'picking_up': return OrderStatus.READY_FOR_PICKUP; // Validating collection code at store
             case 'in_transit': return OrderStatus.IN_TRANSIT;
             case 'arrived_at_customer': return OrderStatus.IN_TRANSIT; // Still in transit until confirmed delivered
             case 'completed': return OrderStatus.DELIVERED;
@@ -709,19 +709,10 @@ function App() {
                         return newOrder;
                     }
 
-                    // Rank comparison to prevent status regression
-                    const STATUS_ORDER = [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING, OrderStatus.DELIVERED, OrderStatus.CANCELED];
-                    const currentRank = STATUS_ORDER.indexOf(existing.status);
-                    const newRank = STATUS_ORDER.indexOf(newOrder.status);
-
-                    // If new status is "older" than current, keep current (unless it's a final state override)
-                    if (newRank < currentRank && newOrder.status !== OrderStatus.CANCELED && newOrder.status !== OrderStatus.DELIVERED) {
-                        return existing;
-                    }
-
-                    // Voice alerts on acceptance, arrival at store, and collection code confirmation
+                    // Voice alerts on acceptance, arrival at store, and collection code confirmation (evaluated first)
                     if (existing.status !== newOrder.status || existing.rawStatus !== newOrder.rawStatus) {
                         if (newOrder.rawStatus === 'picking_up' && !playedPickingUpAlertsRef.current.has(newOrder.id)) {
+                            console.log("🔊 [pollData] Courier is picking_up! Playing confirmPickup alert...");
                             playedPickingUpAlertsRef.current.add(newOrder.id);
                             playAlert('confirmPickup');
                             setNotification({
@@ -741,6 +732,15 @@ function App() {
                             playedAcceptedAlertsRef.current.add(newOrder.id);
                             playAlert('courierAccepted');
                         }
+                    }
+
+                    // Rank comparison to prevent status regression (never drop if courier is in picking_up)
+                    const STATUS_ORDER = [OrderStatus.PENDING, OrderStatus.ACCEPTED, OrderStatus.ARRIVED_AT_STORE, OrderStatus.READY_FOR_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.RETURNING, OrderStatus.DELIVERED, OrderStatus.CANCELED];
+                    const currentRank = STATUS_ORDER.indexOf(existing.status);
+                    const newRank = STATUS_ORDER.indexOf(newOrder.status);
+
+                    if (newRank < currentRank && newOrder.status !== OrderStatus.CANCELED && newOrder.status !== OrderStatus.DELIVERED && newOrder.rawStatus !== 'picking_up') {
+                        return existing;
                     }
 
                     // Check if anything meaningful changed (status or courier info)
@@ -780,14 +780,16 @@ function App() {
                 {
                     event: '*',
                     schema: 'public',
-                    table: 'deliveries',
-                    filter: `store_id=eq.${session.user.id}`
+                    table: 'deliveries'
                 },
                 async (payload) => {
                     const newRecord = payload.new as any;
-                    console.log("📦 [REALTIME] Delivery Change:", payload.eventType, newRecord?.id);
+                    if (!newRecord?.id) return;
                     
+                    let existing = ordersRef.current.find(o => o.id === newRecord.id);
+
                     if (payload.eventType === 'INSERT') {
+                        if (newRecord.store_id !== session.user.id) return;
                         const newOrder = await processDeliveryRecord(newRecord);
                         setOrders(prev => [newOrder, ...prev]);
                         if (newOrder.requestSource !== 'IFOOD' && newOrder.external_source !== 'IFOOD') {
@@ -795,22 +797,21 @@ function App() {
                         }
                     } 
                     else if (payload.eventType === 'UPDATE') {
+                        // If not in active orders and store_id does not match, ignore
+                        if (!existing && newRecord.store_id && newRecord.store_id !== session.user.id) return;
+                        if (!existing && !newRecord.store_id) return;
+
                         const start = performance.now();
+                        console.log("📦 [REALTIME] Delivery Update:", newRecord.id, "Status:", newRecord.status);
                         
-                        // PERFORMANCE WIN: Rely on REPLICA IDENTITY FULL instead of fetching the whole record again.
-                        // However, if some columns are missing from payload.new (due to RLS or DB config), 
-                        // we gracefully fallback but log it for optimization.
                         let fullRecord = newRecord;
-                        
-                        // Heuristic: If crucial fields like 'customer_name' are missing from payload.new, 
-                        // then REPLICA IDENTITY is likely NOT FULL.
                         if (!fullRecord?.customer_name) {
-                            console.warn("⚠️ [REALTIME_LATENCY] Payload is incomplete. REPLICA IDENTITY FULL might be disabled. Falling back to fetch...");
+                            console.log("⚠️ [REALTIME] Fetching full delivery record for:", newRecord.id);
                             const { data, error } = await supabase.from('deliveries').select('*').eq('id', newRecord.id).single();
                             if (!error && data) fullRecord = data;
                         }
 
-                        const existing = ordersRef.current.find(o => o.id === fullRecord.id);
+                        existing = ordersRef.current.find(o => o.id === fullRecord.id);
                         const mappedStatus = mapSupabaseStatusToLocal(fullRecord.status);
 
                         if (existing) {
@@ -1046,8 +1047,8 @@ function App() {
         pollData();
         fetchCouriers();
 
-        // DYNAMIC POLLING: If disconnected, poll every 4s. If connected, poll every 60s.
-        const intervalTime = realtimeStatus === 'SUBSCRIBED' ? 60000 : 4000;
+        // DYNAMIC POLLING: Fast 5s heartbeat when connected, 3s when disconnected
+        const intervalTime = realtimeStatus === 'SUBSCRIBED' ? 5000 : 3000;
         
         console.log(`⏱️ [SYNC] Setting polling interval to ${intervalTime}ms (Status: ${realtimeStatus})`);
         
