@@ -56,12 +56,20 @@ const SOUNDS = {
     symphony: '/sounds/symphony.mp3',
     guitar: '/sounds/guitar-notification.mp3',
     beep: '/sounds/beep-notification.mp3',
+    roar: '/sounds/lion-roar.mp3',
+    siren: '/sounds/beep-notification.mp3',
     ifood: '/sounds/ifood.mp3',
     ninenine: '/sounds/99-pop.mp3',
+    // Vozes Femininas
     courierAccepted: '/sounds/entregador-aceitou.mp3',
     courierArrived: '/sounds/entregador-chegou.mp3',
     confirmPickup: '/sounds/confirmar-coleta.mp3',
-    sendTrackingLink: '/sounds/enviar-link-rastreio.mp3'
+    sendTrackingLink: '/sounds/enviar-link-rastreio.mp3',
+    // Vozes Masculinas
+    courierAcceptedMasc: '/sounds/entregador-aceitou-masc.mp3',
+    courierArrivedMasc: '/sounds/entregador-chegou-masc.mp3',
+    confirmPickupMasc: '/sounds/confirmar-coleta-masc.mp3',
+    sendTrackingLinkMasc: '/sounds/enviar-link-rastreio-masc.mp3'
 };
 
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
@@ -108,21 +116,35 @@ function App() {
     const [unreadMessages, setUnreadMessages] = useState<Record<string, Partial<Record<ChatRoomType, number>>>>({});
     const [openChatId, setOpenChatId] = useState<string | null>(null);
     const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
-    const [settings, setSettings] = useState<StoreSettings>({
-        openTime: "08:00",
-        closeTime: "22:00",
-        isStoreOpen: true,
-        deliveryRadiusKm: 5,
-        baseFreight: 7.00,
-        returnFeeActive: true,
-        prepTimeMinutes: 15,
-        tierGoals: { bronze: 3, silver: 5, gold: 10 },
-        theme: 'dark',
-        mapTheme: 'light',
-        alertSound: 'cheetah'
+    const [settings, setSettings] = useState<StoreSettings>(() => {
+        const defaultSettings: StoreSettings = {
+            openTime: "08:00",
+            closeTime: "22:00",
+            isStoreOpen: true,
+            deliveryRadiusKm: 5,
+            baseFreight: 7.00,
+            returnFeeActive: true,
+            prepTimeMinutes: 15,
+            tierGoals: { bronze: 3, silver: 5, gold: 10 },
+            theme: 'dark',
+            mapTheme: 'light',
+            alertSound: 'cheetah',
+            voiceAlertsEnabled: true,
+            voiceGender: 'male'
+        };
+        try {
+            const saved = localStorage.getItem('guepardo_store_settings');
+            if (saved) {
+                return { ...defaultSettings, ...JSON.parse(saved) };
+            }
+        } catch (e) {
+            console.warn('Could not read saved settings from localStorage:', e);
+        }
+        return defaultSettings;
     });
 
     // --- REFS ---
+    const settingsRef = useRef<StoreSettings>(settings);
     const ordersRef = useRef<Order[]>([]);
     const couriersRef = useRef<Courier[]>([]);
     const courierCacheRef = useRef<Map<string, Courier>>(new Map());
@@ -137,6 +159,14 @@ function App() {
     const isFirstLoadDoneRef = useRef(false);
 
     // Keep Refs synced
+    useEffect(() => {
+        settingsRef.current = settings;
+        try {
+            localStorage.setItem('guepardo_store_settings', JSON.stringify(settings));
+        } catch (e) {
+            console.warn('Could not save settings to localStorage:', e);
+        }
+    }, [settings]);
     useEffect(() => { ordersRef.current = orders; }, [orders]);
     useEffect(() => { couriersRef.current = availableCouriers; }, [availableCouriers]);
     useEffect(() => { if (realStoreProfile) storeProfileRef.current = realStoreProfile; }, [realStoreProfile]);
@@ -325,6 +355,32 @@ function App() {
     }, []);
 
     const playAlert = useCallback((type: keyof typeof SOUNDS = 'cheetah') => {
+        const isVoiceAlert = [
+            'courierAccepted', 'courierArrived', 'confirmPickup', 'sendTrackingLink',
+            'courierAcceptedMasc', 'courierArrivedMasc', 'confirmPickupMasc', 'sendTrackingLinkMasc'
+        ].includes(type);
+
+        if (isVoiceAlert) {
+            // Se o lojista desativou os alertas de voz nas configurações, não toca
+            if (settingsRef.current?.voiceAlertsEnabled === false) {
+                console.log("🔇 [App] Alertas de voz desativados nas configurações. Pulando alerta:", type);
+                return;
+            }
+
+            // Se a preferência for voz masculina e a chave recebida for feminina, redireciona para a versão masculina
+            if (settingsRef.current?.voiceGender === 'male' && !type.endsWith('Masc')) {
+                const mascKey = `${type}Masc` as keyof typeof SOUNDS;
+                if (SOUNDS[mascKey]) {
+                    type = mascKey;
+                }
+            } else if (settingsRef.current?.voiceGender === 'female' && type.endsWith('Masc')) {
+                const femKey = type.replace('Masc', '') as keyof typeof SOUNDS;
+                if (SOUNDS[femKey]) {
+                    type = femKey;
+                }
+            }
+        }
+
         const soundPath = SOUNDS[type] || SOUNDS.default;
         console.log("🔊 [App] Playing sound:", type, "Path:", soundPath);
         const audio = new Audio(soundPath);

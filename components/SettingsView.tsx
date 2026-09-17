@@ -3,7 +3,7 @@ import { StoreSettings, StoreProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { geocodeAddress } from '../utils/geocoding';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock, ExternalLink } from 'lucide-react';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, VolumeX, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock, ExternalLink } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -15,7 +15,46 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, storeProfile, onUpdateProfile }) => {
     const { signOut } = useAuth();
     // Local state for form handling before save
-    const [localSettings, setLocalSettings] = useState<StoreSettings>({ ...settings, baseFreight: 7.00 });
+    const [localSettings, setLocalSettings] = useState<StoreSettings>({
+        ...settings,
+        baseFreight: 7.00,
+        voiceAlertsEnabled: settings.voiceAlertsEnabled !== false,
+        voiceGender: settings.voiceGender || 'male'
+    });
+    const [playingSound, setPlayingSound] = useState<string | null>(null);
+    const testAudioRef = React.useRef<HTMLAudioElement | null>(null);
+
+    // Sync if external settings prop updates
+    useEffect(() => {
+        setLocalSettings(prev => ({
+            ...prev,
+            ...settings,
+            voiceAlertsEnabled: settings.voiceAlertsEnabled !== false,
+            voiceGender: settings.voiceGender || prev.voiceGender || 'male'
+        }));
+    }, [settings]);
+
+    const playTestSound = (path: string, soundKey: string) => {
+        if (testAudioRef.current) {
+            testAudioRef.current.pause();
+            testAudioRef.current.currentTime = 0;
+        }
+        try {
+            const audio = new Audio(path);
+            testAudioRef.current = audio;
+            setPlayingSound(soundKey);
+            audio.play().catch(e => {
+                console.warn('Erro ao reproduzir teste sonoro:', e);
+                setPlayingSound(null);
+            });
+            audio.onended = () => setPlayingSound(null);
+            audio.onerror = () => setPlayingSound(null);
+        } catch (e) {
+            console.warn('Erro ao criar elemento de áudio:', e);
+            setPlayingSound(null);
+        }
+    };
+
     const [hasChanges, setHasChanges] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
@@ -593,9 +632,122 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                             <p className="text-[10px] text-gray-500 mt-2 italic px-1">Configure o mapa para o modo que melhor facilite sua visualização de rotas.</p>
                         </div>
 
-                        {/* Sons */}
+                        {/* Alertas de Voz Operacionais (Monitoramento) */}
+                        <div className="md:col-span-2 bg-gray-50 dark:bg-guepardo-gray-900/70 p-4 rounded-xl border border-gray-200 dark:border-guepardo-gray-700">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <Headphones size={18} className="text-guepardo-accent" />
+                                        <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                            Alertas por Voz (Monitoramento Operacional)
+                                        </h4>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Avisos falados em tempo real: entregador aceitou a corrida, chegou no local, aviso de pedido pronto, confirmação do código de coleta e envio do link de rastreio.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleChange('voiceAlertsEnabled', localSettings.voiceAlertsEnabled === false ? true : false)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm ${
+                                            localSettings.voiceAlertsEnabled !== false
+                                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                : 'bg-gray-200 dark:bg-guepardo-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-guepardo-gray-600'
+                                        }`}
+                                    >
+                                        {localSettings.voiceAlertsEnabled !== false ? (
+                                            <>
+                                                <Volume2 size={14} /> Ativado
+                                            </>
+                                        ) : (
+                                            <>
+                                                <VolumeX size={14} /> Desativado (Mudo)
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Seletor de Tipo de Voz e Teste (aparece quando os alertas por voz estão ativos) */}
+                            {localSettings.voiceAlertsEnabled !== false && (
+                                <div className="pt-3 border-t border-gray-200 dark:border-guepardo-gray-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                            Tipo de Voz:
+                                        </label>
+                                        <div className="flex bg-white dark:bg-guepardo-gray-800 p-1 rounded-lg border border-gray-200 dark:border-guepardo-gray-700">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange('voiceGender', 'male')}
+                                                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                                    (localSettings.voiceGender || 'male') === 'male'
+                                                        ? 'bg-amber-500 text-gray-900 shadow-sm font-black'
+                                                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                                                }`}
+                                            >
+                                                👨 Voz Masculina
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleChange('voiceGender', 'female')}
+                                                className={`px-3 py-1 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                                                    localSettings.voiceGender === 'female'
+                                                        ? 'bg-amber-500 text-gray-900 shadow-sm font-black'
+                                                        : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
+                                                }`}
+                                            >
+                                                👩 Voz Feminina
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Botão de teste da voz */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const voice = localSettings.voiceGender || 'male';
+                                            const testFile = voice === 'male' 
+                                                ? '/sounds/entregador-aceitou-masc.mp3' 
+                                                : '/sounds/entregador-aceitou.mp3';
+                                            playTestSound(testFile, 'voice_preview');
+                                        }}
+                                        disabled={playingSound === 'voice_preview'}
+                                        className="px-3 py-1.5 bg-white hover:bg-gray-100 dark:bg-guepardo-gray-800 dark:hover:bg-guepardo-gray-700 text-gray-800 dark:text-gray-200 text-xs font-bold rounded-lg border border-gray-200 dark:border-guepardo-gray-700 transition-colors flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                                    >
+                                        <Volume2 size={13} className={playingSound === 'voice_preview' ? 'animate-bounce text-guepardo-accent' : ''} />
+                                        {playingSound === 'voice_preview' ? 'Ouvindo...' : 'Testar Voz Selecionada'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sons de Notificação (Campainha) */}
                         <div className="md:col-span-2">
-                            <label className="block text-sm font-bold text-gray-900 dark:text-white mb-3">Alerta Sonoro</label>
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="block text-sm font-bold text-gray-900 dark:text-white">Alerta Sonoro (Toque / Campainha)</label>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const soundMap: Record<string, string> = {
+                                            cheetah: '/sounds/rugido-guepardo.mp3',
+                                            symphony: '/sounds/symphony.mp3',
+                                            guitar: '/sounds/guitar-notification.mp3',
+                                            beep: '/sounds/beep-notification.mp3',
+                                            roar: '/sounds/lion-roar.mp3',
+                                            siren: '/sounds/beep-notification.mp3',
+                                            default: '/sounds/rugido-guepardo.mp3'
+                                        };
+                                        const path = soundMap[localSettings.alertSound] || '/sounds/rugido-guepardo.mp3';
+                                        playTestSound(path, 'sound_preview');
+                                    }}
+                                    disabled={playingSound === 'sound_preview'}
+                                    className="px-2.5 py-1 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-guepardo-gray-800 dark:hover:bg-guepardo-gray-700 rounded-lg flex items-center gap-1 transition-colors cursor-pointer border border-gray-200 dark:border-guepardo-gray-700"
+                                >
+                                    <Volume2 size={13} className={playingSound === 'sound_preview' ? 'animate-bounce text-guepardo-accent' : ''} />
+                                    {playingSound === 'sound_preview' ? 'Tocando...' : 'Testar Toque'}
+                                </button>
+                            </div>
                             <div className="bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-xl overflow-hidden transition-colors duration-300">
                                 <select
                                     value={localSettings.alertSound}
@@ -611,7 +763,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                     <option value="siren" className="text-gray-900 bg-white dark:bg-guepardo-gray-900 dark:text-white">Sirene de Aviso</option>
                                 </select>
                             </div>
-                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1"><Volume2 size={12} /> Som tocado ao "Chegar na Loja"</p>
+                            <p className="text-xs text-gray-500 mt-2 flex items-center gap-1"><Volume2 size={12} /> Som tocado em alertas gerais e notificações do sistema</p>
                         </div>
                     </div>
                 </section>

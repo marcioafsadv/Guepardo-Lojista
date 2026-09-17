@@ -18,10 +18,12 @@ export interface StoreSettings {
     gold: number; // e.g., 10
   };
 
-  // 4. Interface
+  // 4. Interface & Notificações
   theme: 'light' | 'dark' | 'auto';
   mapTheme: 'light' | 'dark';
   alertSound: 'default' | 'roar' | 'siren' | 'cheetah' | 'symphony' | 'guitar' | 'beep';
+  voiceAlertsEnabled?: boolean;
+  voiceGender?: 'female' | 'male';
 }
 
 export enum OrderStatus {
