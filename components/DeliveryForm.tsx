@@ -274,6 +274,7 @@ export const DeliveryForm = ({
   const [scheduledTime, setScheduledTime] = useState('');
 
   // Ref for auto-focus
+  const phoneInputRef = useRef<HTMLInputElement>(null);
   const cepInputRef = useRef<HTMLInputElement>(null);
   const numberInputRef = useRef<HTMLInputElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -346,6 +347,13 @@ export const DeliveryForm = ({
       return;
     }
 
+    const cleanPhone = (clientPhone || '').replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
+      alert("Por favor, informe o Telefone / WhatsApp do cliente com DDD (ex: 11 99999-9999).\n\nEsse número é obrigatório para que o cliente receba e confirme o código de entrega com o Guepardo entregador.");
+      phoneInputRef.current?.focus();
+      return;
+    }
+
     if (addressMode === 'coordinates') {
       if (!customCoordinates) {
         alert("Por favor, informe as coordenadas GPS ou clique em 'Marcar no Mapa' para definir o local.");
@@ -368,6 +376,11 @@ export const DeliveryForm = ({
     if (additionalStops.length > 0) {
       for (let i = 0; i < additionalStops.length; i++) {
         const stop = additionalStops[i];
+        const cleanStopPhone = (stop.clientPhone || '').replace(/\D/g, '');
+        if (cleanStopPhone.length < 10) {
+          alert(`Parada ${i + 2}: Por favor, informe o Telefone / WhatsApp do cliente com DDD (mínimo 10 dígitos).\n\nEsse número é obrigatório para a confirmação do código de entrega.`);
+          return;
+        }
         const cleanStopCep = (stop.addressCep || '').replace(/\D/g, '');
         if (cleanStopCep.length !== 8 || !stop.addressStreet?.trim()) {
           alert(`Parada ${i + 2}: Por favor, informe um CEP válido para carregar o endereço da parada.`);
@@ -1011,27 +1024,37 @@ export const DeliveryForm = ({
           </div>
 
           {/* PHONE / WHATSAPP */}
-          <div className="relative group/input z-40">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Phone className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={18} />
-            </div>
-            <input
-              type="tel"
-              placeholder="Telefone / WhatsApp"
-              className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
-              value={clientPhone}
-              onChange={(e) => {
-                // Basic phone mask (digits only)
-                const val = e.target.value.replace(/\D/g, '');
-                let formatted = val;
-                if (val.length > 10) formatted = val.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
-                else if (val.length > 5) formatted = val.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
-                else if (val.length > 2) formatted = val.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
+          <div className="space-y-1">
+            <div className="relative group/input z-40">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Phone className="text-white/20 group-focus-within/input:text-guepardo-accent transition-colors" size={18} />
+              </div>
+              <input
+                ref={phoneInputRef}
+                type="tel"
+                placeholder="Telefone / WhatsApp (Obrigatório) *"
+                className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-black/60 border border-white/20 rounded-2xl text-xs md:text-sm focus:outline-none focus:border-guepardo-accent/80 focus:ring-4 focus:ring-guepardo-accent/10 transition-all font-black italic text-white placeholder-white/45"
+                value={clientPhone}
+                onChange={(e) => {
+                  // Basic phone mask (digits only)
+                  const val = e.target.value.replace(/\D/g, '');
+                  let formatted = val;
+                  if (val.length > 10) formatted = val.replace(/^(\d{2})(\d{5})(\d{4}).*/, '($1) $2-$3');
+                  else if (val.length > 5) formatted = val.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3');
+                  else if (val.length > 2) formatted = val.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
 
-                setClientPhone(formatted);
-              }}
-              autoComplete="tel"
-            />
+                  setClientPhone(formatted);
+                }}
+                autoComplete="tel"
+                required
+              />
+            </div>
+            {(!clientPhone || clientPhone.replace(/\D/g, '').length < 10) && (
+              <p className="text-[10px] text-white/50 italic flex items-center gap-1.5 px-1">
+                <Lock size={11} className="text-orange-400 shrink-0" />
+                <span>Obrigatório: necessário para o cliente receber e confirmar o código de entrega.</span>
+              </p>
+            )}
           </div>
 
           {/* CRM ALERT NOTE */}
@@ -1453,7 +1476,7 @@ export const DeliveryForm = ({
                     </div>
                     <input
                       type="tel"
-                      placeholder="Telefone / WhatsApp"
+                      placeholder="Telefone / WhatsApp (Obrigatório) *"
                       className="w-full pl-10 pr-4 py-2 bg-black/60 border border-white/20 rounded-xl text-xs focus:outline-none focus:border-guepardo-accent/80 text-white font-black italic placeholder-white/45"
                       value={stop.clientPhone}
                       onChange={(e) => {
@@ -1464,6 +1487,7 @@ export const DeliveryForm = ({
                         else if (val.length > 2) formatted = val.replace(/^(\d{2})(\d{0,5}).*/, '($1) $2');
                         updateStop(stop.id, 'clientPhone', formatted);
                       }}
+                      required
                     />
                   </div>
 

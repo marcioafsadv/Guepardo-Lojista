@@ -1612,6 +1612,7 @@ function App() {
                 // Merge items
                 const updatedItems = {
                     ...(existingDelivery.items || {}),
+                    clientPhone: data.clientPhone,
                     paymentMethod: data.paymentMethod,
                     deliveryValue: data.deliveryValue,
                     isReturnRequired: data.isReturnRequired,
@@ -1868,6 +1869,7 @@ function App() {
                     stop_number: currentStopNum,
                     items: {
                         displayId: Math.floor(1000 + Math.random() * 9000),
+                        clientPhone: stop.clientPhone,
                         paymentMethod: stop.paymentMethod,
                         deliveryValue: stop.deliveryValue,
                         isReturnRequired: stop.isReturnRequired,
