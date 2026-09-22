@@ -682,37 +682,30 @@ export const DeliveryForm = ({
          style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}
          ref={wrapperRef}>
 
-      {/* COMPACT HEADER */}
-      <div
-        className="flex items-center justify-between mb-6 pb-4 border-b border-white/10 cursor-pointer select-none group"
-        onClick={() => setIsFormCollapsed(prev => !prev)}
-        title={isFormCollapsed ? 'Expandir formulário' : 'Minimizar formulário'}
-      >
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10 select-none">
         <div className="flex items-center gap-3 md:gap-4">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-guepardo-accent rounded-lg md:rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)] group-hover:shadow-[0_0_25px_rgba(211,84,0,0.6)] transition-all duration-300">
-            <Bike className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] group-hover:scale-110 transition-transform" strokeWidth={2.5} />
+          <div className="w-8 h-8 md:w-10 md:h-10 bg-guepardo-accent rounded-lg md:rounded-xl flex items-center justify-center text-white border border-guepardo-accent shadow-[0_0_20px_rgba(211,84,0,0.4)]">
+            <Bike className="w-[18px] h-[18px] md:w-[22px] md:h-[22px]" strokeWidth={2.5} />
           </div>
           <div className="flex flex-col">
             <span className="text-[8px] md:text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none mb-1">Guepardo Flash</span>
             <h2 className="text-lg md:text-xl font-black italic text-white tracking-tighter leading-none">Chamar Guepardo</h2>
           </div>
         </div>
-        <button
-          type="button"
-          className="w-7 h-7 md:w-8 md:h-8 rounded-lg md:rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-white/50 group-hover:text-white/80 group-hover:border-white/20 hover:!bg-guepardo-accent hover:!text-white hover:!border-guepardo-accent/50 shadow-md hover:shadow-[0_0_15px_rgba(255,107,0,0.5)] transition-all duration-300"
-          aria-label={isFormCollapsed ? 'Expandir' : 'Minimizar'}
-        >
-          {isFormCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-black/40 border border-white/10 rounded-xl text-[10px] font-bold text-white/60">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Despacho</span>
+        </div>
       </div>
 
-      {/* COLLAPSIBLE CONTENT */}
+      {/* FORM CONTENT */}
       <div
         className="delivery-form-content flex-1 overflow-y-auto transition-all duration-300 ease-in-out scrollbar-guepardo"
         style={{
-          maxHeight: isFormCollapsed ? 0 : 'calc(100vh - 260px)',
-          opacity: isFormCollapsed ? 0 : 1,
-          paddingRight: isFormCollapsed ? 0 : '4px'
+          maxHeight: 'calc(100vh - 180px)',
+          opacity: 1,
+          paddingRight: '4px'
         }}
       >
         {/* TABS SELECTOR */}

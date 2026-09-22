@@ -13,6 +13,7 @@ import { OrderDetailsModal } from './components/OrderDetailsModal';
 import { ClientHistoryModal } from './components/ClientHistoryModal';
 import { classifyClient } from './utils/clientClassifier';
 import { GestaoDePedidos } from './components/GestaoDePedidos';
+import { GestorPedidosKanban } from './components/GestorPedidosKanban';
 import { HistoryView } from './components/HistoryView';
 import { SettingsView } from './components/SettingsView';
 import { WalletView } from './components/WalletView';
@@ -96,7 +97,7 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3
 function App() {
     const { session, loading } = useAuth();
     // --- APP STATE ---
-    const [currentView, setCurrentView] = useState<AppView>('operational');
+    const [currentView, setCurrentView] = useState<AppView>('orders');
     const [orders, setOrders] = useState<Order[]>([]);
     const [newOrders, setNewOrders] = useState<any[]>([]);
     const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -2017,6 +2018,11 @@ function App() {
                 });
             }
 
+            // Transição suave para o Gestor de Pedidos
+            setCurrentView('orders');
+            setNotification({ title: "Guepardo Chamado!", message: "Pedido enviado e visível no Gestor de Pedidos." });
+            setTimeout(() => setNotification(null), 5000);
+
         } catch (error: any) {
             console.error('❌ [App] Critical error in handleNewOrder:', error);
             alert(`Erro ao criar pedido: ${error.message || 'Erro desconhecido'}`);
@@ -3553,6 +3559,28 @@ function App() {
                     )}
 
                     {/* VIEW ROUTING */}
+                    {currentView === 'orders' && (
+                        <GestorPedidosKanban
+                            orders={orders}
+                            storeProfile={realStoreProfile || STORE_PROFILE}
+                            availableCouriers={availableCouriers}
+                            customers={customers}
+                            settings={settings}
+                            balance={realStoreProfile?.wallet_balance || 0}
+                            unreadMessages={unreadMessages}
+                            onSelectOrder={setSelectedOrderDetails}
+                            onAcceptIFoodOrder={handleAcceptIFoodOrder}
+                            onAccept99FoodOrder={handleAccept99FoodOrder}
+                            onMarkAsReady={handleMarkAsReady}
+                            onValidatePickup={handleValidatePickup}
+                            onCancelOrder={handleCancelOrder}
+                            onConfirmReturn={handleConfirmReturn}
+                            onSimulateAccept={handleSimulateAccept}
+                            onNavigateToDispatch={() => setCurrentView('operational')}
+                            onToggleStatus={toggleStoreStatus}
+                        />
+                    )}
+
                     {currentView === 'dashboard' && (
                         <DashboardTab
                             orders={orders}

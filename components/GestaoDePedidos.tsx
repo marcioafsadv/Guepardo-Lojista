@@ -9,7 +9,7 @@ import { ChatMultilateralModal } from './ChatMultilateralModal';
 import { CancellationModal } from './CancellationModal';
 import {
     Clock, MapPin, AlertCircle, Lock, LockOpen, PackageCheck, Send, Loader2, MessageCircle, Zap,
-    ChevronRight, ChevronLeft, ChevronUp, ChevronDown, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike
+    ChevronRight, ChevronLeft, ChevronUp, ChevronDown, ArrowRight, Wallet, Radio, Navigation, X, CreditCard, Banknote, QrCode, Trash2, ArrowLeftRight, CheckCheck, Layers, Hash, Bike, ShoppingBag
 } from 'lucide-react';
 import { ActiveOrderCard } from './ActiveOrderCard';
 import { geocodeAddress } from '../utils/geocoding';
@@ -689,74 +689,38 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                         selectedMapLocation={selectedMapLocation}
                     />
 
-                    {/* --- MONITORING PANEL (Moved below Form) --- */}
-                    <div className="monitoring-panel bg-brand-gradient-premium/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] md:rounded-[2.5rem] p-3 md:p-6 shadow-[0_30px_60px_rgba(0,0,0,0.8)] flex-1 overflow-hidden flex flex-col min-h-[400px]"
-                         style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}>
-                    
-                    {/* Status Summary & Search */}
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-black italic text-white uppercase tracking-tighter">Monitoramento</h2>
-                        <div className="relative">
-                             <input 
-                                 type="text"
-                                 placeholder="BUSCAR..."
-                                 value={searchTerm}
-                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                 className="bg-black/60 border border-white/20 rounded-xl px-4 py-2 text-[10px] font-black uppercase text-white placeholder:text-white/45 focus:border-guepardo-accent/80 outline-none w-32 transition-all"
-                             />
-                             <SearchIcon size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20" />
-                        </div>
-                    </div>
-
-                    {/* Online Pulse */}
-                    <div className="flex items-center justify-between mb-8 p-4 bg-black/60 border border-white/10 rounded-2xl shadow-inner">
+                    {/* ATALHO RÁPIDO PARA O GESTOR DE PEDIDOS KANBAN */}
+                    <div
+                        onClick={() => onSelectView?.('orders')}
+                        className="p-4 bg-brand-gradient-premium/95 backdrop-blur-xl border border-white/10 hover:border-[#FF6B00]/60 rounded-2xl md:rounded-[1.75rem] cursor-pointer flex items-center justify-between text-white shadow-xl hover:shadow-[0_0_30px_rgba(255,107,0,0.3)] transition-all group shrink-0 select-none active:scale-98"
+                        style={{ background: 'linear-gradient(135deg, rgba(139, 58, 15, 0.95) 0%, rgba(26, 9, 0, 0.98) 100%)' }}
+                        title="Ir para o Gestor de Pedidos (Kanban)"
+                    >
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-guepardo-accent/20 rounded-lg flex items-center justify-center text-guepardo-accent shadow-glow-sm">
-                                <Bike size={16} strokeWidth={2.5} />
+                            <div className="w-10 h-10 rounded-xl bg-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] border border-[#FF6B00]/30 shadow-glow-sm group-hover:scale-105 transition-transform">
+                                <ShoppingBag size={20} strokeWidth={2.5} />
                             </div>
-                            <span className="text-xs font-black text-white uppercase tracking-widest">Pilotos Ativos</span>
-                        </div>
-                        <span className="text-sm font-black italic text-guepardo-accent uppercase">{availableCouriers.filter(c => c.isOnline).length} ONLINE / {availableCouriers.length} TOTAL</span>
-                    </div>
-
-                    <div className="space-y-3 pb-20 flex-1 overflow-y-auto scrollbar-guepardo">
-                        {groupedOrders.map((order) => (
-                            <ActiveOrderCard
-                                key={order.id}
-                                order={order}
-                                storeLat={storeProfile.lat}
-                                storeLng={storeProfile.lng}
-                                onChatClick={handleOpenChat}
-                                onCardClick={handleOrderSelect}
-                                onTrackClick={(o) => {
-                                    setActiveOrder(o);
-                                }}
-                                onValidateClick={handleOpenValidation}
-                                onConfirmReturn={onConfirmReturn}
-                                onMarkAsReady={onMarkAsReady}
-                                onSimulateAccept={onSimulateAccept}
-                                routeStats={activeOrder?.id === order.id ? activeRouteStats : null}
-                                unreadCount={Object.values(unreadMessages[order.id] || {}).reduce((a, b) => a + (b || 0), 0)}
-                                isSelected={selectedOrderIds.includes(order.id)}
-                                onToggleSelect={() => {
-                                    setSelectedOrderIds(prev =>
-                                        prev.includes(order.id)
-                                            ? prev.filter(id => id !== order.id)
-                                            : [...prev, order.id]
-                                    );
-                                }}
-                            />
-                        ))}
-
-                        {groupedOrders.length === 0 && (
-                            <div className="text-center py-20 opacity-30">
-                                <div className="w-20 h-20 bg-black/60 rounded-full flex items-center justify-center mx-auto mb-6 border border-white/10 shadow-[0_0_30px_rgba(139,58,15,0.2)]">
-                                    <Radio size={40} className="text-white animate-pulse" />
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs md:text-sm font-black text-white uppercase tracking-wider">
+                                        Gestor de Pedidos
+                                    </span>
+                                    {groupedOrders.length > 0 && (
+                                        <span className="px-2 py-0.5 bg-[#FF6B00] text-white text-[10px] font-black rounded-full animate-pulse shadow-sm">
+                                            {groupedOrders.length}
+                                        </span>
+                                    )}
                                 </div>
-                                <p className="text-sm font-black italic uppercase tracking-[0.2em] text-white">Nenhum pedido ativo</p>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mt-2">Aguardando...</p>
+                                <p className="text-[10px] md:text-[11px] text-white/50">
+                                    {groupedOrders.length > 0 
+                                        ? `${groupedOrders.length} entrega${groupedOrders.length > 1 ? 's' : ''} em andamento` 
+                                        : 'Acompanhe as fases em tempo real'}
+                                </p>
                             </div>
-                        )}
+                        </div>
+                        <div className="flex items-center gap-1 text-[#FF6B00] text-xs font-bold group-hover:translate-x-1.5 transition-transform">
+                            <span className="text-[10px] uppercase font-black">Acessar</span>
+                            <ChevronRight size={18} />
                         </div>
                     </div>
                 </div>

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Bike, Users, History, Zap, Settings, MapPin, ChevronLeft, ChevronRight, Menu, Store, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Bike, Users, History, Zap, Settings, MapPin, ChevronLeft, ChevronRight, Menu, Store, ChevronDown, ShoppingBag } from 'lucide-react';
 import { StoreProfile } from '../types';
 
-export type AppView = 'dashboard' | 'operational' | 'clients' | 'history' | 'wallet' | 'settings';
+export type AppView = 'orders' | 'operational' | 'dashboard' | 'clients' | 'history' | 'wallet' | 'settings';
 
 interface GlobalSidebarProps {
   currentView: AppView;
@@ -17,8 +17,9 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
   const [isExpanded, setIsExpanded] = useState(false);
 
   const navItems = [
+    { id: 'orders', label: 'Gestor', icon: ShoppingBag },
+    { id: 'operational', label: 'Chamar', icon: Bike },
     { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-    { id: 'operational', label: 'Guepardo', icon: MapPin },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'wallet', label: 'Carteira', icon: Zap },
     { id: 'history', label: 'Histórico', icon: History },
@@ -65,7 +66,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
                     transition: 'all 0.2s',
                   }}
                 />
-                {item.id === 'operational' && hasActiveOrders && (
+                {(item.id === 'orders' || item.id === 'operational') && hasActiveOrders && (
                   <span
                     className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 animate-pulse"
                     style={{
@@ -156,14 +157,14 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
                   <Icon size={24} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'drop-shadow-md' : 'opacity-80'} />
 
                   {/* Active Order Badge */}
-                  {item.id === 'operational' && hasActiveOrders && (
+                  {(item.id === 'orders' || item.id === 'operational') && hasActiveOrders && (
                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 bg-white border-2 border-[#FF6B00] rounded-full animate-pulse shadow-sm ${isExpanded ? 'translate-x-1 -translate-y-1' : ''}`}></span>
                   )}
                 </div>
 
                 {isExpanded && (
                   <span className={`font-bold text-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300 ${isActive ? 'text-white' : 'text-white/70'}`}>
-                    {item.label === 'Guepardo' ? 'Chamar Guepardo' : item.label}
+                    {item.id === 'orders' ? 'Gestor de Pedidos' : item.id === 'operational' ? 'Chamar Guepardo' : item.label}
                   </span>
                 )}
               </button>
