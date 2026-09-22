@@ -3578,6 +3578,7 @@ function App() {
                             onSimulateAccept={handleSimulateAccept}
                             onNavigateToDispatch={() => setCurrentView('operational')}
                             onToggleStatus={toggleStoreStatus}
+                            mapboxToken={MAPBOX_TOKEN}
                         />
                     )}
 

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
 import { ChatMultilateralModal } from './ChatMultilateralModal';
+import { LeafletMap } from './LeafletMap';
 
 interface GestorPedidosKanbanProps {
   orders: Order[];
@@ -30,6 +31,7 @@ interface GestorPedidosKanbanProps {
   onNavigateToDispatch: () => void;
   onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
   onOpenChat?: (order: Order) => void;
+  mapboxToken?: string;
 }
 
 // Helper para calcular tempo decorrido amigável
@@ -68,7 +70,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   onNavigateToDispatch,
   onToggleStatus,
   onOpenChat,
+  mapboxToken,
 }) => {
+  // Modos de Visão e Rastreio
+  const [viewMode, setViewMode] = useState<'kanban' | 'map'>('kanban');
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+  const [mapSelectedOrder, setMapSelectedOrder] = useState<Order | null>(null);
+
   // Filtros de UI
   const [searchTerm, setSearchTerm] = useState('');
   const [channelFilter, setChannelFilter] = useState<'ALL' | 'IFOOD' | '99FOOD' | 'DIRECT' | 'WHATSAPP'>('ALL');
@@ -180,6 +188,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     return { totalDelivered, totalRevenue };
   }, [colDelivered]);
 
+  // Pedidos ativos para o mapa ao vivo
+  const activeOrdersForMap = useMemo(() => {
+    return filteredOrders.filter(o => 
+      o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED
+    );
+  }, [filteredOrders]);
+
   // Manipulador de Aceite Rápido
   const handleQuickAccept = async (order: Order, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -282,6 +297,35 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
             <span className="text-[#FF6B00] font-black">{onlineCouriersCount} online</span>
             <span className="text-white/30 text-[10px]">/ {availableCouriers.length}</span>
           </div>
+
+          {/* ALTERNADOR DE VISÃO: QUADROS (KANBAN) OU MAPA AO VIVO */}
+          <div className="flex items-center bg-black/60 border border-white/10 rounded-xl p-0.5 shrink-0 shadow-inner">
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+                viewMode === 'kanban'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#D35400] text-white shadow-[0_0_12px_rgba(255,107,0,0.5)]'
+                  : 'text-white/40 hover:text-white'
+              }`}
+            >
+              <ShoppingBag size={13} />
+              <span>Quadros</span>
+            </button>
+            <button
+              onClick={() => setViewMode('map')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all ${
+                viewMode === 'map'
+                  ? 'bg-gradient-to-r from-[#FF6B00] to-[#D35400] text-white shadow-[0_0_12px_rgba(255,107,0,0.5)]'
+                  : 'text-white/40 hover:text-white'
+              }`}
+            >
+              <MapPin size={13} />
+              <span>Mapa ao Vivo</span>
+              {colInTransit.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Lado Direito: Filtros, Busca & Botão + Chamar Guepardo */}
@@ -344,8 +388,10 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         </div>
       </div>
 
-      {/* ─── KANBAN BOARD (5 COLUNAS) ────────────────────────────────────────── */}
-      <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-5 flex gap-3 md:gap-4 scrollbar-guepardo">
+      {/* ─── CONTEÚDO PRINCIPAL: QUADROS OU MAPA AO VIVO ─────────────────── */}
+      {viewMode === 'kanban' ? (
+        /* ─── KANBAN BOARD (5 COLUNAS) ────────────────────────────────────────── */
+        <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-5 flex gap-3 md:gap-4 scrollbar-guepardo">
         
         {/* ─── COLUNA 1: ACEITAR ─────────────────────────────────────────────── */}
         <div className="flex-1 min-w-[270px] max-w-[340px] flex flex-col bg-[#120500]/70 rounded-2xl border border-red-500/20 backdrop-blur-md shadow-xl overflow-hidden">
@@ -491,15 +537,24 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                             <p className="text-[9px] text-white/40">A caminho da loja</p>
                           </div>
                         </div>
-                        {onOpenChat && (
+                        <div className="flex items-center gap-1">
                           <button
-                            onClick={(e) => { e.stopPropagation(); onOpenChat(order); }}
-                            className="p-1 hover:bg-white/10 rounded text-white/60 hover:text-white transition-colors"
-                            title="Conversar no Chat"
+                            onClick={(e) => { e.stopPropagation(); setTrackingOrder(order); }}
+                            className="p-1.5 hover:bg-amber-500/20 rounded-lg text-amber-300 hover:text-white transition-colors"
+                            title="Ver Entregador no Mapa"
                           >
-                            <MessageSquare size={13} />
+                            <MapPin size={13} />
                           </button>
-                        )}
+                          {onOpenChat && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onOpenChat(order); }}
+                              className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                              title="Conversar no Chat"
+                            >
+                              <MessageSquare size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 text-[10px] text-[#FF6B00] font-bold">
@@ -746,11 +801,11 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectOrder(order);
+                          setTrackingOrder(order);
                         }}
-                        className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-emerald-300 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors"
+                        className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                       >
-                        <Eye size={12} />
+                        <MapPin size={12} />
                         <span>Ver Rastreio</span>
                       </button>
                     )}
@@ -828,6 +883,192 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         </div>
 
       </div>
+      ) : (
+        /* ─── MAPA AO VIVO GERAL DA CIDADE ─────────────────────────────────── */
+        <div className="flex-1 relative w-full h-full overflow-hidden flex">
+          {/* Mapa Interativo em Tela Cheia */}
+          <div className="flex-1 h-full w-full relative z-0">
+            <LeafletMap
+              orders={activeOrdersForMap}
+              activeOrder={mapSelectedOrder}
+              storeProfile={storeProfile}
+              couriers={availableCouriers}
+              theme="dark"
+              mapboxToken={mapboxToken}
+              onCardClick={(order) => setMapSelectedOrder(order)}
+            />
+          </div>
+
+          {/* Drawer Lateral Flutuante com Entregas Ativas */}
+          <div className="absolute top-4 left-4 z-[400] w-72 sm:w-80 max-h-[calc(100%-32px)] bg-[#120500]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col pointer-events-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
+              <div className="flex items-center gap-2">
+                <Bike size={16} className="text-[#FF6B00]" />
+                <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                  Entregas Ativas ({activeOrdersForMap.length})
+                </h3>
+              </div>
+              <span className="text-[10px] text-emerald-400 font-bold">
+                {onlineCouriersCount} online
+              </span>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-guepardo">
+              {activeOrdersForMap.map(order => {
+                const isSelected = mapSelectedOrder?.id === order.id;
+                const hasCourier = !!order.courier;
+
+                return (
+                  <div
+                    key={order.id}
+                    onClick={() => setMapSelectedOrder(order)}
+                    className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                      isSelected 
+                        ? 'bg-[#FF6B00]/20 border-[#FF6B00] shadow-[0_0_15px_rgba(255,107,0,0.3)]' 
+                        : 'bg-black/60 hover:bg-black/90 border-white/5 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-black text-white">
+                        #{order.display_id || order.id.slice(-4)}
+                      </span>
+                      <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        order.status === OrderStatus.IN_TRANSIT ? 'bg-emerald-500/20 text-emerald-300' :
+                        order.status === OrderStatus.ARRIVED_AT_STORE ? 'bg-cyan-500/20 text-cyan-300' :
+                        'bg-amber-500/20 text-amber-300'
+                      }`}>
+                        {order.status === OrderStatus.IN_TRANSIT ? 'Em Rota' :
+                         order.status === OrderStatus.ARRIVED_AT_STORE ? 'Na Loja' : 'Em Preparo'}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] font-bold text-white/90 truncate">
+                      {order.clientName}
+                    </p>
+                    <p className="text-[10px] text-white/40 truncate">
+                      {order.destination}
+                    </p>
+
+                    {hasCourier && (
+                      <div className="mt-1.5 pt-1.5 border-t border-white/5 flex items-center justify-between text-[10px]">
+                        <span className="text-amber-300 font-bold truncate">
+                          🏍️ {order.courier?.name}
+                        </span>
+                        <span className="text-white/40">
+                          {order.courier?.vehiclePlate}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {activeOrdersForMap.length === 0 && (
+                <div className="text-center py-10 text-white/30 text-xs">
+                  Nenhuma entrega ativa no momento.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL DE RASTREIO AO VIVO (1-CLIQUE NO CARD) ─────────────────── */}
+      {trackingOrder && (
+        <div 
+          className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 sm:p-4 md:p-6 animate-in fade-in duration-200"
+          onClick={() => setTrackingOrder(null)}
+        >
+          <div 
+            className="w-full max-w-4xl bg-[#120500] border border-white/20 rounded-3xl overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do Modal */}
+            <div className="p-4 bg-gradient-to-r from-[#1A0900] via-[#120500] to-black border-b border-white/10 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-glow-sm">
+                  <Navigation size={20} className="animate-spin" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black italic text-white uppercase tracking-tight">
+                      Rastreio ao Vivo #{trackingOrder.display_id || trackingOrder.id.slice(-4)}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {trackingOrder.status === OrderStatus.IN_TRANSIT ? 'Em Rota' : trackingOrder.status === OrderStatus.RETURNING ? 'Retornando' : 'A Caminho'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-white/50 truncate max-w-md">
+                    Destino: {trackingOrder.clientName} • {trackingOrder.destination}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setTrackingOrder(null)}
+                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Sub-header com Entregador & Ações */}
+            <div className="px-4 py-2.5 bg-black/60 border-b border-white/5 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#FF6B00]/20 flex items-center justify-center text-[#FF6B00] font-black text-xs">
+                  {trackingOrder.courier?.name?.[0] || 'G'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-white">{trackingOrder.courier?.name || 'Guepardo'}</span>
+                    <span className="text-[9px] text-white/40 uppercase font-bold px-1.5 py-0.5 bg-white/5 rounded">
+                      {trackingOrder.courier?.vehiclePlate || 'Moto'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-emerald-400 font-bold">GPS ativo transmitindo em tempo real</p>
+                </div>
+              </div>
+
+              {/* Botões Rápidos */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setChatOrder(trackingOrder);
+                  }}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                >
+                  <MessageSquare size={14} />
+                  <span>Chat com Piloto</span>
+                </button>
+                {trackingOrder.clientPhone && (
+                  <button
+                    onClick={() => {
+                      const phone = trackingOrder.clientPhone?.replace(/\D/g, '');
+                      const msg = `Olá ${trackingOrder.clientName}, acompanhe seu pedido #${trackingOrder.display_id || trackingOrder.id.slice(-4)} em tempo real!`;
+                      window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
+                  >
+                    <Phone size={14} />
+                    <span>WhatsApp Cliente</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Container do Mapa */}
+            <div className="flex-1 min-h-[420px] md:min-h-[500px] relative w-full bg-black">
+              <LeafletMap
+                orders={[trackingOrder]}
+                activeOrder={trackingOrder}
+                storeProfile={storeProfile}
+                couriers={availableCouriers}
+                theme="dark"
+                mapboxToken={mapboxToken}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- MODAIS EMBUTIDOS DO GESTOR --- */}
       {validatingOrder && (
