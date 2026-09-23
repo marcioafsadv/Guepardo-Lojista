@@ -119,11 +119,11 @@ export interface Order {
   stopNumber?: number;
 
   // Source & CRM
-  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD' | '99FOOD';
+  requestSource?: 'SITE' | 'WHATSAPP' | 'PHONE' | 'IFOOD' | '99FOOD' | 'ANOTA_AI';
   clientTier?: 'GOLD' | 'SILVER' | 'BRONZE' | 'NEW';
   scheduled_at?: string; // e.g., "2026-06-19T19:00" or legacy "14:30"
   external_order_id?: string;
-  external_source?: 'IFOOD' | '99FOOD';
+  external_source?: 'IFOOD' | '99FOOD' | 'ANOTA_AI';
   vehicleType?: 'moto' | 'bike' | 'carro';
 }
 
@@ -171,6 +171,8 @@ export interface StoreProfile {
   ninenine_merchant_id?: string;
   ifood_receiving_orders?: boolean;
   ninenine_receiving_orders?: boolean;
+  anotaai_token?: string;
+  anotaai_receiving_orders?: boolean;
   is_open_mode?: boolean;
   active_fixed_drivers?: string[]; // Lista de IDs de entregadores contratados no turno
   active_hybrid_drivers?: string[]; // Lista de IDs de entregadores híbridos fixos ativos no turno

@@ -3,7 +3,7 @@ import { StoreSettings, StoreProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 import { geocodeAddress } from '../utils/geocoding';
-import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, VolumeX, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock, ExternalLink } from 'lucide-react';
+import { Save, Clock, MapPin, Truck, Award, Monitor, Volume2, VolumeX, Moon, Sun, Shield, Headphones, MessageCircle, LogOut, Trash2, Layers, Building2, Loader2, Navigation2, Lock, ExternalLink, Copy, Check, Bot } from 'lucide-react';
 
 interface SettingsViewProps {
     settings: StoreSettings;
@@ -23,6 +23,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
     });
     const [playingSound, setPlayingSound] = useState<string | null>(null);
     const testAudioRef = React.useRef<HTMLAudioElement | null>(null);
+    const [copiedWebhook, setCopiedWebhook] = useState(false);
 
     // Sync if external settings prop updates
     useEffect(() => {
@@ -77,7 +78,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         ifoodMerchantId: storeProfile?.ifood_merchant_id || '',
         ninenineMerchantId: storeProfile?.ninenine_merchant_id || '',
         ifoodReceivingOrders: storeProfile?.ifood_receiving_orders !== false,
-        ninenineReceivingOrders: storeProfile?.ninenine_receiving_orders !== false
+        ninenineReceivingOrders: storeProfile?.ninenine_receiving_orders !== false,
+        anotaaiToken: storeProfile?.anotaai_token || '',
+        anotaaiReceivingOrders: storeProfile?.anotaai_receiving_orders !== false
     });
 
     // Initialize address from storeProfile string or fetch from DB if needed
@@ -90,7 +93,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
         if (storeProfile) {
             // We need to fetch the structured address since storeProfile only has the concatenated string
             const fetchStructuredAddress = async () => {
-                const { data } = await supabase.from('stores').select('address, fantasy_name, ifood_merchant_id, ninenine_merchant_id, ifood_receiving_orders, ninenine_receiving_orders').eq('id', storeProfile.id).single();
+                const { data } = await supabase.from('stores').select('address, fantasy_name, ifood_merchant_id, ninenine_merchant_id, ifood_receiving_orders, ninenine_receiving_orders, anotaai_token, anotaai_receiving_orders').eq('id', storeProfile.id).single();
                 if (data) {
                     setProfileData({
                         name: data.fantasy_name || storeProfile.name,
@@ -103,7 +106,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                         ifoodMerchantId: data.ifood_merchant_id || '',
                         ninenineMerchantId: data.ninenine_merchant_id || '',
                         ifoodReceivingOrders: data.ifood_receiving_orders !== false,
-                        ninenineReceivingOrders: data.ninenine_receiving_orders !== false
+                        ninenineReceivingOrders: data.ninenine_receiving_orders !== false,
+                        anotaaiToken: data.anotaai_token || '',
+                        anotaaiReceivingOrders: data.anotaai_receiving_orders !== false
                     });
                 }
             };
@@ -148,6 +153,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                     ninenine_merchant_id: profileData.ninenineMerchantId || null,
                     ifood_receiving_orders: profileData.ifoodReceivingOrders,
                     ninenine_receiving_orders: profileData.ninenineReceivingOrders,
+                    anotaai_token: profileData.anotaaiToken || null,
+                    anotaai_receiving_orders: profileData.anotaaiReceivingOrders,
                     address: {
                         street: profileData.street,
                         number: profileData.number,
@@ -352,12 +359,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                     <Layers size={18} /> Integrações de Marketplaces
                 </h3>
                 <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* iFood */}
                         <div>
                             <div className="flex justify-between items-center mb-1">
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">iFood Merchant ID</label>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-gray-400">RECEBER PEDIDOS</span>
+                                    <span className="text-[10px] font-bold text-gray-400">RECEBER</span>
                                     <button
                                         onClick={() => handleProfileChange('ifoodReceivingOrders', !profileData.ifoodReceivingOrders)}
                                         className={`w-10 h-6 rounded-full p-0.5 transition-colors ${profileData.ifoodReceivingOrders ? 'bg-green-500' : 'bg-gray-300 dark:bg-guepardo-gray-750'}`}
@@ -371,7 +379,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                     type="text"
                                     value={profileData.ifoodMerchantId}
                                     onChange={(e) => handleProfileChange('ifoodMerchantId', e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300 text-xs"
                                     placeholder="ID do Estabelecimento no iFood"
                                 />
                                 <a
@@ -384,11 +392,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                 </a>
                             </div>
                         </div>
+
+                        {/* 99Food */}
                         <div>
                             <div className="flex justify-between items-center mb-1">
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">99Food Merchant ID</label>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-gray-400">RECEBER PEDIDOS</span>
+                                    <span className="text-[10px] font-bold text-gray-400">RECEBER</span>
                                     <button
                                         onClick={() => handleProfileChange('ninenineReceivingOrders', !profileData.ninenineReceivingOrders)}
                                         className={`w-10 h-6 rounded-full p-0.5 transition-colors ${profileData.ninenineReceivingOrders ? 'bg-green-500' : 'bg-gray-300 dark:bg-guepardo-gray-750'}`}
@@ -402,7 +412,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                     type="text"
                                     value={profileData.ninenineMerchantId}
                                     onChange={(e) => handleProfileChange('ninenineMerchantId', e.target.value)}
-                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300"
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-guepardo-accent focus:outline-none transition-colors duration-300 text-xs"
                                     placeholder="ID do Estabelecimento na 99Food"
                                 />
                                 <a
@@ -415,7 +425,69 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, st
                                 </a>
                             </div>
                         </div>
+
+                        {/* Anota AI */}
+                        <div>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-[#7952DE]"></span>
+                                    Anota AI Token
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-gray-400">RECEBER</span>
+                                    <button
+                                        onClick={() => handleProfileChange('anotaaiReceivingOrders', !profileData.anotaaiReceivingOrders)}
+                                        className={`w-10 h-6 rounded-full p-0.5 transition-colors ${profileData.anotaaiReceivingOrders ? 'bg-[#7952DE]' : 'bg-gray-300 dark:bg-guepardo-gray-750'}`}
+                                    >
+                                        <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${profileData.anotaaiReceivingOrders ? 'translate-x-4' : 'translate-x-0'}`} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="text"
+                                    value={profileData.anotaaiToken}
+                                    onChange={(e) => handleProfileChange('anotaaiToken', e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-guepardo-gray-900 border border-gray-200 dark:border-guepardo-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:border-[#7952DE] focus:outline-none transition-colors duration-300 font-mono text-xs"
+                                    placeholder="Chave da Loja (pageToken)"
+                                />
+                                <a
+                                    href="https://admin.anota.ai/#/integrations"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="self-start inline-flex items-center gap-1.5 text-[10px] font-bold text-[#7952DE] hover:text-white hover:bg-[#7952DE]/20 px-3 py-1.5 rounded-lg transition-all border border-[#7952DE]/30"
+                                >
+                                    <ExternalLink size={12} /> Painel da Anota AI
+                                </a>
+                            </div>
+                        </div>
                     </div>
+
+                    {/* Box com URL do Webhook do Guepardo */}
+                    <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5">
+                            <Bot size={18} className="text-[#7952DE] shrink-0" />
+                            <div className="flex flex-col">
+                                <span className="font-bold text-white">URL de Webhook do Guepardo para Anota AI:</span>
+                                <code className="text-purple-300 font-mono text-[11px] select-all break-all">
+                                    https://eviukbluwrwcblwhkzwz.supabase.co/functions/v1/anota-ai-webhook
+                                </code>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                navigator.clipboard.writeText('https://eviukbluwrwcblwhkzwz.supabase.co/functions/v1/anota-ai-webhook');
+                                setCopiedWebhook(true);
+                                setTimeout(() => setCopiedWebhook(false), 3000);
+                            }}
+                            className="self-start md:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#7952DE] hover:bg-[#6841ce] text-white rounded-lg font-bold text-[11px] transition-colors shadow-sm cursor-pointer"
+                        >
+                            {copiedWebhook ? <Check size={14} /> : <Copy size={14} />}
+                            {copiedWebhook ? 'Copiado!' : 'Copiar URL do Webhook'}
+                        </button>
+                    </div>
+
                     <p className="text-[10px] text-gray-500 italic">Insira os identificadores fornecidos pelas respectivas plataformas para habilitar a sincronização em tempo real.</p>
                 </div>
             </section>

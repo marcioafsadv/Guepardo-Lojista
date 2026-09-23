@@ -79,7 +79,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
 
   // Filtros de UI
   const [searchTerm, setSearchTerm] = useState('');
-  const [channelFilter, setChannelFilter] = useState<'ALL' | 'IFOOD' | '99FOOD' | 'DIRECT' | 'WHATSAPP'>('ALL');
+  const [channelFilter, setChannelFilter] = useState<'ALL' | 'IFOOD' | '99FOOD' | 'ANOTA_AI' | 'DIRECT' | 'WHATSAPP'>('ALL');
   const [now, setNow] = useState(Date.now());
   const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
   const [validatingOrder, setValidatingOrder] = useState<Order | null>(null);
@@ -104,8 +104,9 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
       // Filtro de canal
       if (channelFilter === 'IFOOD' && order.requestSource !== 'IFOOD' && order.external_source !== 'IFOOD') return false;
       if (channelFilter === '99FOOD' && order.requestSource !== '99FOOD' && order.external_source !== '99FOOD') return false;
+      if (channelFilter === 'ANOTA_AI' && order.requestSource !== 'ANOTA_AI' && order.external_source !== 'ANOTA_AI') return false;
       if (channelFilter === 'WHATSAPP' && order.requestSource !== 'WHATSAPP') return false;
-      if (channelFilter === 'DIRECT' && (order.requestSource === 'IFOOD' || order.requestSource === '99FOOD')) return false;
+      if (channelFilter === 'DIRECT' && (order.requestSource === 'IFOOD' || order.requestSource === '99FOOD' || order.requestSource === 'ANOTA_AI')) return false;
 
       // Filtro de busca por texto
       if (searchTerm) {
@@ -225,6 +226,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500 text-black shadow-sm">
           99Food
+        </span>
+      );
+    }
+    if (order.requestSource === 'ANOTA_AI' || order.external_source === 'ANOTA_AI') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[#7952DE] text-white shadow-sm">
+          Anota AI
         </span>
       );
     }
@@ -367,6 +375,12 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               className={`px-2.5 py-1 rounded-lg transition-colors ${channelFilter === '99FOOD' ? 'bg-amber-500 text-black font-black' : 'text-white/50 hover:text-white'}`}
             >
               99Food
+            </button>
+            <button
+              onClick={() => setChannelFilter('ANOTA_AI')}
+              className={`px-2.5 py-1 rounded-lg transition-colors ${channelFilter === 'ANOTA_AI' ? 'bg-[#7952DE] text-white font-black' : 'text-white/50 hover:text-white'}`}
+            >
+              Anota AI
             </button>
             <button
               onClick={() => setChannelFilter('DIRECT')}
