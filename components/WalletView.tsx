@@ -98,7 +98,7 @@ export const WalletView: React.FC<WalletViewProps> = ({ balance, storeId, syncId
                 <div>
                     <h2 className="text-2xl md:text-3xl font-black italic tracking-tighter flex items-center gap-2 md:gap-3">
                         <Wallet className="text-guepardo-accent w-8 h-8" />
-                        MINHA CARTEIRA
+                        RECARGA DE SALDO
                     </h2>
                     <p className="text-white/50 text-sm mt-1 uppercase tracking-widest font-medium">Gestão de saldo e recargas</p>
                 </div>

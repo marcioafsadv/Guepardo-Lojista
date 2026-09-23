@@ -97,7 +97,7 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || (_mbp2 + _mbp1 + _mbp3
 function App() {
     const { session, loading } = useAuth();
     // --- APP STATE ---
-    const [currentView, setCurrentView] = useState<AppView>('orders');
+    const [currentView, setCurrentView] = useState<AppView>('dashboard');
     const [orders, setOrders] = useState<Order[]>([]);
     const [newOrders, setNewOrders] = useState<any[]>([]);
     const [showSuccessToast, setShowSuccessToast] = useState(false);

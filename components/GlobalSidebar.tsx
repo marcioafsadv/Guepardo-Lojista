@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LayoutDashboard, Bike, Users, History, Zap, Settings, MapPin, ChevronLeft, ChevronRight, Menu, Store, ChevronDown, ShoppingBag } from 'lucide-react';
 import { StoreProfile } from '../types';
 
-export type AppView = 'orders' | 'operational' | 'dashboard' | 'clients' | 'history' | 'wallet' | 'settings';
+export type AppView = 'dashboard' | 'operational' | 'orders' | 'wallet' | 'history' | 'clients' | 'settings';
 
 interface GlobalSidebarProps {
   currentView: AppView;
@@ -17,13 +17,13 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
   const [isExpanded, setIsExpanded] = useState(false);
 
   const navItems = [
-    { id: 'orders', label: 'Gestor', icon: ShoppingBag },
-    { id: 'operational', label: 'Chamar', icon: Bike },
-    { id: 'dashboard', label: 'Painel', icon: LayoutDashboard },
-    { id: 'clients', label: 'Clientes', icon: Users },
-    { id: 'wallet', label: 'Carteira', icon: Zap },
-    { id: 'history', label: 'Histórico', icon: History },
-    { id: 'settings', label: 'Config', icon: Settings },
+    { id: 'dashboard', label: 'Painel', fullLabel: 'Painel Operacional', icon: LayoutDashboard },
+    { id: 'operational', label: 'Chamar', fullLabel: 'Chamar Guepardo', icon: Bike },
+    { id: 'orders', label: 'Gestor', fullLabel: 'Gestor de Pedidos', icon: ShoppingBag },
+    { id: 'wallet', label: 'Recarga', fullLabel: 'Recarga', icon: Zap },
+    { id: 'history', label: 'Histórico', fullLabel: 'Histórico', icon: History },
+    { id: 'clients', label: 'Clientes', fullLabel: 'Clientes', icon: Users },
+    { id: 'settings', label: 'Config', fullLabel: 'Configuração', icon: Settings },
   ];
 
   // ─── MOBILE: Bottom Navigation Bar ───────────────────────────────────────────
@@ -148,7 +148,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
                     : 'text-white/40 hover:text-white/80 hover:bg-white/5 border border-transparent'
                   }
                 `}
-                title={!isExpanded ? item.label : undefined}
+                title={!isExpanded ? item.fullLabel : undefined}
               >
                 <div className={`
                    relative flex items-center justify-center shrink-0
@@ -164,7 +164,7 @@ export const GlobalSidebar: React.FC<GlobalSidebarProps> = ({ currentView, onCha
 
                 {isExpanded && (
                   <span className={`font-bold text-sm whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300 ${isActive ? 'text-white' : 'text-white/70'}`}>
-                    {item.id === 'orders' ? 'Gestor de Pedidos' : item.id === 'operational' ? 'Chamar Guepardo' : item.label}
+                    {item.fullLabel}
                   </span>
                 )}
               </button>
