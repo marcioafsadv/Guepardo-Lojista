@@ -129,8 +129,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   // 1. Coluna ACEITAR: Pedidos pendentes de confirmação (ex: iFood / 99 / WhatsApp pendentes de aceite do lojista)
   const colAccept = useMemo(() => {
     return filteredOrders.filter(o => {
-      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.external_source) &&
-                                o.status === OrderStatus.PENDING && !o.acceptedAt;
+      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
+                                (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
       return isExternalPending;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [filteredOrders]);
@@ -139,8 +139,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   const colPrep = useMemo(() => {
     return filteredOrders.filter(o => {
       // Ignorar se estiver aguardando aceite na Coluna 1
-      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.external_source) &&
-                                o.status === OrderStatus.PENDING && !o.acceptedAt;
+      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
+                                (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
       if (isExternalPending) return false;
 
       return (

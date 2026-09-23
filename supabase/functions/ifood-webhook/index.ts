@@ -429,7 +429,9 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
           console.log(`✅ Pedido do iFood ${orderId} salvo com sucesso no banco.`);
         }
 
-        // Automação para homologação (confirmação automática)
+        // Automação para homologação (confirmação automática) desativada
+        // Os pedidos agora aguardam a ação manual do lojista no botão "Aceitar" da coluna 1 do Gestor de Pedidos.
+        /*
         if (merchantId === "5810f9ac-c56e-41e3-82cc-f803f66c4529") {
           console.log(`🤖 [AUTO] Confirmando pedido de teste ${orderId} no iFood...`);
           try {
@@ -451,6 +453,7 @@ async function processIFoodEvents(events: any[], debugLogs: string[]) {
             console.error(`🤖 [AUTO] Falha ao chamar endpoint de confirmação:`, err.message);
           }
         }
+        */
       } 
       else if (code === "CONFIRMED" || code === "CON") {
         // Pedido confirmado no iFood (aceito pelo lojista ou automaticamente)
