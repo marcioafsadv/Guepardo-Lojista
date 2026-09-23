@@ -23,6 +23,8 @@ interface GestorPedidosKanbanProps {
   onSelectOrder: (order: Order) => void;
   onAcceptIFoodOrder?: (orderId: string) => void;
   onAccept99FoodOrder?: (orderId: string) => void;
+  onAcceptAnotaAiOrder?: (orderId: string) => void;
+  onSimulateAnotaAiOrder?: () => Promise<void>;
   onMarkAsReady: (orderId: string) => void;
   onValidatePickup: (orderId: string) => void;
   onCancelOrder: (orderId: string, reason: string) => void;
@@ -62,6 +64,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   onSelectOrder,
   onAcceptIFoodOrder,
   onAccept99FoodOrder,
+  onAcceptAnotaAiOrder,
+  onSimulateAnotaAiOrder,
   onMarkAsReady,
   onValidatePickup,
   onCancelOrder,
@@ -205,6 +209,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         if (onAcceptIFoodOrder) await onAcceptIFoodOrder(order.id);
       } else if (order.requestSource === '99FOOD' || order.external_source === '99FOOD') {
         if (onAccept99FoodOrder) await onAccept99FoodOrder(order.id);
+      } else if (order.requestSource === 'ANOTA_AI' || order.external_source === 'ANOTA_AI') {
+        if (onAcceptAnotaAiOrder) await onAcceptAnotaAiOrder(order.id);
       }
     } catch (err) {
       console.error('Erro ao aceitar pedido:', err);
@@ -389,6 +395,19 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               Direto
             </button>
           </div>
+
+          {/* BOTÃO DE TESTE ANOTA AI */}
+          {onSimulateAnotaAiOrder && (
+            <button
+              onClick={onSimulateAnotaAiOrder}
+              title="Gera um pedido de teste simulando a integração com o Anota AI (Sushi Hoi)"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#7952DE]/20 hover:bg-[#7952DE]/35 border border-[#7952DE]/50 text-[#c8b6ff] hover:text-white rounded-xl font-bold text-xs transition-all active:scale-95 shrink-0 shadow-sm hover:shadow-[0_0_15px_rgba(121,82,222,0.4)]"
+            >
+              <span className="text-sm">🍣</span>
+              <span className="hidden sm:inline">Testar Anota AI</span>
+              <span className="sm:hidden">Anota AI</span>
+            </button>
+          )}
 
           {/* BOTÃO EM DESTAQUE: + CHAMAR GUEPARDO */}
           <button

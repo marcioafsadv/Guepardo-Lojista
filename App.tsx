@@ -530,7 +530,7 @@ function App() {
             destinationLat: items.destinationLat,
             destinationLng: items.destinationLng,
             clientPhone: items.clientPhone || (d.customer_phone_suffix ? `(11) 9...${d.customer_phone_suffix}` : undefined),
-            requestSource: d.external_source === 'IFOOD' ? 'IFOOD' : (items.requestSource || 'SITE'),
+            requestSource: (d.external_source as any) || items.requestSource || 'SITE',
             isBatch: items.isBatch,
             batch_id: d.batch_id,
             stopNumber: d.stop_number || items.stopNumber,
@@ -3067,6 +3067,241 @@ function App() {
         }
     };
 
+    const handleAcceptAnotaAiOrder = async (orderId: string) => {
+        console.log("👉 [handleAcceptAnotaAiOrder] Called with orderId:", orderId);
+        const order = orders.find(o => o.id === orderId);
+        if (!order) {
+            console.warn("❌ [handleAcceptAnotaAiOrder] Order not found in local state:", orderId);
+            return;
+        }
+
+        // 1. Check Balance
+        const totalFreightToDebit = order.storeFreight || 0;
+        const currentBalance = realStoreProfile?.wallet_balance || 0;
+        if (currentBalance < totalFreightToDebit) {
+            console.warn("❌ [App] Insufficient balance for Anota AI order accept", { currentBalance, totalFreightToDebit });
+            setNotification({ title: "Saldo Insuficiente", message: "Recarregue sua carteira para aceitar este pedido do Anota AI." });
+            setTimeout(() => setNotification(null), 5000);
+            return;
+        }
+
+        console.log("🚀 [handleAcceptAnotaAiOrder] Confirming order Anota AI...", orderId);
+
+        // 2. Optimistic update (Muda para PENDING e carimba acceptedAt para passar para Coluna 2 'EM PREPARO')
+        const acceptedDate = new Date();
+        setOrders(prev => prev.map(o => {
+            if (o.id !== orderId) return o;
+            const newEvent: OrderEvent = {
+                status: OrderStatus.PENDING,
+                label: "Confirmado no Anota AI",
+                timestamp: acceptedDate,
+                description: "Lojista aceitou o pedido do Anota AI e solicitou motoboy."
+            };
+            return {
+                ...o,
+                status: OrderStatus.PENDING,
+                rawStatus: 'pending',
+                acceptedAt: acceptedDate,
+                events: [...o.events, newEvent]
+            };
+        }));
+
+        try {
+            // 3. Debit Wallet
+            if (totalFreightToDebit > 0) {
+                console.log("💰 [App] Debiting wallet for Anota AI order:", totalFreightToDebit);
+                
+                await supabase.from('wallet_transactions').insert({
+                    store_id: session?.user?.id,
+                    amount: totalFreightToDebit,
+                    type: 'PAYMENT',
+                    status: 'CONFIRMED',
+                    description: `Entrega Anota AI #${order.display_id || order.id.slice(-4)}`,
+                    payment_method: 'SYSTEM'
+                });
+
+                const { data: currentStore, error: fetchError } = await supabase
+                    .from('stores')
+                    .select('wallet_balance')
+                    .eq('id', session?.user?.id)
+                    .single();
+
+                if (!fetchError && currentStore) {
+                    const newBalance = (currentStore.wallet_balance || 0) - totalFreightToDebit;
+                    await supabase.from('stores')
+                        .update({ wallet_balance: newBalance })
+                        .eq('id', session?.user?.id);
+                }
+            }
+
+            // 4. Persist to DB
+            const { error: dbError } = await supabase
+                .from('deliveries')
+                .update({
+                    status: 'pending',
+                    updated_at: acceptedDate.toISOString(),
+                    accepted_at: acceptedDate.toISOString()
+                })
+                .eq('id', orderId);
+
+            if (dbError) throw dbError;
+
+            console.log("✅ Order confirmed on Anota AI and status updated to pending:", orderId);
+            setNotification({
+                title: "✅ Pedido Aceito!",
+                message: "Pedido em preparo. Buscando entregador Guepardo mais próximo..."
+            });
+            setTimeout(() => setNotification(null), 4000);
+
+            // 5. Inicia busca/aceite de motoboy para mover na esteira
+            handleSimulateAccept(orderId);
+        } catch (err) {
+            console.error("❌ Error confirming Anota AI order:", err);
+            // Revert optimistic update
+            setOrders(prev => prev.map(o => {
+                if (o.id !== orderId) return o;
+                return {
+                    ...o,
+                    status: OrderStatus.PENDING,
+                    acceptedAt: null,
+                    events: o.events.filter(e => e.label !== "Confirmado no Anota AI")
+                };
+            }));
+            setNotification({ title: "Erro", message: "Falha ao aceitar pedido no Anota AI." });
+            setTimeout(() => setNotification(null), 4000);
+        }
+    };
+
+    const handleSimulateAnotaAiOrder = async () => {
+        if (!session?.user?.id) {
+            setNotification({ title: "Erro", message: "Você precisa estar conectado para simular um pedido." });
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
+        try {
+            const displayId = Math.floor(1000 + Math.random() * 9000);
+            const externalOrderId = `anota-${Date.now()}`;
+            const finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const storeCenter = realStoreProfile || STORE_PROFILE;
+
+            const destLat = storeCenter.lat + (Math.random() - 0.5) * 0.012;
+            const destLng = storeCenter.lng + (Math.random() - 0.5) * 0.012;
+
+            const sushiItems = [
+                { name: "Combo Salmão Especial (32 peças)", quantity: 1, price: 89.90 },
+                { name: "Temaki Salmão Completo com Cream Cheese", quantity: 2, price: 34.90 },
+                { name: "Refrigerante Coca-Cola Sem Açúcar 350ml", quantity: 2, price: 7.00 }
+            ];
+
+            const deliveryPayload = {
+                id: crypto.randomUUID(),
+                store_id: session.user.id,
+                store_name: realStoreProfile?.name || STORE_PROFILE.name || "Sushi Hoi Itu",
+                store_address: realStoreProfile?.address || STORE_PROFILE.address,
+                customer_name: "TESTE ANOTA AI - Sushi Hoi",
+                customer_address: "Rua Floriano Peixoto, 450 - Centro, Itu/SP",
+                customer_phone_suffix: "9876",
+                collection_code: finalPickupCode,
+                status: 'created', // Inicia como 'created' para cair na coluna 1 "ACEITAR"
+                driver_id: null,
+                batch_id: null,
+                stop_number: 1,
+                earnings: 9.50,
+                delivery_distance: 2.8,
+                payment_method: 'PIX',
+                delivery_value: 173.70,
+                external_source: 'ANOTA_AI',
+                external_order_id: externalOrderId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                accepted_at: null,
+                items: {
+                    displayId: displayId,
+                    clientPhone: "(11) 99876-5432",
+                    paymentMethod: "PIX",
+                    deliveryValue: 173.70,
+                    isReturnRequired: false,
+                    destinationLat: destLat,
+                    destinationLng: destLng,
+                    addressNeighborhood: "Centro",
+                    addressComplement: "Apto 42",
+                    addressCity: "Itu/SP",
+                    addressCep: "13300-000",
+                    storeFreight: 9.50,
+                    vehicleType: "moto",
+                    pickupCode: finalPickupCode,
+                    requestSource: "ANOTA_AI",
+                    products: sushiItems,
+                    notes: "Sushi Hoi Itu - Pedido integrado via Anota AI. Enviar shoyu extra e hashi."
+                }
+            };
+
+            const { data, error } = await supabase
+                .from('deliveries')
+                .insert([deliveryPayload])
+                .select()
+                .single();
+
+            if (error) {
+                console.error("❌ Erro ao simular pedido Anota AI no Supabase:", error);
+                // Fallback local caso haja restrição RLS imediata
+                const localOrder: Order = {
+                    id: deliveryPayload.id,
+                    display_id: String(displayId),
+                    clientName: deliveryPayload.customer_name,
+                    destination: deliveryPayload.customer_address,
+                    addressStreet: "Rua Floriano Peixoto",
+                    addressNumber: "450",
+                    addressNeighborhood: "Centro",
+                    addressComplement: "Apto 42",
+                    addressCity: "Itu/SP",
+                    addressCep: "13300-000",
+                    acceptedAt: null,
+                    deliveryValue: 173.70,
+                    paymentMethod: "PIX",
+                    changeFor: null,
+                    status: OrderStatus.PENDING,
+                    rawStatus: 'created',
+                    createdAt: new Date(),
+                    estimatedPrice: 9.50,
+                    storeFreight: 9.50,
+                    distanceKm: 2.8,
+                    events: [{
+                        status: OrderStatus.PENDING,
+                        label: "Pedido Recebido (Anota AI)",
+                        timestamp: new Date(),
+                        description: "Pedido recebido via integração com o Anota AI (Sushi Hoi)."
+                    }],
+                    pickupCode: finalPickupCode,
+                    isReturnRequired: false,
+                    returnDistanceKm: undefined,
+                    destinationLat: destLat,
+                    destinationLng: destLng,
+                    clientPhone: "(11) 99876-5432",
+                    requestSource: 'ANOTA_AI',
+                    external_source: 'ANOTA_AI',
+                    external_order_id: externalOrderId,
+                    vehicleType: 'moto'
+                };
+                setOrders(prev => [localOrder, ...prev]);
+            } else {
+                console.log("✅ Pedido Anota AI inserido no Supabase com sucesso:", data);
+            }
+
+            playAlert('beep');
+            setNotification({
+                title: "🍣 Pedido Anota AI Recebido!",
+                message: `Novo pedido Sushi Hoi (#${displayId}) aguardando aceite na Coluna 1.`
+            });
+            setTimeout(() => setNotification(null), 5000);
+        } catch (err: any) {
+            console.error("❌ Erro geral ao simular pedido Anota AI:", err);
+            setNotification({ title: "Erro", message: err.message || "Falha ao simular pedido Anota AI." });
+            setTimeout(() => setNotification(null), 4000);
+        }
+    };
+
     const handleReassignOrder = async (orderId: string) => {
         console.log("♻️ [handleReassignOrder] Reassigning order due to timeout:", orderId);
         
@@ -3571,6 +3806,8 @@ function App() {
                             onSelectOrder={setSelectedOrderDetails}
                             onAcceptIFoodOrder={handleAcceptIFoodOrder}
                             onAccept99FoodOrder={handleAccept99FoodOrder}
+                            onAcceptAnotaAiOrder={handleAcceptAnotaAiOrder}
+                            onSimulateAnotaAiOrder={handleSimulateAnotaAiOrder}
                             onMarkAsReady={handleMarkAsReady}
                             onValidatePickup={handleValidatePickup}
                             onCancelOrder={handleCancelOrder}
