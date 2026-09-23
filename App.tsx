@@ -2999,15 +2999,17 @@ function App() {
         }));
 
         try {
-            // 3. Call Edge Function
-            const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('ninenine-webhook', {
-                body: {
-                    action: 'confirmOrder',
-                    orderId: order.external_order_id
-                }
-            });
+            // 3. Call Edge Function (apenas se não for pedido do simulador)
+            if (!order.external_order_id.startsWith('99food-test-')) {
+                const { data: edgeRes, error: edgeErr } = await supabase.functions.invoke('ninenine-webhook', {
+                    body: {
+                        action: 'confirmOrder',
+                        orderId: order.external_order_id
+                    }
+                });
 
-            if (edgeErr) throw edgeErr;
+                if (edgeErr) throw edgeErr;
+            }
 
             // 4. Debit Wallet
             if (totalFreightToDebit > 0) {
@@ -3050,6 +3052,14 @@ function App() {
             if (dbError) throw dbError;
 
             console.log("✅ Order confirmed on 99Food and status updated locally to pending:", orderId);
+            setNotification({
+                title: "✅ Pedido Aceito!",
+                message: "Pedido em preparo. Buscando entregador Guepardo mais próximo..."
+            });
+            setTimeout(() => setNotification(null), 4000);
+
+            // 6. Inicia busca/aceite de motoboy para mover na esteira
+            handleSimulateAccept(orderId);
         } catch (err) {
             console.error("❌ Error confirming 99Food order:", err);
             // Revert optimistic update
@@ -3063,6 +3073,136 @@ function App() {
                 };
             }));
             setNotification({ title: "Erro", message: "Falha ao aceitar pedido na 99Food." });
+            setTimeout(() => setNotification(null), 4000);
+        }
+    };
+
+    const handleSimulate99FoodOrder = async () => {
+        if (!session?.user?.id) {
+            setNotification({ title: "Erro", message: "Você precisa estar conectado para simular um pedido." });
+            setTimeout(() => setNotification(null), 3000);
+            return;
+        }
+
+        try {
+            const displayId = Math.floor(1000 + Math.random() * 9000);
+            const externalOrderId = `99food-test-${Date.now()}`;
+            const finalPickupCode = Math.floor(1000 + Math.random() * 9000).toString();
+            const storeCenter = realStoreProfile || STORE_PROFILE;
+
+            const destLat = storeCenter.lat + (Math.random() - 0.5) * 0.012;
+            const destLng = storeCenter.lng + (Math.random() - 0.5) * 0.012;
+
+            const burgerItems = [
+                { name: "Smash Burger Duplo Artesanal com Cheddar & Bacon", quantity: 2, price: 32.90 },
+                { name: "Batata Frita Rústica Crocante com Páprica", quantity: 1, price: 18.00 },
+                { name: "Refrigerante Guaraná Antarctica Lata 350ml", quantity: 2, price: 6.50 }
+            ];
+
+            const deliveryPayload = {
+                id: crypto.randomUUID(),
+                store_id: session.user.id,
+                store_name: realStoreProfile?.name || STORE_PROFILE.name || "Hamburgueria Guepardo",
+                store_address: realStoreProfile?.address || STORE_PROFILE.address,
+                customer_name: "TESTE 99FOOD - Lucas Oliveira",
+                customer_address: "Av. Prudente de Moraes, 780 - Vila Nova, Itu/SP",
+                customer_phone_suffix: "4433",
+                collection_code: finalPickupCode,
+                status: 'created', // Inicia como 'created' para cair na coluna 1 "ACEITAR"
+                driver_id: null,
+                batch_id: null,
+                stop_number: 1,
+                earnings: 8.50,
+                delivery_distance: 2.2,
+                payment_method: 'PIX',
+                delivery_value: 96.80,
+                external_source: '99FOOD',
+                external_order_id: externalOrderId,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                accepted_at: null,
+                items: {
+                    displayId: displayId,
+                    clientPhone: "(11) 98877-4433",
+                    paymentMethod: "PIX",
+                    deliveryValue: 96.80,
+                    isReturnRequired: false,
+                    destinationLat: destLat,
+                    destinationLng: destLng,
+                    addressNeighborhood: "Vila Nova",
+                    addressComplement: "Casa 2",
+                    addressCity: "Itu/SP",
+                    addressCep: "13309-050",
+                    storeFreight: 8.50,
+                    vehicleType: "moto",
+                    pickupCode: finalPickupCode,
+                    requestSource: "99FOOD",
+                    products: burgerItems,
+                    notes: "Pedido teste 99Food. Ponto da carne: ao ponto. Sem cebola."
+                }
+            };
+
+            const { data, error } = await supabase
+                .from('deliveries')
+                .insert([deliveryPayload])
+                .select()
+                .single();
+
+            if (error) {
+                console.error("❌ Erro ao simular pedido 99Food no Supabase:", error);
+                // Fallback local se houver restrição
+                const localOrder: Order = {
+                    id: deliveryPayload.id,
+                    display_id: String(displayId),
+                    clientName: deliveryPayload.customer_name,
+                    destination: deliveryPayload.customer_address,
+                    addressStreet: "Av. Prudente de Moraes",
+                    addressNumber: "780",
+                    addressNeighborhood: "Vila Nova",
+                    addressComplement: "Casa 2",
+                    addressCity: "Itu/SP",
+                    addressCep: "13309-050",
+                    acceptedAt: null,
+                    deliveryValue: 96.80,
+                    paymentMethod: "PIX",
+                    changeFor: null,
+                    status: OrderStatus.PENDING,
+                    rawStatus: 'created',
+                    createdAt: new Date(),
+                    estimatedPrice: 8.50,
+                    storeFreight: 8.50,
+                    distanceKm: 2.2,
+                    events: [{
+                        status: OrderStatus.PENDING,
+                        label: "Pedido Recebido (99Food)",
+                        timestamp: new Date(),
+                        description: "Pedido de teste recebido via 99Food."
+                    }],
+                    pickupCode: finalPickupCode,
+                    isReturnRequired: false,
+                    returnDistanceKm: undefined,
+                    destinationLat: destLat,
+                    destinationLng: destLng,
+                    clientPhone: "(11) 98877-4433",
+                    requestSource: '99FOOD',
+                    external_source: '99FOOD',
+                    external_order_id: externalOrderId,
+                    vehicleType: 'moto'
+                };
+                setOrders(prev => [localOrder, ...prev]);
+            } else {
+                console.log("✅ Pedido 99Food inserido no Supabase com sucesso:", data);
+            }
+
+            playAlert('beep');
+            setNotification({
+                title: "🟡 Pedido 99Food Recebido!",
+                message: `Novo pedido 99Food (#${displayId}) aguardando aceite na Coluna 1.`
+            });
+            setTimeout(() => setNotification(null), 5000);
+        } catch (err: any) {
+            console.error("❌ Erro geral ao simular pedido 99Food:", err);
+            setNotification({ title: "Erro", message: err.message || "Falha ao simular pedido 99Food." });
             setTimeout(() => setNotification(null), 4000);
         }
     };
@@ -3806,6 +3946,7 @@ function App() {
                             onSelectOrder={setSelectedOrderDetails}
                             onAcceptIFoodOrder={handleAcceptIFoodOrder}
                             onAccept99FoodOrder={handleAccept99FoodOrder}
+                            onSimulate99FoodOrder={handleSimulate99FoodOrder}
                             onAcceptAnotaAiOrder={handleAcceptAnotaAiOrder}
                             onSimulateAnotaAiOrder={handleSimulateAnotaAiOrder}
                             onMarkAsReady={handleMarkAsReady}

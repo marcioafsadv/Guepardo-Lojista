@@ -23,6 +23,7 @@ interface GestorPedidosKanbanProps {
   onSelectOrder: (order: Order) => void;
   onAcceptIFoodOrder?: (orderId: string) => void;
   onAccept99FoodOrder?: (orderId: string) => void;
+  onSimulate99FoodOrder?: () => Promise<void>;
   onAcceptAnotaAiOrder?: (orderId: string) => void;
   onSimulateAnotaAiOrder?: () => Promise<void>;
   onMarkAsReady: (orderId: string) => void;
@@ -64,6 +65,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   onSelectOrder,
   onAcceptIFoodOrder,
   onAccept99FoodOrder,
+  onSimulate99FoodOrder,
   onAcceptAnotaAiOrder,
   onSimulateAnotaAiOrder,
   onMarkAsReady,
@@ -406,6 +408,19 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               <span className="text-sm">🍣</span>
               <span className="hidden sm:inline">Testar Anota AI</span>
               <span className="sm:hidden">Anota AI</span>
+            </button>
+          )}
+
+          {/* BOTÃO DE TESTE 99FOOD */}
+          {onSimulate99FoodOrder && (
+            <button
+              onClick={onSimulate99FoodOrder}
+              title="Gera um pedido de teste simulando a integração com a 99Food"
+              className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/50 text-amber-300 hover:text-white rounded-xl font-bold text-xs transition-all active:scale-95 shrink-0 shadow-sm hover:shadow-[0_0_15px_rgba(245,158,11,0.4)]"
+            >
+              <span className="text-sm">🟡</span>
+              <span className="hidden sm:inline">Testar 99Food</span>
+              <span className="sm:hidden">99Food</span>
             </button>
           )}
 
