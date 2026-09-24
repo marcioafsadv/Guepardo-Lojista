@@ -5,7 +5,7 @@ import {
 import { 
   Bike, Clock, AlertTriangle, CheckCircle2, MessageSquare, MapPin, Search, Phone, 
   ExternalLink, ShoppingBag, Radio, ArrowRight, User, ShieldCheck, Flame, ChevronRight, 
-  RefreshCw, X, Eye, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign, Zap,
+  RefreshCw, X, Eye, EyeOff, Lock, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign, Zap,
   Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
@@ -100,6 +100,42 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
   const [validatingOrder, setValidatingOrder] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
+
+  // Modo Capinha de Números Grandes (com persistência em localStorage)
+  const [showOrderCover, setShowOrderCover] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('guepardo_kanban_cover_mode');
+      return saved !== null ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+
+  // Conjunto de IDs de pedidos desbloqueados manualmente por clique
+  const [unlockedOrderIds, setUnlockedOrderIds] = useState<Set<string>>(new Set());
+
+  // Salvar preferência quando alterada
+  useEffect(() => {
+    try {
+      localStorage.setItem('guepardo_kanban_cover_mode', JSON.stringify(showOrderCover));
+    } catch (e) {
+      console.warn('Erro ao salvar cover mode:', e);
+    }
+  }, [showOrderCover]);
+
+  // Função para alternar bloqueio individual
+  const toggleUnlockOrder = (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUnlockedOrderIds(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
 
   // Timer para atualizar minutos decorridos a cada 10 segundos
   useEffect(() => {
@@ -486,6 +522,92 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     return <Banknote size={12} className="text-amber-400" />;
   };
 
+  // Helper para renderizar a Capinha Translúcida com Número Grande (Modo Híbrido)
+  const renderOrderCover = (
+    order: Order, 
+    stepLabel: string, 
+    stepColorClass: string = 'text-white',
+    isCompact: boolean = false
+  ) => {
+    if (!showOrderCover) return null;
+    const isUnlocked = unlockedOrderIds.has(order.id);
+    if (isUnlocked) return null;
+
+    const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
+
+    if (isCompact) {
+      return (
+        <div
+          onClick={(e) => toggleUnlockOrder(order.id, e)}
+          className="absolute inset-0 z-20 rounded-xl bg-gradient-to-b from-white/[0.18] via-white/[0.09] to-white/[0.04] backdrop-blur-md border border-white/20 hover:border-[#FF6B00]/70 flex items-center justify-between px-3 text-center shadow-[inset_0_1px_2px_rgba(255,255,255,0.3),0_4px_12px_rgba(0,0,0,0.5)] transition-all duration-300 pointer-events-auto group-hover:opacity-0 group-hover:pointer-events-none group-hover:scale-[0.98] cursor-pointer select-none"
+          title="Passe o mouse para espiar ou clique para fixar aberto"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-white tracking-tight drop-shadow-sm group-hover:text-[#FF6B00] transition-colors">
+              #{order.display_id || order.id.slice(-4)}
+            </span>
+            {renderChannelBadge(order)}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-black/60 border border-white/20 ${stepColorClass}`}>
+              {stepLabel}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        onClick={(e) => toggleUnlockOrder(order.id, e)}
+        className="absolute inset-0 z-20 rounded-xl bg-gradient-to-b from-white/[0.18] via-white/[0.09] to-white/[0.04] backdrop-blur-md border border-white/30 hover:border-[#FF6B00]/70 flex flex-col items-center justify-between p-3.5 text-center shadow-[inset_0_1px_2px_rgba(255,255,255,0.35),0_8px_25px_rgba(0,0,0,0.6)] transition-all duration-300 pointer-events-auto group-hover:opacity-0 group-hover:pointer-events-none group-hover:scale-[0.98] cursor-pointer select-none"
+        title="Passe o mouse para espiar ou clique para fixar aberto"
+      >
+        {/* Topo da Capinha */}
+        <div className="w-full flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {isBatch ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-300 border border-orange-500/40">
+                <Layers size={9} />
+                Lote ({order.batchOrders?.length})
+              </span>
+            ) : (
+              renderChannelBadge(order)
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-[10px] text-white/80 font-bold bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
+            <Clock size={10} />
+            <span>{formatElapsedTime(order.createdAt)}</span>
+          </div>
+        </div>
+
+        {/* Centro da Capinha: Número Gigante */}
+        <div className="my-auto flex flex-col items-center justify-center py-2">
+          <span className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] group-hover:text-[#FF6B00] transition-colors">
+            #{order.display_id || order.id.slice(-4)}
+          </span>
+          <p className="text-xs font-bold text-white/90 truncate max-w-[210px] mt-1 drop-shadow-sm">
+            {order.clientName || 'Cliente'}
+          </p>
+          <span className={`mt-2 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-black/60 border border-white/20 shadow-sm ${stepColorClass}`}>
+            {stepLabel}
+          </span>
+        </div>
+
+        {/* Rodapé da Capinha */}
+        <div className="w-full flex items-center justify-between pt-1.5 border-t border-white/15 text-[10px]">
+          <span className="font-black text-white/90">
+            R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
+          </span>
+          <div className="flex items-center gap-1 text-[9px] font-bold text-white/70 tracking-wider">
+            <Sparkles size={10} className="text-[#FF6B00]" />
+            <span>Passe o mouse ou clique</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full h-full flex flex-col bg-[#0A0400] text-white overflow-hidden select-none">
       
@@ -563,6 +685,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               )}
             </button>
           </div>
+
+          {/* ALTERNADOR DE CAPINHA DE NÚMEROS GRANDES */}
+          <button
+            onClick={() => setShowOrderCover(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-black uppercase tracking-wider transition-all shrink-0 shadow-sm ${
+              showOrderCover
+                ? 'bg-white/10 border-white/30 text-white hover:bg-white/20 shadow-[0_0_12px_rgba(255,255,255,0.1)]'
+                : 'bg-black/50 border-white/10 text-white/40 hover:text-white/80'
+            }`}
+            title={showOrderCover ? "Capinha com números grandes ATIVA: passe o mouse para espiar ou clique para fixar o card aberto" : "Capinha de números DESATIVADA: clique para ativar"}
+          >
+            {showOrderCover ? <Eye size={13} className="text-[#FF6B00]" /> : <EyeOff size={13} />}
+            <span className="hidden sm:inline">Capinha de Números</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${showOrderCover ? 'bg-[#FF6B00] shadow-[0_0_6px_#FF6B00]' : 'bg-white/20'}`} />
+          </button>
         </div>
 
         {/* Lado Direito: Filtros, Busca & Botão + Chamar Guepardo */}
@@ -691,7 +828,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg hover:border-orange-500/80 ${
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg hover:border-orange-500/80 overflow-hidden ${
                     selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
                       : isUrgent && isExternalToAccept
@@ -724,9 +861,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         renderChannelBadge(order)
                       )}
                     </div>
-                    <div className={`flex items-center gap-1 text-[10px] font-bold ${isUrgent && isExternalToAccept ? 'text-red-400 font-black' : 'text-white/40'}`}>
-                      <Clock size={11} className={isUrgent && isExternalToAccept ? 'animate-spin' : ''} />
-                      <span>{formatElapsedTime(order.createdAt)}</span>
+                    <div className="flex items-center gap-1.5">
+                      {showOrderCover && unlockedOrderIds.has(order.id) && (
+                        <button
+                          onClick={(e) => toggleUnlockOrder(order.id, e)}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-white/70 hover:text-white text-[9px] font-bold transition-all"
+                          title="Recolocar capinha com número grande"
+                        >
+                          <Lock size={10} />
+                          <span className="hidden sm:inline">Capinha</span>
+                        </button>
+                      )}
+                      <div className={`flex items-center gap-1 text-[10px] font-bold ${isUrgent && isExternalToAccept ? 'text-red-400 font-black' : 'text-white/40'}`}>
+                        <Clock size={11} className={isUrgent && isExternalToAccept ? 'animate-spin' : ''} />
+                        <span>{formatElapsedTime(order.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -845,6 +994,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       </button>
                     )}
                   </div>
+
+                  {/* Capinha Translúcida com Número Grande */}
+                  {renderOrderCover(
+                    order,
+                    isExternalToAccept ? 'Aguardando Aceite da Loja' : 'Localizando Entregador',
+                    isExternalToAccept ? 'text-amber-300' : 'text-[#FF6B00]'
+                  )}
                 </div>
               );
             })}
@@ -885,7 +1041,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg overflow-hidden ${
                     selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
                       : isBatch
@@ -916,9 +1072,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         renderChannelBadge(order)
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
-                      <Clock size={11} />
-                      <span>{formatElapsedTime(order.createdAt)}</span>
+                    <div className="flex items-center gap-1.5">
+                      {showOrderCover && unlockedOrderIds.has(order.id) && (
+                        <button
+                          onClick={(e) => toggleUnlockOrder(order.id, e)}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-white/70 hover:text-white text-[9px] font-bold transition-all"
+                          title="Recolocar capinha com número grande"
+                        >
+                          <Lock size={10} />
+                          <span className="hidden sm:inline">Capinha</span>
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
+                        <Clock size={11} />
+                        <span>{formatElapsedTime(order.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1047,6 +1215,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <span>{isBatch ? 'Marcar Pronto (Lote)' : 'Marcar Pronto'}</span>
                     </button>
                   </div>
+
+                  {/* Capinha Translúcida com Número Grande */}
+                  {renderOrderCover(
+                    order,
+                    order.courier?.name ? `Com ${order.courier.name}` : 'Em Preparo',
+                    'text-amber-300'
+                  )}
                 </div>
               );
             })}
@@ -1087,7 +1262,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg overflow-hidden ${
                     selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
                       : isDriverAtStore 
@@ -1120,9 +1295,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         renderChannelBadge(order)
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
-                      <Clock size={11} />
-                      <span>{formatElapsedTime(order.createdAt)}</span>
+                    <div className="flex items-center gap-1.5">
+                      {showOrderCover && unlockedOrderIds.has(order.id) && (
+                        <button
+                          onClick={(e) => toggleUnlockOrder(order.id, e)}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-white/70 hover:text-white text-[9px] font-bold transition-all"
+                          title="Recolocar capinha com número grande"
+                        >
+                          <Lock size={10} />
+                          <span className="hidden sm:inline">Capinha</span>
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
+                        <Clock size={11} />
+                        <span>{formatElapsedTime(order.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1252,6 +1439,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <span>{isBatch ? 'Liberar Coleta (Lote)' : 'Liberar Coleta'}</span>
                     </button>
                   </div>
+
+                  {/* Capinha Translúcida com Número Grande */}
+                  {renderOrderCover(
+                    order,
+                    isDriverAtStore ? 'Guepardo no Balcão' : 'Pronto para Coleta',
+                    'text-cyan-300'
+                  )}
                 </div>
               );
             })}
@@ -1291,7 +1485,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg overflow-hidden ${
                     isBatch
                       ? 'border-emerald-500/50 hover:border-emerald-400 bg-emerald-950/10'
                       : 'border border-white/10 hover:border-emerald-500/60'
@@ -1312,9 +1506,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         renderChannelBadge(order)
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                      <Navigation size={11} className="animate-spin" />
-                      <span>{isReturning ? 'Retornando' : 'A caminho'}</span>
+                    <div className="flex items-center gap-1.5">
+                      {showOrderCover && unlockedOrderIds.has(order.id) && (
+                        <button
+                          onClick={(e) => toggleUnlockOrder(order.id, e)}
+                          className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-white/70 hover:text-white text-[9px] font-bold transition-all"
+                          title="Recolocar capinha com número grande"
+                        >
+                          <Lock size={10} />
+                          <span className="hidden sm:inline">Capinha</span>
+                        </button>
+                      )}
+                      <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                        <Navigation size={11} className="animate-spin" />
+                        <span>{isReturning ? 'Retornando' : 'A caminho'}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1452,6 +1658,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       </button>
                     )}
                   </div>
+
+                  {/* Capinha Translúcida com Número Grande */}
+                  {renderOrderCover(
+                    order,
+                    isReturning ? 'Retornando à Loja' : 'Em Rota de Entrega',
+                    'text-emerald-300'
+                  )}
                 </div>
               );
             })}
@@ -1487,7 +1700,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               <div
                 key={order.id}
                 onClick={() => onSelectOrder(order)}
-                className="group relative bg-black/60 hover:bg-black/90 border border-white/5 hover:border-white/20 rounded-xl p-3 transition-all cursor-pointer opacity-80 hover:opacity-100"
+                className="group relative bg-black/60 hover:bg-black/90 border border-white/5 hover:border-white/20 rounded-xl p-3 transition-all cursor-pointer opacity-80 hover:opacity-100 overflow-hidden"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
@@ -1496,9 +1709,20 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </span>
                     {renderChannelBadge(order)}
                   </div>
-                  <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckCircle2 size={10} /> Entregue
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {showOrderCover && unlockedOrderIds.has(order.id) && (
+                      <button
+                        onClick={(e) => toggleUnlockOrder(order.id, e)}
+                        className="p-1 rounded bg-white/10 hover:bg-white/20 text-white/60 hover:text-white transition-all"
+                        title="Recolocar capinha"
+                      >
+                        <Lock size={9} />
+                      </button>
+                    )}
+                    <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 size={10} /> Entregue
+                    </span>
+                  </div>
                 </div>
 
                 <p className="text-[11px] font-bold text-white/80 truncate mb-1">
@@ -1511,6 +1735,9 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
                   </span>
                 </div>
+
+                {/* Capinha Translúcida com Número Grande (Modo Compacto) */}
+                {renderOrderCover(order, 'Entregue', 'text-emerald-300', true)}
               </div>
             ))}
 
