@@ -527,11 +527,12 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
         }
 
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const term = searchTerm.trim().toLowerCase();
             return uniqueFiltered.filter(o =>
-                o.clientName.toLowerCase().includes(term) ||
-                (o.display_id && o.display_id.includes(term)) ||
-                o.id.toLowerCase().includes(term)
+                String(o.clientName || '').toLowerCase().includes(term) ||
+                String(o.display_id ?? '').toLowerCase().includes(term) ||
+                String(o.id || '').toLowerCase().includes(term) ||
+                String((o as any).external_order_id || '').toLowerCase().includes(term)
             ).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         }
 

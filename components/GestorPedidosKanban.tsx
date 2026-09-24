@@ -183,10 +183,10 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   // Lista de entregadores ativos filtrados pela busca
   const activeCouriersFiltered = useMemo(() => {
     if (!courierSearchTerm) return couriersWithActiveOrders;
-    const term = courierSearchTerm.toLowerCase();
+    const term = courierSearchTerm.trim().toLowerCase();
     return couriersWithActiveOrders.filter(({ courier }) =>
-      courier.name.toLowerCase().includes(term) ||
-      courier.vehiclePlate?.toLowerCase().includes(term)
+      String(courier.name || '').toLowerCase().includes(term) ||
+      String(courier.vehiclePlate || '').toLowerCase().includes(term)
     );
   }, [couriersWithActiveOrders, courierSearchTerm]);
 
@@ -195,10 +195,10 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     const activeIds = new Set(couriersWithActiveOrders.map(c => c.courier.id));
     const free = availableCouriers.filter(c => c.isOnline && !activeIds.has(c.id));
     if (!courierSearchTerm) return free;
-    const term = courierSearchTerm.toLowerCase();
+    const term = courierSearchTerm.trim().toLowerCase();
     return free.filter(c =>
-      c.name.toLowerCase().includes(term) ||
-      c.vehiclePlate?.toLowerCase().includes(term)
+      String(c.name || '').toLowerCase().includes(term) ||
+      String(c.vehiclePlate || '').toLowerCase().includes(term)
     );
   }, [availableCouriers, couriersWithActiveOrders, courierSearchTerm]);
 
@@ -260,14 +260,24 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
 
       // Filtro de busca por texto
       if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const clientNameMatch = order.clientName?.toLowerCase().includes(term);
-        const displayIdMatch = order.display_id?.toLowerCase().includes(term);
-        const idMatch = order.id.toLowerCase().includes(term);
-        const phoneMatch = order.clientPhone?.includes(term);
-        const addressMatch = order.destination?.toLowerCase().includes(term);
-        const courierMatch = order.courier?.name?.toLowerCase().includes(term);
-        if (!clientNameMatch && !displayIdMatch && !idMatch && !phoneMatch && !addressMatch && !courierMatch) {
+        const term = searchTerm.trim().toLowerCase();
+        const clientNameMatch = String(order.clientName || '').toLowerCase().includes(term);
+        const displayIdMatch = String(order.display_id ?? '').toLowerCase().includes(term);
+        const idMatch = String(order.id || '').toLowerCase().includes(term);
+        const externalIdMatch = String((order as any).external_order_id || '').toLowerCase().includes(term);
+        const phoneMatch = String(order.clientPhone || '').toLowerCase().includes(term);
+        const addressMatch = String(order.destination || '').toLowerCase().includes(term);
+        const courierMatch = String(order.courier?.name || '').toLowerCase().includes(term);
+        const batchMatch = Boolean(
+          order.batchOrders?.some(sub =>
+            String(sub.display_id ?? '').toLowerCase().includes(term) ||
+            String(sub.clientName || '').toLowerCase().includes(term) ||
+            String((sub as any).external_order_id || '').toLowerCase().includes(term) ||
+            String(sub.id || '').toLowerCase().includes(term)
+          )
+        );
+
+        if (!clientNameMatch && !displayIdMatch && !idMatch && !externalIdMatch && !phoneMatch && !addressMatch && !courierMatch && !batchMatch) {
           return false;
         }
       }
@@ -850,9 +860,9 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               const isExternalToAccept = (order.requestSource === 'IFOOD' || order.requestSource === '99FOOD' || order.requestSource === 'ANOTA_AI' || order.external_source) &&
                                         (order.status === OrderStatus.PENDING || order.rawStatus === 'created') && !order.acceptedAt;
               const isTestOrder = !!(
-                order.external_order_id?.startsWith('99food-test-') ||
-                order.external_order_id?.startsWith('anota-test-') ||
-                order.clientName?.toUpperCase().includes('TESTE')
+                String(order.external_order_id || '').startsWith('99food-test-') ||
+                String(order.external_order_id || '').startsWith('anota-test-') ||
+                String(order.clientName || '').toUpperCase().includes('TESTE')
               );
               const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
               const selected = isOrderSelected(order);
