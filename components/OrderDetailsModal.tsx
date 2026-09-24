@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Order, StoreProfile } from '../types';
+import { Order, StoreProfile, Courier } from '../types';
 import { X } from 'lucide-react';
 import { OrderServiceDetail } from './OrderServiceDetail';
 
@@ -11,9 +11,26 @@ interface OrderDetailsModalProps {
   onAcceptIFoodOrder?: (orderId: string) => void;
   onAccept99FoodOrder?: (orderId: string) => void;
   theme?: string;
+  availableCouriers?: Courier[];
+  onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
+  onBulkAssign?: (orderIds: string[], courierId: string) => Promise<void> | void;
+  onCancelClick?: (order: Order) => void;
+  onConfirmReturn?: (orderId: string) => void;
 }
 
-export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, storeProfile, onClose, onAcceptIFoodOrder, onAccept99FoodOrder, theme = 'dark' }) => {
+export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ 
+  order, 
+  storeProfile, 
+  onClose, 
+  onAcceptIFoodOrder, 
+  onAccept99FoodOrder, 
+  theme = 'dark',
+  availableCouriers = [],
+  onDirectAssignCourier,
+  onBulkAssign,
+  onCancelClick,
+  onConfirmReturn
+}) => {
   if (!order) return null;
 
   const isDark = theme === 'dark';
@@ -32,6 +49,11 @@ export const OrderDetailsModal: React.FC<OrderDetailsModalProps> = ({ order, sto
           onAcceptIFoodOrder={onAcceptIFoodOrder}
           onAccept99FoodOrder={onAccept99FoodOrder}
           theme={theme}
+          availableCouriers={availableCouriers}
+          onDirectAssignCourier={onDirectAssignCourier}
+          onBulkAssign={onBulkAssign}
+          onCancelClick={onCancelClick}
+          onConfirmReturn={onConfirmReturn}
         />
       </div>
     </div>

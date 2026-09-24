@@ -2165,7 +2165,7 @@ function App() {
             }
 
             // Combine all active orders (existing ones and new ones) to perform route optimization on the whole set
-            const existingActive = activeDeliveries || [];
+            const existingActive = (activeDeliveries || []).filter(d => !orderIds.includes(d.id));
             const allActiveOrders = [...existingActive, ...selectedOrders];
 
             const storeCenter = realStoreProfile || STORE_PROFILE;
@@ -2326,6 +2326,21 @@ function App() {
             } // end for loop sortedOrders
 
             console.log("✅ [App] Bulk assignment successful");
+            // Optimistic update of local state
+            const targetCourier = availableCouriers.find(c => c.id === courierId);
+            if (targetCourier) {
+                setOrders(prev => prev.map(o => {
+                    if (orderIds.includes(o.id)) {
+                        return {
+                            ...o,
+                            courier: targetCourier,
+                            status: OrderStatus.ACCEPTED,
+                            batchId: batchIdToUse
+                        };
+                    }
+                    return o;
+                }));
+            }
             // Refresh orders to get latest state from DB
             await pollData();
 
@@ -3957,6 +3972,8 @@ function App() {
                             onNavigateToDispatch={() => setCurrentView('operational')}
                             onToggleStatus={toggleStoreStatus}
                             mapboxToken={MAPBOX_TOKEN}
+                            onBulkAssign={handleBulkAssign}
+                            onDirectAssignCourier={handleDirectAssignCourier}
                         />
                     )}
 
@@ -4042,6 +4059,11 @@ function App() {
                 onClose={() => setSelectedOrderDetails(null)}
                 onAcceptIFoodOrder={handleAcceptIFoodOrder}
                 onAccept99FoodOrder={handleAccept99FoodOrder}
+                availableCouriers={availableCouriers}
+                onDirectAssignCourier={handleDirectAssignCourier}
+                onBulkAssign={handleBulkAssign}
+                onCancelClick={(order) => handleCancelOrder(order.id, "Cancelado pelo lojista")}
+                onConfirmReturn={handleConfirmReturn}
                 theme="dark"
             />
 

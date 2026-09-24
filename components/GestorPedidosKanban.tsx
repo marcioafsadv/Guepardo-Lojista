@@ -6,7 +6,7 @@ import {
   Bike, Clock, AlertTriangle, CheckCircle2, MessageSquare, MapPin, Search, Phone, 
   ExternalLink, ShoppingBag, Radio, ArrowRight, User, ShieldCheck, Flame, ChevronRight, 
   RefreshCw, X, Eye, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign,
-  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils
+  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
 import { ChatMultilateralModal } from './ChatMultilateralModal';
@@ -35,6 +35,8 @@ interface GestorPedidosKanbanProps {
   onToggleStatus?: (newStatus: 'aberta' | 'fechada') => void;
   onOpenChat?: (order: Order) => void;
   mapboxToken?: string;
+  onBulkAssign?: (orderIds: string[], courierId: string) => Promise<void> | void;
+  onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
 }
 
 // Helper para calcular tempo decorrido amigável
@@ -77,11 +79,19 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   onToggleStatus,
   onOpenChat,
   mapboxToken,
+  onBulkAssign,
+  onDirectAssignCourier,
 }) => {
   // Modos de Visão e Rastreio
   const [viewMode, setViewMode] = useState<'kanban' | 'map'>('kanban');
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [mapSelectedOrder, setMapSelectedOrder] = useState<Order | null>(null);
+
+  // Estados de Agregação / Atribuição de Pedidos
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [assignModalOrders, setAssignModalOrders] = useState<Order[] | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [courierSearchTerm, setCourierSearchTerm] = useState('');
 
   // Filtros de UI
   const [searchTerm, setSearchTerm] = useState('');
@@ -103,6 +113,74 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   const onlineCouriersCount = useMemo(() => {
     return availableCouriers.filter(c => c.isOnline).length;
   }, [availableCouriers]);
+
+  // Agrupamento de entregadores com pedidos ativos (para agregar à mesma rota)
+  const couriersWithActiveOrders = useMemo(() => {
+    const map = new Map<string, { courier: Courier; activeOrders: Order[] }>();
+    orders.forEach(order => {
+      if (
+        order.courier &&
+        order.status !== OrderStatus.DELIVERED &&
+        order.status !== OrderStatus.CANCELED
+      ) {
+        if (!map.has(order.courier.id)) {
+          map.set(order.courier.id, { courier: order.courier, activeOrders: [] });
+        }
+        map.get(order.courier.id)!.activeOrders.push(order);
+      }
+    });
+    return Array.from(map.values());
+  }, [orders]);
+
+  // Lista de entregadores ativos filtrados pela busca
+  const activeCouriersFiltered = useMemo(() => {
+    if (!courierSearchTerm) return couriersWithActiveOrders;
+    const term = courierSearchTerm.toLowerCase();
+    return couriersWithActiveOrders.filter(({ courier }) =>
+      courier.name.toLowerCase().includes(term) ||
+      courier.vehiclePlate?.toLowerCase().includes(term)
+    );
+  }, [couriersWithActiveOrders, courierSearchTerm]);
+
+  // Lista de entregadores livres online (sem pedidos ativos no momento)
+  const freeCouriersFiltered = useMemo(() => {
+    const activeIds = new Set(couriersWithActiveOrders.map(c => c.courier.id));
+    const free = availableCouriers.filter(c => c.isOnline && !activeIds.has(c.id));
+    if (!courierSearchTerm) return free;
+    const term = courierSearchTerm.toLowerCase();
+    return free.filter(c =>
+      c.name.toLowerCase().includes(term) ||
+      c.vehiclePlate?.toLowerCase().includes(term)
+    );
+  }, [availableCouriers, couriersWithActiveOrders, courierSearchTerm]);
+
+  // Manipulador de atribuição / agregação
+  const handleAssignToCourier = async (orderIds: string[], courierId: string) => {
+    setIsAssigning(true);
+    try {
+      if (onBulkAssign) {
+        await onBulkAssign(orderIds, courierId);
+      } else if (onDirectAssignCourier) {
+        const order = orders.find(o => o.id === orderIds[0]);
+        if (order) {
+          await onDirectAssignCourier(order, courierId);
+        }
+      }
+      setAssignModalOrders(null);
+      setSelectedOrderIds([]);
+    } catch (err) {
+      console.error('Erro ao agregar/atribuir pedido:', err);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const toggleSelectOrder = (orderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedOrderIds(prev => 
+      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+    );
+  };
 
   // Filtro de busca e canal
   const filteredOrders = useMemo(() => {
@@ -467,12 +545,22 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
                   className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg hover:border-red-500/80 ${
-                    isUrgent ? 'border-red-500/70 ring-1 ring-red-500/50' : 'border-white/10'
+                    selectedOrderIds.includes(order.id)
+                      ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
+                      : isUrgent ? 'border-red-500/70 ring-1 ring-red-500/50' : 'border-white/10'
                   }`}
                 >
                   {/* Topo do Card: ID, Origem, Tempo */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
+                        title="Selecionar para agregar em lote"
+                      />
                       <span className="text-sm font-black text-white group-hover:text-red-400 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
@@ -549,11 +637,23 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className="group relative bg-black/80 hover:bg-black border border-white/10 hover:border-amber-500/60 rounded-xl p-3.5 transition-all cursor-pointer shadow-lg"
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
+                    selectedOrderIds.includes(order.id)
+                      ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
+                      : 'border-white/10 hover:border-amber-500/60'
+                  }`}
                 >
                   {/* Topo do Card */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
+                        title="Selecionar para agregar em lote"
+                      />
                       <span className="text-sm font-black text-white group-hover:text-amber-400 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
@@ -587,6 +687,13 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         </div>
                         <div className="flex items-center gap-1">
                           <button
+                            onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                            className="p-1.5 hover:bg-amber-500/20 rounded-lg text-amber-300 hover:text-white transition-colors"
+                            title="Trocar ou agregar para outro Guepardo"
+                          >
+                            <ArrowLeftRight size={13} />
+                          </button>
+                          <button
                             onClick={(e) => { e.stopPropagation(); setTrackingOrder(order); }}
                             className="p-1.5 hover:bg-amber-500/20 rounded-lg text-amber-300 hover:text-white transition-colors"
                             title="Ver Entregador no Mapa"
@@ -605,9 +712,22 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-[10px] text-[#FF6B00] font-bold">
-                        <Radio size={12} className="animate-pulse" />
-                        <span>Buscando Guepardo...</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-[10px] text-[#FF6B00] font-bold">
+                          <Radio size={12} className="animate-pulse" />
+                          <span>Buscando Guepardo...</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssignModalOrders([order]);
+                          }}
+                          className="px-2.5 py-1 bg-gradient-to-r from-orange-600/30 to-[#FF6B00]/30 hover:from-orange-600 hover:to-[#FF6B00] text-orange-300 hover:text-black border border-orange-500/40 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                          title="Agregar este pedido a um Guepardo"
+                        >
+                          <Layers size={11} strokeWidth={2.5} />
+                          <span>Agregar</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -667,14 +787,24 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
                   className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
-                    isDriverAtStore 
-                      ? 'border-cyan-400/80 ring-2 ring-cyan-500/30' 
-                      : 'border-white/10 hover:border-cyan-400/60'
+                    selectedOrderIds.includes(order.id)
+                      ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
+                      : isDriverAtStore 
+                        ? 'border-cyan-400/80 ring-2 ring-cyan-500/30' 
+                        : 'border-white/10 hover:border-cyan-400/60'
                   }`}
                 >
                   {/* Topo do Card */}
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
+                        title="Selecionar para agregar em lote"
+                      />
                       <span className="text-sm font-black text-white group-hover:text-cyan-300 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
@@ -691,7 +821,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     {order.clientName || 'Cliente'}
                   </p>
 
-                  {/* Destaque: Guepardo Chegou na Loja! */}
+                  {/* Destaque: Guepardo Chegou na Loja vs Status de Entrega */}
                   {isDriverAtStore ? (
                     <div className="my-2 p-2 bg-cyan-500/20 border border-cyan-400/50 rounded-lg flex items-center justify-between animate-pulse">
                       <div className="flex items-center gap-2 truncate">
@@ -700,11 +830,61 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           {order.courier?.name || 'Guepardo'} CHEGOU NO BALCÃO!
                         </span>
                       </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                        className="p-1 hover:bg-cyan-500/30 rounded text-cyan-200 hover:text-white transition-colors shrink-0"
+                        title="Trocar ou agregar para outro Guepardo"
+                      >
+                        <ArrowLeftRight size={13} />
+                      </button>
+                    </div>
+                  ) : order.courier ? (
+                    <div className="my-2 p-2 bg-white/5 rounded-lg border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-300 shrink-0 font-bold text-[10px]">
+                          {order.courier?.name?.[0] || 'G'}
+                        </div>
+                        <div className="truncate">
+                          <p className="text-[10px] font-black text-cyan-300 truncate">
+                            {order.courier?.name}
+                          </p>
+                          <p className="text-[9px] text-white/40">Pronto • A caminho da retirada</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                          className="p-1.5 hover:bg-cyan-500/20 rounded-lg text-cyan-300 hover:text-white transition-colors"
+                          title="Trocar ou agregar para outro Guepardo"
+                        >
+                          <ArrowLeftRight size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setTrackingOrder(order); }}
+                          className="p-1.5 hover:bg-cyan-500/20 rounded-lg text-cyan-300 hover:text-white transition-colors"
+                          title="Ver Entregador no Mapa"
+                        >
+                          <MapPin size={13} />
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="my-2 p-2 bg-white/5 rounded-lg text-[10px] text-white/60 flex items-center gap-2">
-                      <CheckCircle2 size={13} className="text-emerald-400" />
-                      <span>Pronto! Aguardando coleta...</span>
+                    <div className="my-2 p-2 bg-white/5 rounded-lg border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] text-[#FF6B00] font-bold">
+                        <Radio size={12} className="animate-pulse" />
+                        <span>Pronto • Buscando Guepardo...</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAssignModalOrders([order]);
+                        }}
+                        className="px-2.5 py-1 bg-gradient-to-r from-orange-600/30 to-[#FF6B00]/30 hover:from-orange-600 hover:to-[#FF6B00] text-orange-300 hover:text-black border border-orange-500/40 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                        title="Agregar este pedido a um Guepardo"
+                      >
+                        <Layers size={11} strokeWidth={2.5} />
+                        <span>Agregar</span>
+                      </button>
                     </div>
                   )}
 
@@ -801,8 +981,15 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       </div>
                     </div>
 
-                    {/* Ações Rápidas: Chat e Zap */}
+                    {/* Ações Rápidas: Trocar/Agregar, Chat e Zap */}
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-emerald-400 hover:text-white transition-colors"
+                        title="Trocar ou agregar para outro Guepardo"
+                      >
+                        <ArrowLeftRight size={13} />
+                      </button>
                       {onOpenChat && (
                         <button
                           onClick={(e) => { e.stopPropagation(); onOpenChat(order); }}
@@ -1113,6 +1300,237 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 theme="dark"
                 mapboxToken={mapboxToken}
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── BARRA FLUTUANTE DE AÇÃO EM LOTE (AGREGAR PEDIDOS) ─────────────── */}
+      {selectedOrderIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-gradient-to-r from-[#1A0900]/98 via-[#140600]/98 to-[#0A0400]/98 border border-[#FF6B00]/60 shadow-[0_15px_50px_rgba(0,0,0,0.9)] rounded-2xl px-5 py-3.5 flex items-center gap-4 animate-in slide-in-from-bottom-5 duration-300 backdrop-blur-2xl ring-2 ring-[#FF6B00]/20">
+          <div className="flex items-center gap-2.5 text-white">
+            <div className="w-9 h-9 rounded-xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] shadow-[0_0_12px_rgba(255,107,0,0.4)]">
+              <Layers size={18} strokeWidth={2.5} />
+            </div>
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider block text-white">
+                {selectedOrderIds.length} {selectedOrderIds.length === 1 ? 'Pedido Selecionado' : 'Pedidos Selecionados'}
+              </span>
+              <span className="text-[10px] text-white/50">
+                Agregue para o mesmo piloto em rota ou piloto livre
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const selectedOrders = orders.filter(o => selectedOrderIds.includes(o.id));
+              setAssignModalOrders(selectedOrders);
+            }}
+            className="px-4 py-2 bg-gradient-to-r from-[#FF6B00] to-[#D35400] hover:brightness-110 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-[#FF6B00]/40 active:scale-95 transition-all"
+          >
+            <Bike size={15} strokeWidth={2.5} />
+            <span>Agregar a um Guepardo</span>
+          </button>
+          <button
+            onClick={() => setSelectedOrderIds([])}
+            className="p-2 hover:bg-white/10 rounded-xl text-white/40 hover:text-white transition-colors"
+            title="Limpar seleção"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* ─── MODAL DE AGREGAÇÃO / ATRIBUIÇÃO PARA GUEPARDO ────────────────── */}
+      {assignModalOrders && (
+        <div 
+          className="fixed inset-0 z-[1150] flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-200"
+          onClick={() => !isAssigning && setAssignModalOrders(null)}
+        >
+          <div 
+            className="w-full max-w-xl max-h-[90vh] bg-gradient-to-b from-[#180800] via-[#120500] to-[#0D0400] border border-[#FF6B00]/40 rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.95)] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header do Modal */}
+            <div className="p-4 md:p-5 border-b border-white/10 flex items-center justify-between bg-black/40 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#FF6B00]/20 border border-[#FF6B00]/40 flex items-center justify-center text-[#FF6B00] shadow-[0_0_15px_rgba(255,107,0,0.3)]">
+                  <Layers size={20} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-sm md:text-base font-black uppercase tracking-wider text-white flex items-center gap-2">
+                    {assignModalOrders.length === 1 
+                      ? `Agregar Pedido #${assignModalOrders[0].display_id || assignModalOrders[0].id.slice(-4)}`
+                      : `Agregar ${assignModalOrders.length} Pedidos em Lote`
+                    }
+                  </h3>
+                  <p className="text-[10px] text-white/50">
+                    Selecione o Guepardo para despachar direto ou agrupar na mesma rota
+                  </p>
+                </div>
+              </div>
+              <button
+                disabled={isAssigning}
+                onClick={() => setAssignModalOrders(null)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition-colors disabled:opacity-50"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Resumo dos Pedidos a Agregar */}
+            <div className="px-4 md:px-5 py-3 bg-black/60 border-b border-white/5 flex flex-wrap gap-2 items-center shrink-0 max-h-28 overflow-y-auto">
+              <span className="text-[10px] font-black uppercase tracking-wider text-white/40">
+                Pedidos:
+              </span>
+              {assignModalOrders.map(ord => (
+                <div key={ord.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs">
+                  <span className="font-black text-[#FF6B00]">#{ord.display_id || ord.id.slice(-4)}</span>
+                  <span className="text-white/70 truncate max-w-[120px]">{ord.clientName}</span>
+                  <span className="text-white/40 text-[10px]">R$ {(ord.deliveryValue || ord.estimatedPrice || 0).toFixed(2).replace('.', ',')}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Busca Rápida de Entregadores */}
+            <div className="p-3 md:p-4 border-b border-white/5 shrink-0 bg-black/20">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="Filtrar Guepardo por nome ou placa..."
+                  value={courierSearchTerm}
+                  onChange={(e) => setCourierSearchTerm(e.target.value)}
+                  className="w-full bg-black/60 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-white/30 focus:border-[#FF6B00] outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Lista de Entregadores */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4 scrollbar-guepardo">
+              {/* SEÇÃO 1: PILOTOS COM ENTREGAS ATIVAS (AGREGAÇÃO DE ROTA) */}
+              {activeCouriersFiltered.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+                    <h4 className="text-[11px] font-black uppercase tracking-wider text-amber-300">
+                      ⚡ Pilotos com Entregas Ativas (Agregação de Rota)
+                    </h4>
+                  </div>
+                  <p className="text-[10px] text-white/40 mb-2.5">
+                    Agregar ao mesmo Guepardo unifica a rota e gera economia de frete para a loja.
+                  </p>
+                  <div className="space-y-2">
+                    {activeCouriersFiltered.map(({ courier, activeOrders }) => {
+                      const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                      const isHybrid = storeProfile?.active_hybrid_drivers?.includes(courier.id);
+
+                      return (
+                        <div
+                          key={courier.id}
+                          className="bg-black/60 hover:bg-black/90 border border-amber-500/30 hover:border-amber-400 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all shadow-md group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="relative shrink-0">
+                              <img
+                                src={courier.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                                alt={courier.name}
+                                className="w-11 h-11 rounded-xl object-cover border border-amber-500/40"
+                              />
+                              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-black" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-black text-white truncate">{courier.name}</span>
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-black/60 border border-white/10 text-white/60">
+                                  {courier.vehiclePlate}
+                                </span>
+                                {isFixed && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">★ Fixo</span>}
+                                {isHybrid && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">★ Híbrido</span>}
+                              </div>
+                              <p className="text-[10px] text-amber-400 font-bold mt-0.5 truncate">
+                                ⚡ {activeOrders.length} {activeOrders.length === 1 ? 'pedido em andamento' : 'pedidos em andamento'} (#{activeOrders.map(o => o.display_id || o.id.slice(-4)).join(', #')})
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            disabled={isAssigning}
+                            onClick={() => handleAssignToCourier(assignModalOrders.map(o => o.id), courier.id)}
+                            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-[#FF6B00] hover:brightness-110 disabled:opacity-50 text-black font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 shadow-md active:scale-95 transition-all shrink-0"
+                          >
+                            {isAssigning ? <RefreshCw size={12} className="animate-spin" /> : <Layers size={12} strokeWidth={2.5} />}
+                            <span>Agregar Aqui</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* SEÇÃO 2: PILOTOS LIVRES (ONLINE) */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  <h4 className="text-[11px] font-black uppercase tracking-wider text-emerald-300">
+                    🟢 Pilotos Disponíveis (Online e Livres)
+                  </h4>
+                </div>
+                <div className="space-y-2">
+                  {freeCouriersFiltered.map(courier => {
+                    const isFixed = storeProfile?.active_fixed_drivers?.includes(courier.id);
+                    const isHybrid = storeProfile?.active_hybrid_drivers?.includes(courier.id);
+
+                    return (
+                      <div
+                        key={courier.id}
+                        className="bg-black/40 hover:bg-black/70 border border-white/10 hover:border-emerald-500/50 rounded-2xl p-3 flex items-center justify-between gap-3 transition-all group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="relative shrink-0">
+                            <img
+                              src={courier.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                              alt={courier.name}
+                              className="w-10 h-10 rounded-xl object-cover border border-white/10"
+                            />
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border border-black" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-black text-white truncate">{courier.name}</span>
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-black/60 border border-white/10 text-white/50">
+                                {courier.vehiclePlate}
+                              </span>
+                              {isFixed && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">★ Fixo</span>}
+                              {isHybrid && <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">★ Híbrido</span>}
+                            </div>
+                            <p className="text-[10px] text-emerald-400 font-bold mt-0.5">
+                              Disponível para nova rota
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          disabled={isAssigning}
+                          onClick={() => handleAssignToCourier(assignModalOrders.map(o => o.id), courier.id)}
+                          className="px-3.5 py-2 bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/40 disabled:opacity-50 font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 transition-all shrink-0"
+                        >
+                          {isAssigning ? <RefreshCw size={12} className="animate-spin" /> : <Bike size={12} strokeWidth={2.5} />}
+                          <span>Atribuir Pedido</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  {freeCouriersFiltered.length === 0 && activeCouriersFiltered.length === 0 && (
+                    <div className="text-center py-8 text-white/30">
+                      <p className="text-xs font-bold uppercase">Nenhum Guepardo online no momento</p>
+                      <p className="text-[10px] mt-1 text-white/20">Aguarde os entregadores ficarem online no aplicativo</p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
