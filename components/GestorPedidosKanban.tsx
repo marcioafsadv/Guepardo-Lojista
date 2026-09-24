@@ -6,7 +6,8 @@ import {
   Bike, Clock, AlertTriangle, CheckCircle2, MessageSquare, MapPin, Search, Phone, 
   ExternalLink, ShoppingBag, Radio, ArrowRight, User, ShieldCheck, Flame, ChevronRight, 
   RefreshCw, X, Eye, EyeOff, Lock, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign, Zap,
-  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight, Trash2
+  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight, Trash2,
+  Volume2
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
 import { ChatMultilateralModal } from './ChatMultilateralModal';
@@ -115,6 +116,24 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
 
   // Conjunto de IDs de pedidos desbloqueados manualmente por clique
   const [unlockedOrderIds, setUnlockedOrderIds] = useState<Set<string>>(new Set());
+
+  // Estado para efeito de rugido e animação interativa do Mascote Guepardo
+  const [isMascotRoaring, setIsMascotRoaring] = useState(false);
+
+  const handleMascotRoar = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setIsMascotRoaring(true);
+    try {
+      const audio = new Audio('/sounds/rugido-guepardo.mp3');
+      audio.volume = 0.6;
+      audio.play().catch(err => console.log('Áudio do mascote info:', err));
+    } catch (err) {
+      console.warn('Erro ao tocar som do mascote:', err);
+    }
+    setTimeout(() => {
+      setIsMascotRoaring(false);
+    }, 2800);
+  };
 
   // Identifica se a loja atual é o ambiente de testes oficial (Guepardo Lojista)
   const isTestEnvironment = useMemo(() => {
@@ -1914,6 +1933,101 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                 <p className="text-[9px] text-white/20 mt-1">Os pedidos entregues aparecerão aqui</p>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* ─── PAINEL DO MASCOTE GUEPARDO (ESPAÇO À DIREITA) ─────────────────── */}
+        <div className="flex-1 min-w-[270px] max-w-[340px] xl:max-w-[360px] flex flex-col bg-gradient-to-b from-[#1A0A00]/80 via-[#120500]/70 to-[#0A0400]/90 rounded-2xl border border-orange-500/25 backdrop-blur-md shadow-2xl overflow-hidden relative group select-none transition-all duration-300 hover:border-orange-500/50 shrink-0">
+          {/* Header da Coluna do Mascote */}
+          <div className="p-3.5 bg-gradient-to-r from-orange-950/70 via-orange-900/40 to-transparent border-b border-orange-500/20 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10B981]" />
+              <h2 className="text-xs font-black uppercase tracking-wider text-[#FF6B00] flex items-center gap-1.5">
+                <Sparkles size={13} className="text-[#FF6B00]" />
+                Mascote Guepardo
+              </h2>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+              <Zap size={10} className="fill-orange-400 text-orange-400" />
+              Sempre a Postos
+            </span>
+          </div>
+
+          {/* Conteúdo Interativo do Mascote */}
+          <div className="flex-1 flex flex-col items-center justify-between p-4 relative overflow-hidden">
+            {/* Efeito de iluminação radial de fundo */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(255,107,0,0.18),transparent_70%)] pointer-events-none" />
+
+            {/* Balão de Fala Dinâmico */}
+            <div className="relative z-10 w-full mb-1">
+              <div className={`p-2.5 rounded-xl border transition-all duration-300 text-center ${
+                isMascotRoaring
+                  ? 'bg-orange-500/20 border-orange-500/60 shadow-[0_0_20px_rgba(255,107,0,0.4)] animate-pulse'
+                  : 'bg-black/60 border-orange-500/30 group-hover:border-orange-500/60 shadow-lg'
+              }`}>
+                <p className={`text-[11px] font-black tracking-wide ${isMascotRoaring ? 'text-orange-300 text-xs' : 'text-white/90'}`}>
+                  {isMascotRoaring ? '⚡ ROAAAR! Acelerando suas entregas a mil por hora! 🐆💨' : '“Pronto para acelerar suas entregas na Savana!” ⚡'}
+                </p>
+                <p className="text-[9px] text-white/40 font-semibold mt-0.5">
+                  {isMascotRoaring ? 'Rugido do Guepardo ativado!' : 'Clique no mascote para ouvir o rugido 🐾'}
+                </p>
+              </div>
+              {/* Ponta do balão de fala */}
+              <div className="w-2.5 h-2.5 bg-black/60 border-r border-b border-orange-500/30 transform rotate-45 mx-auto -mt-1 shadow-sm" />
+            </div>
+
+            {/* Imagem do Mascote com Iluminação e Interação */}
+            <div 
+              onClick={handleMascotRoar}
+              className="relative flex-1 flex flex-col items-center justify-center cursor-pointer group/mascot py-1 transition-transform duration-300 active:scale-95"
+              title="Clique para rugir com o Guepardo!"
+            >
+              {/* Halo / Aura de Energia */}
+              <div className={`absolute w-44 h-44 rounded-full transition-all duration-500 pointer-events-none ${
+                isMascotRoaring
+                  ? 'bg-orange-500/40 blur-2xl scale-125 animate-ping'
+                  : 'bg-orange-500/15 blur-xl group-hover/mascot:bg-orange-500/30 group-hover/mascot:scale-110'
+              }`} />
+
+              <img 
+                src="/mascote-guepardo.png" 
+                alt="Mascote Guepardo Delivery" 
+                className={`w-full max-h-[340px] xl:max-h-[380px] object-contain drop-shadow-[0_15px_30px_rgba(255,107,0,0.35)] transition-all duration-300 select-none ${
+                  isMascotRoaring
+                    ? 'scale-110 filter brightness-110 drop-shadow-[0_0_35px_rgba(255,107,0,0.8)]'
+                    : 'group-hover/mascot:scale-105 group-hover/mascot:drop-shadow-[0_18px_35px_rgba(255,107,0,0.5)]'
+                }`}
+                draggable={false}
+              />
+
+              {/* Pedestal / Sombra de luz sob as patas */}
+              <div className={`w-36 h-3 rounded-full transition-all duration-300 -mt-1 ${
+                isMascotRoaring
+                  ? 'bg-orange-400/60 blur-md scale-110'
+                  : 'bg-orange-500/25 blur-md group-hover/mascot:bg-orange-500/40'
+              }`} />
+            </div>
+
+            {/* Rodapé / Mini Painel Operacional */}
+            <div className="w-full mt-2 pt-2.5 border-t border-orange-500/20 relative z-10 flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[11px] px-1">
+                <span className="text-white/60 font-medium flex items-center gap-1.5">
+                  <Bike size={13} className="text-[#FF6B00]" />
+                  Pilotos Ativos
+                </span>
+                <span className="text-[#FF6B00] font-black">
+                  {onlineCouriersCount} online
+                </span>
+              </div>
+
+              <button
+                onClick={handleMascotRoar}
+                className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-orange-600/30 via-orange-500/20 to-orange-600/30 hover:from-orange-500 hover:to-[#E65100] text-orange-200 hover:text-white border border-orange-500/40 hover:border-orange-500 text-[11px] font-black uppercase tracking-wider transition-all duration-200 flex items-center justify-center gap-2 shadow-lg active:scale-98"
+              >
+                <Volume2 size={13} className="text-orange-400 group-hover:text-white" />
+                <span>{isMascotRoaring ? 'Rugindo! 🐆' : 'Rugir com o Guepardo'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
