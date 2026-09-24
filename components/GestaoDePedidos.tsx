@@ -217,52 +217,30 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
 
             // 3. Optimize Route Sequence
             let finalCoords = [...coords];
-            let finalGeocodedStops = [...geocodedStops];
             
             if (coords.length > 2) {
-                console.log("🛣️ [GestaoDePedidos] Optimizing sequence for", coords.length, "points...");
-                // Note: DeliveryForm doesn't have an explicit return checkbox yet, 
-                // but we can pass false or check if a return is needed based on payment method logic
+                console.log("🛣️ [GestaoDePedidos] Optimizing sequence for", coords.length, "points (Caixeiro Viajante / TSP)...");
                 const optimizedIndices = await optimizeRoute(coords, false);
                 
                 if (optimizedIndices && optimizedIndices.length === coords.length) {
-                    // Reorder everything based on optimized indices
-                    // Index 0 in optimizedIndices is always 0 (the Store)
-                    // We need to map the rest to our stops
+                    // finalCoords ordered by visit sequence: Store -> Stop 1 -> Stop 2 -> ...
+                    finalCoords = optimizedIndices.map(origIdx => coords[origIdx]);
                     
-                    const newCoords: [number, number][] = [];
-                    const newEnrichedStops: any[] = [];
-                    
-                    optimizedIndices.forEach((origIdx, visitOrder) => {
-                        newCoords.push(coords[origIdx]);
-                        
-                        // If origIdx was 1, it's the main destination.
-                        // If origIdx > 1, it's one of the additional stops.
-                        if (origIdx > 1) {
-                            const stop = geocodedStops[origIdx - 2];
-                            newEnrichedStops.push({ ...stop, stopNumber: visitOrder + 1 });
-                        }
-                    });
-                    
-                    finalCoords = newCoords;
-                    // We need to identify which stop became Stop #1, #2 etc.
-                    // This is tricky because LeafletMap expects draftAdditionalStops.
-                    // Let's just update the stopNumber property in enrichedDraftStops.
-                    
-                    // Update enriched stops with their NEW optimized stop numbers
-                    const optimizedEnriched = geocodedStops.map(stop => {
-                        const originalPos = geocodedStops.indexOf(stop) + 2;
-                        const visitOrder = optimizedIndices.indexOf(originalPos);
-                        return { ...stop, stopNumber: visitOrder };
-                    });
-                    
-                    // We also need to know the NEW stop number of the main destination
+                    // Main destination was coords[1]. Its 1-indexed stop number is its position in optimizedIndices
                     const mainDestVisitOrder = optimizedIndices.indexOf(1);
-                    console.log("📍 [GestaoDePedidos] Main destination is now Stop #", mainDestVisitOrder);
-                    
-                    // Update state for map markers
-                    setEnrichedDraftStops(optimizedEnriched);
                     setMainDestStopNumber(mainDestVisitOrder);
+                    console.log("📍 [GestaoDePedidos] Main destination is Stop #", mainDestVisitOrder);
+
+                    // Additional stops were coords[2], coords[3]... (origIdx = i + 2)
+                    const optimizedEnriched = geocodedStops.map((stop, i) => {
+                        const originalPos = i + 2;
+                        const visitOrder = optimizedIndices.indexOf(originalPos);
+                        return { 
+                            ...stop, 
+                            stopNumber: visitOrder // 1-indexed visit number
+                        };
+                    });
+                    setEnrichedDraftStops(optimizedEnriched);
                 } else {
                     setEnrichedDraftStops(geocodedStops);
                     setMainDestStopNumber(1);
@@ -436,23 +414,29 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
                 addressCep: data.addressCep,
                 deliveryValue: data.deliveryValue,
                 paymentMethod: data.paymentMethod,
-                changeFor: data.changeFor
+                changeFor: data.changeFor,
+                destinationLat: draftAddressCoords?.lat || data.destinationLat,
+                destinationLng: draftAddressCoords?.lng || data.destinationLng,
+                stopNumber: mainDestStopNumber || 1
             };
             
-            const allStops = [mainStop, ...data.additionalStops];
+            const allStops = [
+                mainStop, 
+                ...data.additionalStops.map((stop: any, idx: number) => {
+                    const enriched = enrichedDraftStops[idx];
+                    return {
+                        ...stop,
+                        destinationLat: enriched?.lat || stop.destinationLat,
+                        destinationLng: enriched?.lng || stop.destinationLng,
+                        stopNumber: enriched?.stopNumber || (idx + 2)
+                    };
+                })
+            ];
             
-            // 2. Identify the optimized order
-            // Map enrichedDraftStops back to the sequence.
-            // Actually, we can just use the stopNumber we assigned.
-            const sortedByLogic = allStops.map((stop, idx) => {
-                // Find matching stop in enrichedDraftStops to get its stopNumber
-                // Stop 0 is main
-                if (idx === 0) return { ...stop, stopNumber: mainDestStopNumber };
-                const enriched = enrichedDraftStops[idx - 1];
-                return { ...stop, stopNumber: enriched?.stopNumber || (idx + 1) };
-            }).sort((a, b) => a.stopNumber - b.stopNumber);
+            // 2. Identify the optimized TSP order
+            const sortedByLogic = allStops.sort((a, b) => (a.stopNumber || 1) - (b.stopNumber || 1));
             
-            console.log("✅ [GestaoDePedidos] Re-sequenced stops:", sortedByLogic.map(s => s.addressStreet));
+            console.log("✅ [GestaoDePedidos] Re-sequenced stops by TSP:", sortedByLogic.map(s => `Parada #${s.stopNumber}: ${s.addressStreet}`));
             
             // 3. Re-assign the first one to the 'main' level of finalData
             const first = sortedByLogic[0];
@@ -467,6 +451,8 @@ export const GestaoDePedidos: React.FC<GestaoDePedidosProps> = ({
             finalData.deliveryValue = first.deliveryValue;
             finalData.paymentMethod = first.paymentMethod;
             finalData.changeFor = first.changeFor;
+            finalData.destinationLat = first.destinationLat;
+            finalData.destinationLng = first.destinationLng;
             finalData.stopNumber = 1; // Main destination is always the first stop (#1)
             
             // 4. Put the rest in additionalStops

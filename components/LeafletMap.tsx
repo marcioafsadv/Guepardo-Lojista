@@ -370,14 +370,22 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
             return draftRouteStats.geometry;
         }
 
-        // Preference 2: Manual straight-line fallback
+        // Preference 2: Ordered straight-line fallback based on calibrated stopNumber
         if (!destinationCoords) return [];
-        const path: [number, number][] = [storeCoords, destinationCoords];
-        draftAdditionalStops.forEach(stop => {
-            if (stop.lat && stop.lng) path.push([stop.lat, stop.lng]);
-        });
+        
+        const allStops = [
+            { pos: destinationCoords, stopNumber: mainDestStopNumber || 1 },
+            ...draftAdditionalStops
+                .filter(s => typeof s.lat === 'number' && typeof s.lng === 'number')
+                .map((s, idx) => ({
+                    pos: [s.lat, s.lng] as [number, number],
+                    stopNumber: s.stopNumber || (idx + 2)
+                }))
+        ].sort((a, b) => a.stopNumber - b.stopNumber);
+
+        const path: [number, number][] = [storeCoords, ...allStops.map(s => s.pos)];
         return path;
-    }, [storeCoords, destinationCoords, draftAdditionalStops, draftRouteStats?.geometry]);
+    }, [storeCoords, destinationCoords, draftAdditionalStops, draftRouteStats?.geometry, mainDestStopNumber]);
 
     // Active Routes construction (for multi-stop or batching)
     const batchRoutes = useMemo(() => {
@@ -705,16 +713,17 @@ export const LeafletMap: React.FC<LeafletMapProps> = ({
                         {/* Additional Draft Stops */}
                         {draftAdditionalStops.map((stop, idx) => {
                             if (!stop.lat || !stop.lng) return null;
+                            const stopNum = stop.stopNumber || (idx + 2);
                             return (
                                 <Marker 
-                                    key={`draft-${stop.id}`}
+                                    key={`draft-${stop.id || idx}`}
                                     position={[stop.lat, stop.lng]} 
-                                    icon={createStopMarker(idx + 2, stop.clientName || 'Cliente', COLORS.orange)}
+                                    icon={createStopMarker(stopNum, stop.clientName || 'Cliente', COLORS.orange)}
                                 >
                                     <Popup>
                                         <div className="text-xs">
                                             <p className="font-bold text-orange-600">{stop.clientName || 'Cliente'}</p>
-                                            <p className="text-gray-500">Parada #{idx + 2} (Rascunho)</p>
+                                            <p className="text-gray-500">Parada #{stopNum} (Rascunho Otimizado)</p>
                                         </div>
                                     </Popup>
                                 </Marker>
