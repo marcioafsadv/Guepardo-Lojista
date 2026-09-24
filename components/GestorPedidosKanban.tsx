@@ -116,6 +116,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   // Conjunto de IDs de pedidos desbloqueados manualmente por clique
   const [unlockedOrderIds, setUnlockedOrderIds] = useState<Set<string>>(new Set());
 
+  // Identifica se a loja atual é o ambiente de testes oficial (Guepardo Lojista)
+  const isTestEnvironment = useMemo(() => {
+    const storeName = storeProfile?.name?.toLowerCase() || '';
+    return (
+      storeProfile?.id === 'bcb22ff3-3f46-4402-a094-6a7c9c26db17' ||
+      storeName.includes('guepardo') ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+    );
+  }, [storeProfile]);
+
   // Salvar preferência quando alterada
   useEffect(() => {
     try {
@@ -774,8 +784,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
             </button>
           </div>
 
-          {/* BOTÃO DE TESTE ANOTA AI */}
-          {onSimulateAnotaAiOrder && (
+          {/* BOTÃO DE TESTE ANOTA AI (Exclusivo Guepardo Lojista) */}
+          {isTestEnvironment && onSimulateAnotaAiOrder && (
             <button
               onClick={onSimulateAnotaAiOrder}
               title="Gera um pedido de teste simulando a integração com o Anota AI (Sushi Hoi)"
@@ -787,8 +797,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
             </button>
           )}
 
-          {/* BOTÃO DE TESTE 99FOOD */}
-          {onSimulate99FoodOrder && (
+          {/* BOTÃO DE TESTE 99FOOD (Exclusivo Guepardo Lojista) */}
+          {isTestEnvironment && onSimulate99FoodOrder && (
             <button
               onClick={onSimulate99FoodOrder}
               title="Gera um pedido de teste simulando a integração com a 99Food"
@@ -1015,7 +1025,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       </button>
                     ) : (
                       <div className="flex items-center gap-1.5">
-                        {isTestOrder && onSimulateAccept && (
+                        {isTestEnvironment && isTestOrder && onSimulateAccept && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

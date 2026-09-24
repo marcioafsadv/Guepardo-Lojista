@@ -3905,34 +3905,44 @@ function App() {
                         </div>
                     )}
 
-                    {/* VIEW ROUTING */}
-                    {currentView === 'orders' && (
-                        <GestorPedidosKanban
-                            orders={orders}
-                            storeProfile={realStoreProfile || STORE_PROFILE}
-                            availableCouriers={availableCouriers}
-                            customers={customers}
-                            settings={settings}
-                            balance={realStoreProfile?.wallet_balance || 0}
-                            unreadMessages={unreadMessages}
-                            onSelectOrder={setSelectedOrderDetails}
-                            onAcceptIFoodOrder={handleAcceptIFoodOrder}
-                            onAccept99FoodOrder={handleAccept99FoodOrder}
-                            onSimulate99FoodOrder={handleSimulate99FoodOrder}
-                            onAcceptAnotaAiOrder={handleAcceptAnotaAiOrder}
-                            onSimulateAnotaAiOrder={handleSimulateAnotaAiOrder}
-                            onMarkAsReady={handleMarkAsReady}
-                            onValidatePickup={handleValidatePickup}
-                            onCancelOrder={handleCancelOrder}
-                            onConfirmReturn={handleConfirmReturn}
-                            onSimulateAccept={handleSimulateAccept}
-                            onNavigateToDispatch={() => setCurrentView('operational')}
-                            onToggleStatus={toggleStoreStatus}
-                            mapboxToken={MAPBOX_TOKEN}
-                            onBulkAssign={handleBulkAssign}
-                            onDirectAssignCourier={handleDirectAssignCourier}
-                        />
-                    )}
+                    {/* Identificação de Ambiente de Testes Oficial (Guepardo Lojista) */}
+                    {(() => {
+                        const isTestEnvironment = Boolean(
+                            realStoreProfile?.id === 'bcb22ff3-3f46-4402-a094-6a7c9c26db17' ||
+                            realStoreProfile?.name?.toLowerCase().includes('guepardo') ||
+                            session?.user?.email?.toLowerCase().includes('marcio') ||
+                            session?.user?.email?.toLowerCase().includes('guepardo') ||
+                            (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                        );
+
+                        return currentView === 'orders' ? (
+                            <GestorPedidosKanban
+                                orders={orders}
+                                storeProfile={realStoreProfile || STORE_PROFILE}
+                                availableCouriers={availableCouriers}
+                                customers={customers}
+                                settings={settings}
+                                balance={realStoreProfile?.wallet_balance || 0}
+                                unreadMessages={unreadMessages}
+                                onSelectOrder={setSelectedOrderDetails}
+                                onAcceptIFoodOrder={handleAcceptIFoodOrder}
+                                onAccept99FoodOrder={handleAccept99FoodOrder}
+                                onSimulate99FoodOrder={isTestEnvironment ? handleSimulate99FoodOrder : undefined}
+                                onAcceptAnotaAiOrder={handleAcceptAnotaAiOrder}
+                                onSimulateAnotaAiOrder={isTestEnvironment ? handleSimulateAnotaAiOrder : undefined}
+                                onMarkAsReady={handleMarkAsReady}
+                                onValidatePickup={handleValidatePickup}
+                                onCancelOrder={handleCancelOrder}
+                                onConfirmReturn={handleConfirmReturn}
+                                onSimulateAccept={isTestEnvironment ? handleSimulateAccept : undefined}
+                                onNavigateToDispatch={() => setCurrentView('operational')}
+                                onToggleStatus={toggleStoreStatus}
+                                mapboxToken={MAPBOX_TOKEN}
+                                onBulkAssign={handleBulkAssign}
+                                onDirectAssignCourier={handleDirectAssignCourier}
+                            />
+                        ) : null;
+                    })()}
 
                     {currentView === 'dashboard' && (
                         <DashboardTab
