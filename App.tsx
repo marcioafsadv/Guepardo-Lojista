@@ -2301,6 +2301,7 @@ function App() {
                         batchId: batchIdToUse,
                         pickupCode: finalCollectionCode,
                         targetCourierId: courierId,
+                        isBatch: (orderIds.length + existingActive.length) > 1,
                     }
                 };
 
@@ -2329,13 +2330,32 @@ function App() {
             // Optimistic update of local state
             const targetCourier = availableCouriers.find(c => c.id === courierId);
             if (targetCourier) {
+                const effectiveStatus = (targetStatusToUse && targetStatusToUse !== 'in_transit')
+                    ? mapSupabaseStatusToLocal(targetStatusToUse)
+                    : OrderStatus.ACCEPTED;
+
                 setOrders(prev => prev.map(o => {
                     if (orderIds.includes(o.id)) {
                         return {
                             ...o,
                             courier: targetCourier,
-                            status: OrderStatus.ACCEPTED,
-                            batchId: batchIdToUse
+                            status: effectiveStatus,
+                            batchId: batchIdToUse,
+                            batch_id: batchIdToUse,
+                            isBatch: (orderIds.length + existingActive.length) > 1,
+                            pickupCode: finalCollectionCode,
+                            stopNumber: stopNumberMap.get(o.id) || o.stopNumber,
+                        };
+                    }
+                    if (existingActive.some(e => e.id === o.id)) {
+                        return {
+                            ...o,
+                            courier: targetCourier,
+                            batchId: batchIdToUse,
+                            batch_id: batchIdToUse,
+                            isBatch: (orderIds.length + existingActive.length) > 1,
+                            pickupCode: finalCollectionCode,
+                            stopNumber: stopNumberMap.get(o.id) || o.stopNumber,
                         };
                     }
                     return o;
@@ -2364,9 +2384,14 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
-            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).map(o => o.id)
-            : [orderId];
+        const orderIds = (orderToUpdate.batchOrders && orderToUpdate.batchOrders.length > 0)
+            ? orderToUpdate.batchOrders.map(b => b.id)
+            : (orderToUpdate.batch_id || orderToUpdate.isBatch)
+                ? orders.filter(o => 
+                    (o.id === orderId || (orderToUpdate.batch_id && o.batch_id === orderToUpdate.batch_id) || (orderToUpdate.courier?.id && o.courier?.id === orderToUpdate.courier.id)) &&
+                    o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED
+                ).map(o => o.id)
+                : [orderId];
 
         // Optimistic update for all involved orders
         setOrders(prev => prev.map(o => {
@@ -2441,9 +2466,14 @@ function App() {
         const orderToUpdate = orders.find(o => o.id === orderId);
         if (!orderToUpdate) return;
 
-        const orderIds = (orderToUpdate.batch_id || orderToUpdate.isBatch)
-            ? orders.filter(o => (o.batch_id === orderToUpdate.batch_id || o.id === orderId) && o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED).map(o => o.id)
-            : [orderId];
+        const orderIds = (orderToUpdate.batchOrders && orderToUpdate.batchOrders.length > 0)
+            ? orderToUpdate.batchOrders.map(b => b.id)
+            : (orderToUpdate.batch_id || orderToUpdate.isBatch)
+                ? orders.filter(o => 
+                    (o.id === orderId || (orderToUpdate.batch_id && o.batch_id === orderToUpdate.batch_id) || (orderToUpdate.courier?.id && o.courier?.id === orderToUpdate.courier.id)) &&
+                    o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED
+                ).map(o => o.id)
+                : [orderId];
 
         if (orderIds.length === 0) {
             console.warn("⚠️ [handleValidatePickup] No order IDs to update.");
@@ -2767,79 +2797,10 @@ function App() {
         setTimeout(() => setNotification(null), 5000);
     };
 
-    // Direct courier assignment for iFood orders - updates existing delivery without creating a new one
+    // Direct courier assignment - delegates to handleBulkAssign to ensure full batch grouping & pricing
     const handleDirectAssignCourier = async (order: Order, courierId: string) => {
-        console.log("🚀 [handleDirectAssignCourier] Assigning courier", courierId, "to order", order.id);
-        try {
-            const courier = availableCouriers.find(c => c.id === courierId);
-            if (!courier) throw new Error("Entregador não encontrado");
-
-            // Check for active batches (batch the order if courier already has one)
-            const { data: activeDeliveries } = await supabase
-                .from('deliveries')
-                .select('*')
-                .eq('driver_id', courierId)
-                .in('status', ['accepted', 'to_store', 'arrived_pickup', 'picking_up', 'ready_for_pickup', 'in_transit', 'returning']);
-
-            const existingBatchId = activeDeliveries?.find(d => d.batch_id)?.batch_id || null;
-            const isFixedDriver = !!(realStoreProfile?.active_fixed_drivers?.includes(courierId));
-            const isHybridDriver = !!(realStoreProfile?.active_hybrid_drivers?.includes(courierId));
-            const newStatus = (isFixedDriver || isHybridDriver || (activeDeliveries && activeDeliveries.length > 0)) ? 'accepted' : 'accepted';
-
-            // Update existing delivery record in-place (preserves display_id, external_order_id, collection_code)
-            // First fetch existing items to merge rather than overwrite
-            const { data: existingDelivery } = await supabase
-                .from('deliveries')
-                .select('items')
-                .eq('id', order.id)
-                .single();
-
-            const { error: updateErr } = await supabase
-                .from('deliveries')
-                .update({
-                    driver_id: courierId,
-                    status: newStatus,
-                    batch_id: existingBatchId,
-                    items: {
-                        ...(existingDelivery?.items || {}),
-                        targetCourierId: courierId,
-                    }
-                })
-                .eq('id', order.id);
-
-            if (updateErr) throw updateErr;
-
-            // Update local state optimistically
-            const newEvent: OrderEvent = {
-                status: OrderStatus.ACCEPTED,
-                label: "Entregador Atribuído",
-                timestamp: new Date(),
-                description: `${courier.name} (${courier.vehiclePlate}) foi atribuído ao pedido.`
-            };
-            const updatedOrder = { ...order, status: OrderStatus.ACCEPTED, courier, events: [...order.events, newEvent] };
-            setOrders(prev => prev.map(o => o.id === order.id ? updatedOrder : o));
-            setActiveOrder(updatedOrder);
-
-            // Send dispatch signal to iFood if this is an iFood order
-            if (order.external_source === 'IFOOD' && order.external_order_id) {
-                console.log("📡 [handleDirectAssignCourier] Sending readyToPickup + dispatch to iFood for order", order.external_order_id);
-                await supabase.functions.invoke('ifood-webhook', {
-                    body: { action: 'readyToPickup', orderId: order.external_order_id }
-                });
-                await supabase.functions.invoke('ifood-webhook', {
-                    body: { action: 'dispatchOrder', orderId: order.external_order_id }
-                });
-            }
-
-            setNotification({ title: "Entregador Atribuído!", message: `${courier.name} foi vinculado ao pedido #${order.display_id || order.id.slice(-4)}.` });
-            setTimeout(() => setNotification(null), 4000);
-            console.log("✅ [handleDirectAssignCourier] Done.");
-        } catch (err: any) {
-            console.error("❌ [handleDirectAssignCourier] Error:", err);
-            setNotification({ title: "Erro", message: "Falha ao atribuir entregador. Tente novamente." });
-            setTimeout(() => setNotification(null), 4000);
-            throw err;
-        }
+        console.log("🚀 [handleDirectAssignCourier] Delegating to handleBulkAssign for order", order.id, "to courier", courierId);
+        await handleBulkAssign([order.id], courierId);
     };
 
     const handleAcceptIFoodOrder = async (orderId: string) => {

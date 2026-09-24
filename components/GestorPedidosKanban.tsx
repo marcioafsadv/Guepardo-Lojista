@@ -175,11 +175,29 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     }
   };
 
-  const toggleSelectOrder = (orderId: string, e?: React.MouseEvent) => {
+  const isOrderSelected = (order: Order) => {
+    if (order.isBatch && order.batchOrders && order.batchOrders.length > 0) {
+      return order.batchOrders.every(b => selectedOrderIds.includes(b.id));
+    }
+    return selectedOrderIds.includes(order.id);
+  };
+
+  const toggleSelectOrder = (orderOrId: Order | string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setSelectedOrderIds(prev => 
-      prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
-    );
+    const idsToToggle: string[] = typeof orderOrId === 'string'
+      ? [orderOrId]
+      : (orderOrId.isBatch && orderOrId.batchOrders && orderOrId.batchOrders.length > 0)
+        ? orderOrId.batchOrders.map(b => b.id)
+        : [orderOrId.id];
+
+    setSelectedOrderIds(prev => {
+      const allSelected = idsToToggle.every(id => prev.includes(id));
+      if (allSelected) {
+        return prev.filter(id => !idsToToggle.includes(id));
+      } else {
+        return Array.from(new Set([...prev, ...idsToToggle]));
+      }
+    });
   };
 
   // Filtro de busca e canal
@@ -200,7 +218,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         const idMatch = order.id.toLowerCase().includes(term);
         const phoneMatch = order.clientPhone?.includes(term);
         const addressMatch = order.destination?.toLowerCase().includes(term);
-        if (!clientNameMatch && !displayIdMatch && !idMatch && !phoneMatch && !addressMatch) {
+        const courierMatch = order.courier?.name?.toLowerCase().includes(term);
+        if (!clientNameMatch && !displayIdMatch && !idMatch && !phoneMatch && !addressMatch && !courierMatch) {
           return false;
         }
       }
@@ -208,20 +227,134 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     });
   }, [orders, channelFilter, searchTerm]);
 
+  // ─── AGRUPAMENTO EM LOTE (BATCHING CONSOLIDADO) ───────────────────────────
+  // Unifica pedidos que compartilham batch_id ou mesmo entregador ativo em rota
+  const groupedOrders = useMemo(() => {
+    // Pedidos pendentes de aceite do lojista (Coluna 1) permanecem individuais
+    const isAcceptOrder = (o: Order) => {
+      return (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
+             (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
+    };
+
+    const acceptOrders: Order[] = [];
+    const activeCandidates: Order[] = [];
+    const deliveredOrders: Order[] = [];
+
+    filteredOrders.forEach(o => {
+      if (isAcceptOrder(o)) {
+        acceptOrders.push(o);
+      } else if (o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED) {
+        deliveredOrders.push(o);
+      } else {
+        activeCandidates.push(o);
+      }
+    });
+
+    const batchGroups = new Map<string, Order[]>();
+    const courierOnlyGroups = new Map<string, Order[]>();
+    const singleOrders: Order[] = [];
+
+    activeCandidates.forEach(order => {
+      if (order.batch_id) {
+        if (!batchGroups.has(order.batch_id)) {
+          batchGroups.set(order.batch_id, []);
+        }
+        batchGroups.get(order.batch_id)!.push(order);
+      } else if (order.courier?.id) {
+        const driverId = order.courier.id;
+        if (!courierOnlyGroups.has(driverId)) {
+          courierOnlyGroups.set(driverId, []);
+        }
+        courierOnlyGroups.get(driverId)!.push(order);
+      } else {
+        singleOrders.push(order);
+      }
+    });
+
+    // Mesclar courierOnlyGroups nos batchGroups se o entregador já possui pedidos em batchGroups
+    for (const [driverId, cOrders] of courierOnlyGroups.entries()) {
+      let merged = false;
+      for (const [, bOrders] of batchGroups.entries()) {
+        if (bOrders.some(b => b.courier?.id === driverId)) {
+          bOrders.push(...cOrders);
+          merged = true;
+          break;
+        }
+      }
+      if (!merged) {
+        if (cOrders.length > 1) {
+          batchGroups.set(`courier-${driverId}`, cOrders);
+        } else {
+          singleOrders.push(...cOrders);
+        }
+      }
+    }
+
+    const processedBatches: Order[] = Array.from(batchGroups.values()).map(batch => {
+      if (batch.length === 1) {
+        return batch[0];
+      }
+
+      const sortedBatch = [...batch].sort((a, b) => (a.stopNumber || 0) - (b.stopNumber || 0));
+      const mainOrder = sortedBatch[0];
+      const totalDeliveryValue = batch.reduce((acc, o) => acc + (o.deliveryValue || o.estimatedPrice || 0), 0);
+      const totalEstimatedPrice = batch.reduce((acc, o) => acc + (o.estimatedPrice || o.storeFreight || 0), 0);
+      const statuses = batch.map(o => o.status);
+
+      // Status Consolidado do Lote:
+      // Se qualquer pedido estiver em trânsito ou retornando -> Em Rota
+      // Se o motoboy chegou na loja (ARRIVED_AT_STORE) ou se todos estão prontos -> Pronto / Na Loja
+      // Se qualquer um estiver pronto e o motoboy estiver na loja -> ARRIVED_AT_STORE
+      // Se algum estiver pronto -> READY_FOR_PICKUP
+      // Se o motoboy já foi aceito / a caminho -> ACCEPTED (Em Preparo)
+      let batchStatus = OrderStatus.ACCEPTED;
+      if (statuses.includes(OrderStatus.IN_TRANSIT)) {
+        batchStatus = OrderStatus.IN_TRANSIT;
+      } else if (statuses.includes(OrderStatus.RETURNING)) {
+        batchStatus = OrderStatus.RETURNING;
+      } else if (statuses.includes(OrderStatus.ARRIVED_AT_STORE)) {
+        batchStatus = OrderStatus.ARRIVED_AT_STORE;
+      } else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) {
+        batchStatus = OrderStatus.READY_FOR_PICKUP;
+      } else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) {
+        batchStatus = OrderStatus.ACCEPTED;
+      }
+
+      const sharedPickupCode = batch.find(o => o.pickupCode)?.pickupCode || mainOrder.pickupCode;
+      const combinedDisplayId = sortedBatch.map(o => o.display_id || o.id.slice(-4)).join(' + ');
+
+      return {
+        ...mainOrder,
+        id: mainOrder.id,
+        isBatch: true,
+        batchOrders: sortedBatch,
+        status: batchStatus,
+        pickupCode: sharedPickupCode,
+        display_id: combinedDisplayId,
+        clientName: `Lote (${sortedBatch.length} Pedidos) • ${mainOrder.courier?.name || 'Guepardo'}`,
+        destination: `${sortedBatch.length} entregas agrupadas no roteiro`,
+        deliveryValue: totalDeliveryValue,
+        estimatedPrice: totalEstimatedPrice
+      };
+    });
+
+    return [...acceptOrders, ...processedBatches, ...singleOrders, ...deliveredOrders];
+  }, [filteredOrders]);
+
   // ─── 5 COLUNAS DA JORNADA OPERACIONAL ──────────────────────────────────────
 
   // 1. Coluna ACEITAR: Pedidos pendentes de confirmação (ex: iFood / 99 / WhatsApp pendentes de aceite do lojista)
   const colAccept = useMemo(() => {
-    return filteredOrders.filter(o => {
+    return groupedOrders.filter(o => {
       const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
                                 (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
       return isExternalPending;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   // 2. Coluna EM PREPARO / BUSCANDO: Cozinha preparando, aguardando ou motoboy a caminho da loja
   const colPrep = useMemo(() => {
-    return filteredOrders.filter(o => {
+    return groupedOrders.filter(o => {
       // Ignorar se estiver aguardando aceite na Coluna 1
       const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
                                 (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
@@ -234,11 +367,11 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         o.status === OrderStatus.TO_STORE
       );
     }).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   // 3. Coluna PRONTO / GUEPARDO NA LOJA: Pedido embalado ou motoboy já no balcão aguardando entrega
   const colReady = useMemo(() => {
-    return filteredOrders.filter(o => {
+    return groupedOrders.filter(o => {
       return (
         o.status === OrderStatus.READY_FOR_PICKUP ||
         o.status === OrderStatus.ARRIVED_AT_STORE
@@ -250,14 +383,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
       if (aAtStore !== bAtStore) return aAtStore - bAtStore;
       return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   // 4. Coluna EM ROTA: Motoboy em trânsito com a entrega até o cliente (ou retornando)
   const colInTransit = useMemo(() => {
-    return filteredOrders.filter(o => {
+    return groupedOrders.filter(o => {
       return o.status === OrderStatus.IN_TRANSIT || o.status === OrderStatus.RETURNING;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   // 5. Coluna FINALIZADOS: Concluídos hoje
   const colDelivered = useMemo(() => {
@@ -275,10 +408,10 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
 
   // Pedidos ativos para o mapa ao vivo
   const activeOrdersForMap = useMemo(() => {
-    return filteredOrders.filter(o => 
+    return groupedOrders.filter(o => 
       o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED
     );
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   // Manipulador de Aceite Rápido
   const handleQuickAccept = async (order: Order, e: React.MouseEvent) => {
@@ -555,8 +688,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedOrderIds.includes(order.id)}
-                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        checked={isOrderSelected(order)}
+                        onChange={(e) => toggleSelectOrder(order, e)}
                         onClick={(e) => e.stopPropagation()}
                         className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
                         title="Selecionar para agregar em lote"
@@ -632,15 +765,19 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 scrollbar-guepardo">
             {colPrep.map(order => {
               const hasCourier = !!order.courier;
+              const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
+              const selected = isOrderSelected(order);
 
               return (
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
                   className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
-                    selectedOrderIds.includes(order.id)
+                    selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
-                      : 'border-white/10 hover:border-amber-500/60'
+                      : isBatch
+                        ? 'border-amber-500/50 hover:border-amber-400 bg-amber-950/10'
+                        : 'border-white/10 hover:border-amber-500/60'
                   }`}
                 >
                   {/* Topo do Card */}
@@ -648,8 +785,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedOrderIds.includes(order.id)}
-                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        checked={selected}
+                        onChange={(e) => toggleSelectOrder(order, e)}
                         onClick={(e) => e.stopPropagation()}
                         className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
                         title="Selecionar para agregar em lote"
@@ -657,7 +794,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <span className="text-sm font-black text-white group-hover:text-amber-400 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
-                      {renderChannelBadge(order)}
+                      {isBatch ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm">
+                          <Layers size={10} />
+                          Lote ({order.batchOrders?.length})
+                        </span>
+                      ) : (
+                        renderChannelBadge(order)
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
                       <Clock size={11} />
@@ -665,10 +809,46 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </div>
                   </div>
 
-                  {/* Nome do Cliente */}
-                  <p className="text-xs font-bold text-white truncate mb-1">
-                    {order.clientName || 'Cliente'}
-                  </p>
+                  {/* Nome do Cliente ou Lista de Paradas do Lote */}
+                  {isBatch ? (
+                    <div className="space-y-1.5 my-2">
+                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <p className="text-[10px] font-black text-amber-300 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                          <Layers size={12} />
+                          <span>Roteiro Consolidado ({order.batchOrders?.length} Entregas)</span>
+                        </p>
+                        <div className="space-y-1">
+                          {order.batchOrders?.map((subOrder, idx) => (
+                            <div key={subOrder.id} className="p-1.5 rounded bg-black/50 border border-white/5 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="w-4 h-4 rounded-full bg-amber-500/30 text-amber-300 text-[9px] font-black flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="truncate">
+                                  <span className="font-bold text-white text-[11px] truncate">
+                                    #{subOrder.display_id || subOrder.id.slice(-4)} • {subOrder.clientName || 'Cliente'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-white/50 shrink-0 ml-1">
+                                R$ {(subOrder.deliveryValue || subOrder.estimatedPrice || 0).toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-white truncate mb-1">
+                        {order.clientName || 'Cliente'}
+                      </p>
+                      <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-2">
+                        <MapPin size={10} className="shrink-0 text-white/30" />
+                        <span>{order.destination}</span>
+                      </p>
+                    </>
+                  )}
 
                   {/* Status do Entregador (Buscando vs A Caminho da Loja) */}
                   <div className="my-2 p-2 bg-white/5 rounded-lg border border-white/5">
@@ -682,12 +862,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                             <p className="text-[10px] font-black text-amber-300 truncate">
                               {order.courier?.name}
                             </p>
-                            <p className="text-[9px] text-white/40">A caminho da loja</p>
+                            <p className="text-[9px] text-white/40">
+                              {isBatch ? 'Piloto do Lote • A caminho' : 'A caminho da loja'}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                            onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                             className="p-1.5 hover:bg-amber-500/20 rounded-lg text-amber-300 hover:text-white transition-colors"
                             title="Trocar ou agregar para outro Guepardo"
                           >
@@ -720,7 +902,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setAssignModalOrders([order]);
+                            setAssignModalOrders(order.batchOrders || [order]);
                           }}
                           className="px-2.5 py-1 bg-gradient-to-r from-orange-600/30 to-[#FF6B00]/30 hover:from-orange-600 hover:to-[#FF6B00] text-orange-300 hover:text-black border border-orange-500/40 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
                           title="Agregar este pedido a um Guepardo"
@@ -740,12 +922,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onMarkAsReady(order.id);
+                        if (order.isBatch && order.batchOrders) {
+                          order.batchOrders.forEach(o => onMarkAsReady(o.id));
+                        } else {
+                          onMarkAsReady(order.id);
+                        }
                       }}
                       className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 border border-amber-500/40 text-amber-300 hover:text-black rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
                     >
                       <Check size={12} strokeWidth={2.5} />
-                      <span>Marcar Pronto</span>
+                      <span>{isBatch ? 'Marcar Pronto (Lote)' : 'Marcar Pronto'}</span>
                     </button>
                   </div>
                 </div>
@@ -781,17 +967,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 scrollbar-guepardo">
             {colReady.map(order => {
               const isDriverAtStore = order.status === OrderStatus.ARRIVED_AT_STORE;
+              const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
+              const selected = isOrderSelected(order);
 
               return (
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
                   className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
-                    selectedOrderIds.includes(order.id)
+                    selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
                       : isDriverAtStore 
-                        ? 'border-cyan-400/80 ring-2 ring-cyan-500/30' 
-                        : 'border-white/10 hover:border-cyan-400/60'
+                        ? 'border-cyan-400/80 ring-2 ring-cyan-500/30 bg-cyan-950/20' 
+                        : isBatch
+                          ? 'border-cyan-500/50 hover:border-cyan-400 bg-cyan-950/10'
+                          : 'border-white/10 hover:border-cyan-400/60'
                   }`}
                 >
                   {/* Topo do Card */}
@@ -799,8 +989,8 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={selectedOrderIds.includes(order.id)}
-                        onChange={(e) => toggleSelectOrder(order.id, e)}
+                        checked={selected}
+                        onChange={(e) => toggleSelectOrder(order, e)}
                         onClick={(e) => e.stopPropagation()}
                         className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
                         title="Selecionar para agregar em lote"
@@ -808,7 +998,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <span className="text-sm font-black text-white group-hover:text-cyan-300 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
-                      {renderChannelBadge(order)}
+                      {isBatch ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm">
+                          <Layers size={10} />
+                          Lote ({order.batchOrders?.length})
+                        </span>
+                      ) : (
+                        renderChannelBadge(order)
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-white/40 font-bold">
                       <Clock size={11} />
@@ -816,10 +1013,46 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </div>
                   </div>
 
-                  {/* Nome do Cliente */}
-                  <p className="text-xs font-bold text-white truncate mb-1">
-                    {order.clientName || 'Cliente'}
-                  </p>
+                  {/* Nome do Cliente ou Lista de Paradas do Lote */}
+                  {isBatch ? (
+                    <div className="space-y-1.5 my-2">
+                      <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                        <p className="text-[10px] font-black text-cyan-300 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                          <Layers size={12} />
+                          <span>Roteiro de Retirada ({order.batchOrders?.length} Pedidos)</span>
+                        </p>
+                        <div className="space-y-1">
+                          {order.batchOrders?.map((subOrder, idx) => (
+                            <div key={subOrder.id} className="p-1.5 rounded bg-black/50 border border-white/5 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="w-4 h-4 rounded-full bg-cyan-500/30 text-cyan-300 text-[9px] font-black flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="truncate">
+                                  <span className="font-bold text-white text-[11px] truncate">
+                                    #{subOrder.display_id || subOrder.id.slice(-4)} • {subOrder.clientName || 'Cliente'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-cyan-200/70 shrink-0 ml-1">
+                                R$ {(subOrder.deliveryValue || subOrder.estimatedPrice || 0).toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-white truncate mb-1">
+                        {order.clientName || 'Cliente'}
+                      </p>
+                      <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-2">
+                        <MapPin size={10} className="shrink-0 text-white/30" />
+                        <span>{order.destination}</span>
+                      </p>
+                    </>
+                  )}
 
                   {/* Destaque: Guepardo Chegou na Loja vs Status de Entrega */}
                   {isDriverAtStore ? (
@@ -831,7 +1064,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         </span>
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                         className="p-1 hover:bg-cyan-500/30 rounded text-cyan-200 hover:text-white transition-colors shrink-0"
                         title="Trocar ou agregar para outro Guepardo"
                       >
@@ -848,12 +1081,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           <p className="text-[10px] font-black text-cyan-300 truncate">
                             {order.courier?.name}
                           </p>
-                          <p className="text-[9px] text-white/40">Pronto • A caminho da retirada</p>
+                          <p className="text-[9px] text-white/40">
+                            {isBatch ? 'Piloto do Lote • A caminho da retirada' : 'Pronto • A caminho da retirada'}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                          onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                           className="p-1.5 hover:bg-cyan-500/20 rounded-lg text-cyan-300 hover:text-white transition-colors"
                           title="Trocar ou agregar para outro Guepardo"
                         >
@@ -877,7 +1112,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAssignModalOrders([order]);
+                          setAssignModalOrders(order.batchOrders || [order]);
                         }}
                         className="px-2.5 py-1 bg-gradient-to-r from-orange-600/30 to-[#FF6B00]/30 hover:from-orange-600 hover:to-[#FF6B00] text-orange-300 hover:text-black border border-orange-500/40 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
                         title="Agregar este pedido a um Guepardo"
@@ -901,7 +1136,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       className="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:shadow-cyan-500/30 active:scale-95 transition-all"
                     >
                       <ShieldCheck size={13} strokeWidth={2.5} />
-                      <span>Liberar Coleta</span>
+                      <span>{isBatch ? 'Liberar Coleta (Lote)' : 'Liberar Coleta'}</span>
                     </button>
                   </div>
                 </div>
@@ -937,12 +1172,17 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 scrollbar-guepardo">
             {colInTransit.map(order => {
               const isReturning = order.status === OrderStatus.RETURNING;
+              const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
 
               return (
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className="group relative bg-black/80 hover:bg-black border border-white/10 hover:border-emerald-500/60 rounded-xl p-3.5 transition-all cursor-pointer shadow-lg"
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg ${
+                    isBatch
+                      ? 'border-emerald-500/50 hover:border-emerald-400 bg-emerald-950/10'
+                      : 'border border-white/10 hover:border-emerald-500/60'
+                  }`}
                 >
                   {/* Topo do Card */}
                   <div className="flex items-center justify-between mb-2">
@@ -950,7 +1190,14 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       <span className="text-sm font-black text-white group-hover:text-emerald-400 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
-                      {renderChannelBadge(order)}
+                      {isBatch ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+                          <Layers size={10} />
+                          Lote ({order.batchOrders?.length})
+                        </span>
+                      ) : (
+                        renderChannelBadge(order)
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
                       <Navigation size={11} className="animate-spin" />
@@ -958,14 +1205,61 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </div>
                   </div>
 
-                  {/* Nome do Cliente e Destino */}
-                  <p className="text-xs font-bold text-white truncate mb-1">
-                    {order.clientName || 'Cliente'}
-                  </p>
-                  <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-2">
-                    <MapPin size={10} className="shrink-0 text-white/30" />
-                    <span>{order.destination}</span>
-                  </p>
+                  {/* Nome do Cliente ou Lista de Paradas */}
+                  {isBatch ? (
+                    <div className="space-y-1.5 my-2">
+                      <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-[10px] font-black text-emerald-300 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                          <Layers size={12} />
+                          <span>Roteiro em Andamento ({order.batchOrders?.length} Paradas)</span>
+                        </p>
+                        <div className="space-y-1.5">
+                          {order.batchOrders?.map((subOrder, idx) => (
+                            <div key={subOrder.id} className="p-2 rounded bg-black/60 border border-white/5 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5 truncate min-w-0">
+                                <span className="w-4 h-4 rounded-full bg-emerald-500/30 text-emerald-300 text-[9px] font-black flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="truncate">
+                                  <p className="font-bold text-white text-[11px] truncate">
+                                    #{subOrder.display_id || subOrder.id.slice(-4)} • {subOrder.clientName || 'Cliente'}
+                                  </p>
+                                  <p className="text-[9px] text-white/40 truncate flex items-center gap-1">
+                                    <MapPin size={9} className="shrink-0 text-white/30" />
+                                    <span>{subOrder.destination}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              {subOrder.clientPhone && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const phone = subOrder.clientPhone?.replace(/\D/g, '');
+                                    const msg = `Olá ${subOrder.clientName}, seu pedido #${subOrder.display_id || subOrder.id.slice(-4)} já está a caminho!`;
+                                    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                                  }}
+                                  className="p-1 hover:bg-emerald-600/30 rounded text-emerald-400 hover:text-emerald-300 transition-colors shrink-0 ml-1.5"
+                                  title="WhatsApp do Cliente"
+                                >
+                                  <Phone size={12} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-white truncate mb-1">
+                        {order.clientName || 'Cliente'}
+                      </p>
+                      <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-2">
+                        <MapPin size={10} className="shrink-0 text-white/30" />
+                        <span>{order.destination}</span>
+                      </p>
+                    </>
+                  )}
 
                   {/* Detalhes do Piloto em Rota */}
                   <div className="my-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between">
@@ -984,7 +1278,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     {/* Ações Rápidas: Trocar/Agregar, Chat e Zap */}
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders([order]); }}
+                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                         className="p-1.5 hover:bg-white/10 rounded-lg text-emerald-400 hover:text-white transition-colors"
                         title="Trocar ou agregar para outro Guepardo"
                       >
@@ -999,7 +1293,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           <MessageSquare size={13} />
                         </button>
                       )}
-                      {order.clientPhone && (
+                      {!isBatch && order.clientPhone && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1041,7 +1335,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                       >
                         <MapPin size={12} />
-                        <span>Ver Rastreio</span>
+                        <span>{isBatch ? 'Ver Rastreio (Lote)' : 'Ver Rastreio'}</span>
                       </button>
                     )}
                   </div>
@@ -1542,7 +1836,11 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
           order={validatingOrder}
           onClose={() => setValidatingOrder(null)}
           onSuccess={() => {
-            onValidatePickup(validatingOrder.id);
+            if (validatingOrder.isBatch && validatingOrder.batchOrders && validatingOrder.batchOrders.length > 0) {
+              validatingOrder.batchOrders.forEach(o => onValidatePickup(o.id));
+            } else {
+              onValidatePickup(validatingOrder.id);
+            }
             setValidatingOrder(null);
           }}
         />
