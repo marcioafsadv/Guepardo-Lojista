@@ -478,6 +478,22 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
     }
   };
 
+  // Manipulador para abrir Chat com Entregador / Cliente
+  const handleOpenChat = (order: Order, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (onOpenChat) {
+      onOpenChat(order);
+    }
+    setChatOrder(order);
+  };
+
+  // Helper para contagem de mensagens não lidas com o entregador
+  const getCourierUnreadCount = (orderId: string) => {
+    const orderUnread = unreadMessages?.[orderId];
+    if (!orderUnread) return 0;
+    return (orderUnread.STORE_COURIER || 0) + (orderUnread.COURIER_STORE || 0);
+  };
+
   // Helper para renderizar Badge do Canal
   const renderChannelBadge = (order: Order) => {
     if (order.requestSource === 'IFOOD' || order.external_source === 'IFOOD') {
@@ -1148,7 +1164,20 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          {/* Balão de Conversa com o Entregador Guepardo (Recuperado) */}
+                          <button
+                            onClick={(e) => handleOpenChat(order, e)}
+                            className="relative p-1.5 bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-300 hover:text-white rounded-lg transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                            title={`Conversar no Chat com ${order.courier?.name || 'o entregador'}`}
+                          >
+                            <MessageSquare size={13} />
+                            {getCourierUnreadCount(order.id) > 0 && (
+                              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce shadow">
+                                {getCourierUnreadCount(order.id)}
+                              </span>
+                            )}
+                          </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                             className="p-1.5 hover:bg-amber-500/20 rounded-lg text-amber-300 hover:text-white transition-colors"
@@ -1163,15 +1192,6 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           >
                             <MapPin size={13} />
                           </button>
-                          {onOpenChat && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); onOpenChat(order); }}
-                              className="p-1.5 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                              title="Conversar no Chat"
-                            >
-                              <MessageSquare size={13} />
-                            </button>
-                          )}
                         </div>
                       </div>
                     ) : (
@@ -1195,25 +1215,38 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     )}
                   </div>
 
-                  {/* Botão de Ação: Marcar como Pronto */}
+                  {/* Botão de Ação: Chat + Marcar como Pronto */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <span className="text-[10px] text-white/40">
                       R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (order.isBatch && order.batchOrders) {
-                          order.batchOrders.forEach(o => onMarkAsReady(o.id));
-                        } else {
-                          onMarkAsReady(order.id);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 border border-amber-500/40 text-amber-300 hover:text-black rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
-                    >
-                      <Check size={12} strokeWidth={2.5} />
-                      <span>{isBatch ? 'Marcar Pronto (Lote)' : 'Marcar Pronto'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => handleOpenChat(order, e)}
+                        className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                        title={`Conversar com ${order.courier?.name || 'o entregador'}`}
+                      >
+                        <MessageSquare size={12} className="text-amber-400" />
+                        <span>Chat</span>
+                        {getCourierUnreadCount(order.id) > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (order.isBatch && order.batchOrders) {
+                            order.batchOrders.forEach(o => onMarkAsReady(o.id));
+                          } else {
+                            onMarkAsReady(order.id);
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500 border border-amber-500/40 text-amber-300 hover:text-black rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                      >
+                        <Check size={12} strokeWidth={2.5} />
+                        <span>{isBatch ? 'Marcar Pronto (Lote)' : 'Marcar Pronto'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Capinha Translúcida com Número Grande */}
@@ -1363,13 +1396,28 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           {order.courier?.name || 'Guepardo'} CHEGOU NO BALCÃO!
                         </span>
                       </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
-                        className="p-1 hover:bg-cyan-500/30 rounded text-cyan-200 hover:text-white transition-colors shrink-0"
-                        title="Trocar ou agregar para outro Guepardo"
-                      >
-                        <ArrowLeftRight size={13} />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Balão de Conversa com o Entregador Guepardo (Recuperado) */}
+                        <button
+                          onClick={(e) => handleOpenChat(order, e)}
+                          className="relative p-1.5 bg-cyan-500/30 hover:bg-cyan-500/50 border border-cyan-400/50 text-cyan-200 hover:text-white rounded-lg transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                          title={`Conversar no Chat com ${order.courier?.name || 'o entregador'}`}
+                        >
+                          <MessageSquare size={13} />
+                          {getCourierUnreadCount(order.id) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce shadow">
+                              {getCourierUnreadCount(order.id)}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
+                          className="p-1 hover:bg-cyan-500/30 rounded text-cyan-200 hover:text-white transition-colors shrink-0"
+                          title="Trocar ou agregar para outro Guepardo"
+                        >
+                          <ArrowLeftRight size={13} />
+                        </button>
+                      </div>
                     </div>
                   ) : order.courier ? (
                     <div className="my-2 p-2 bg-white/5 rounded-lg border border-white/5 flex items-center justify-between">
@@ -1386,7 +1434,20 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        {/* Balão de Conversa com o Entregador Guepardo (Recuperado) */}
+                        <button
+                          onClick={(e) => handleOpenChat(order, e)}
+                          className="relative p-1.5 bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-500/40 text-cyan-300 hover:text-white rounded-lg transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                          title={`Conversar no Chat com ${order.courier?.name || 'o entregador'}`}
+                        >
+                          <MessageSquare size={13} />
+                          {getCourierUnreadCount(order.id) > 0 && (
+                            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce shadow">
+                              {getCourierUnreadCount(order.id)}
+                            </span>
+                          )}
+                        </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                           className="p-1.5 hover:bg-cyan-500/20 rounded-lg text-cyan-300 hover:text-white transition-colors"
@@ -1423,21 +1484,36 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </div>
                   )}
 
-                  {/* Botão de Ação: Validar Código de Coleta */}
+                  {/* Botão de Ação: Chat + Validar Código de Coleta */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <span className="text-[10px] text-white/40">
                       R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
                     </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setValidatingOrder(order);
-                      }}
-                      className="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:shadow-cyan-500/30 active:scale-95 transition-all"
-                    >
-                      <ShieldCheck size={13} strokeWidth={2.5} />
-                      <span>{isBatch ? 'Liberar Coleta (Lote)' : 'Liberar Coleta'}</span>
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      {order.courier && (
+                        <button
+                          onClick={(e) => handleOpenChat(order, e)}
+                          className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                          title={`Conversar com ${order.courier?.name || 'o entregador'}`}
+                        >
+                          <MessageSquare size={12} className="text-cyan-400" />
+                          <span>Chat</span>
+                          {getCourierUnreadCount(order.id) > 0 && (
+                            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          )}
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setValidatingOrder(order);
+                        }}
+                        className="px-3 py-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md hover:shadow-cyan-500/30 active:scale-95 transition-all"
+                      >
+                        <ShieldCheck size={13} strokeWidth={2.5} />
+                        <span>{isBatch ? 'Liberar Coleta (Lote)' : 'Liberar Coleta'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Capinha Translúcida com Número Grande */}
@@ -1594,8 +1670,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       </div>
                     </div>
 
-                    {/* Ações Rápidas: Trocar/Agregar, Chat e Zap */}
-                    <div className="flex items-center gap-1">
+                    {/* Ações Rápidas: Chat, Trocar/Agregar, Mapa e Zap */}
+                    <div className="flex items-center gap-1.5">
+                      {/* Balão de Conversa com o Entregador Guepardo (Recuperado) */}
+                      <button
+                        onClick={(e) => handleOpenChat(order, e)}
+                        className="relative p-1.5 bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/40 text-emerald-300 hover:text-white rounded-lg transition-all shadow-sm flex items-center gap-1 active:scale-95"
+                        title={`Conversar no Chat com ${order.courier?.name || 'o entregador'}`}
+                      >
+                        <MessageSquare size={13} />
+                        {getCourierUnreadCount(order.id) > 0 && (
+                          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-black flex items-center justify-center animate-bounce shadow">
+                            {getCourierUnreadCount(order.id)}
+                          </span>
+                        )}
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setAssignModalOrders(order.batchOrders || [order]); }}
                         className="p-1.5 hover:bg-white/10 rounded-lg text-emerald-400 hover:text-white transition-colors"
@@ -1603,15 +1692,6 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                       >
                         <ArrowLeftRight size={13} />
                       </button>
-                      {onOpenChat && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onOpenChat(order); }}
-                          className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
-                          title="Abrir Chat"
-                        >
-                          <MessageSquare size={13} />
-                        </button>
-                      )}
                       {!isBatch && order.clientPhone && (
                         <button
                           onClick={(e) => {
@@ -1629,34 +1709,48 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     </div>
                   </div>
 
-                  {/* Rodapé: Ação de Rastreio ao Vivo ou Confirmar Retorno */}
+                  {/* Rodapé: Ação de Chat, Rastreio ao Vivo ou Confirmar Retorno */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <span className="text-[10px] text-white/40">
                       R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
                     </span>
 
-                    {isReturning ? (
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onConfirmReturn(order.id);
-                        }}
-                        className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider"
+                        onClick={(e) => handleOpenChat(order, e)}
+                        className="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                        title={`Conversar com ${order.courier?.name || 'o entregador'}`}
                       >
-                        Confirmar Retorno
+                        <MessageSquare size={12} className="text-emerald-400" />
+                        <span>Chat</span>
+                        {getCourierUnreadCount(order.id) > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        )}
                       </button>
-                    ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTrackingOrder(order);
-                        }}
-                        className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
-                      >
-                        <MapPin size={12} />
-                        <span>{isBatch ? 'Ver Rastreio (Lote)' : 'Ver Rastreio'}</span>
-                      </button>
-                    )}
+
+                      {isReturning ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onConfirmReturn(order.id);
+                          }}
+                          className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-[10px] font-black uppercase tracking-wider"
+                        >
+                          Confirmar Retorno
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTrackingOrder(order);
+                          }}
+                          className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                        >
+                          <MapPin size={12} />
+                          <span>{isBatch ? 'Ver Rastreio (Lote)' : 'Ver Rastreio'}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Capinha Translúcida com Número Grande */}
