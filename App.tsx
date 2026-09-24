@@ -3029,13 +3029,10 @@ function App() {
 
             console.log("✅ Order confirmed on 99Food and status updated locally to pending:", orderId);
             setNotification({
-                title: "✅ Pedido Aceito!",
-                message: "Pedido em preparo. Buscando entregador Guepardo mais próximo..."
+                title: "✅ Pedido Aceito pela Loja!",
+                message: "Localizando entregador Guepardo mais próximo..."
             });
             setTimeout(() => setNotification(null), 4000);
-
-            // 6. Inicia busca/aceite de motoboy para mover na esteira
-            handleSimulateAccept(orderId);
         } catch (err) {
             console.error("❌ Error confirming 99Food order:", err);
             // Revert optimistic update
@@ -3264,13 +3261,10 @@ function App() {
 
             console.log("✅ Order confirmed on Anota AI and status updated to pending:", orderId);
             setNotification({
-                title: "✅ Pedido Aceito!",
-                message: "Pedido em preparo. Buscando entregador Guepardo mais próximo..."
+                title: "✅ Pedido Aceito pela Loja!",
+                message: "Localizando entregador Guepardo mais próximo..."
             });
             setTimeout(() => setNotification(null), 4000);
-
-            // 5. Inicia busca/aceite de motoboy para mover na esteira
-            handleSimulateAccept(orderId);
         } catch (err) {
             console.error("❌ Error confirming Anota AI order:", err);
             // Revert optimistic update

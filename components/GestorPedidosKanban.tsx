@@ -837,6 +837,11 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               const isUrgent = elapsedMin >= 3;
               const isExternalToAccept = (order.requestSource === 'IFOOD' || order.requestSource === '99FOOD' || order.requestSource === 'ANOTA_AI' || order.external_source) &&
                                         (order.status === OrderStatus.PENDING || order.rawStatus === 'created') && !order.acceptedAt;
+              const isTestOrder = !!(
+                order.external_order_id?.startsWith('99food-test-') ||
+                order.external_order_id?.startsWith('anota-test-') ||
+                order.clientName?.toUpperCase().includes('TESTE')
+              );
               const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
               const selected = isOrderSelected(order);
 
@@ -997,17 +1002,32 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <span>Aceitar</span>
                       </button>
                     ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAssignModalOrders(order.batchOrders || [order]);
-                        }}
-                        className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-[#FF6B00] hover:from-orange-500 hover:to-orange-400 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-orange-500/30 flex items-center gap-1.5 active:scale-95 transition-all"
-                        title="Vincular a um Guepardo disponível ou em rota"
-                      >
-                        <Zap size={12} fill="currentColor" />
-                        <span>Vincular Guepardo</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        {isTestOrder && onSimulateAccept && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSimulateAccept(order.id);
+                            }}
+                            className="px-2.5 py-1.5 bg-amber-500/15 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                            title="Simular que um motoboy aceitou a corrida (modo teste)"
+                          >
+                            <Bike size={11} />
+                            <span>Simular Aceite</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssignModalOrders(order.batchOrders || [order]);
+                          }}
+                          className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-[#FF6B00] hover:from-orange-500 hover:to-orange-400 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-orange-500/30 flex items-center gap-1.5 active:scale-95 transition-all"
+                          title="Vincular a um Guepardo disponível ou em rota"
+                        >
+                          <Zap size={12} fill="currentColor" />
+                          <span>Vincular Guepardo</span>
+                        </button>
+                      </div>
                     )}
                   </div>
 
