@@ -5,7 +5,7 @@ import {
 import { 
   Bike, Clock, AlertTriangle, CheckCircle2, MessageSquare, MapPin, Search, Phone, 
   ExternalLink, ShoppingBag, Radio, ArrowRight, User, ShieldCheck, Flame, ChevronRight, 
-  RefreshCw, X, Eye, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign,
+  RefreshCw, X, Eye, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign, Zap,
   Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
@@ -307,7 +307,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
       // Se qualquer um estiver pronto e o motoboy estiver na loja -> ARRIVED_AT_STORE
       // Se algum estiver pronto -> READY_FOR_PICKUP
       // Se o motoboy já foi aceito / a caminho -> ACCEPTED (Em Preparo)
-      let batchStatus = OrderStatus.ACCEPTED;
+      let batchStatus = mainOrder.courier ? OrderStatus.ACCEPTED : (mainOrder.status || OrderStatus.PENDING);
       if (statuses.includes(OrderStatus.IN_TRANSIT)) {
         batchStatus = OrderStatus.IN_TRANSIT;
       } else if (statuses.includes(OrderStatus.RETURNING)) {
@@ -317,7 +317,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
       } else if (statuses.includes(OrderStatus.READY_FOR_PICKUP)) {
         batchStatus = OrderStatus.READY_FOR_PICKUP;
       } else if (statuses.includes(OrderStatus.ACCEPTED) || statuses.includes(OrderStatus.TO_STORE)) {
-        batchStatus = OrderStatus.ACCEPTED;
+        batchStatus = mainOrder.courier ? OrderStatus.ACCEPTED : (mainOrder.status || OrderStatus.PENDING);
       }
 
       const sharedPickupCode = batch.find(o => o.pickupCode)?.pickupCode || mainOrder.pickupCode;
@@ -331,7 +331,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         status: batchStatus,
         pickupCode: sharedPickupCode,
         display_id: combinedDisplayId,
-        clientName: `Lote (${sortedBatch.length} Pedidos) • ${mainOrder.courier?.name || 'Guepardo'}`,
+        clientName: `Lote (${sortedBatch.length} Pedidos) • ${mainOrder.courier?.name || 'Localizando Guepardo'}`,
         destination: `${sortedBatch.length} entregas agrupadas no roteiro`,
         deliveryValue: totalDeliveryValue,
         estimatedPrice: totalEstimatedPrice
@@ -343,22 +343,31 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
 
   // ─── 5 COLUNAS DA JORNADA OPERACIONAL ──────────────────────────────────────
 
-  // 1. Coluna ACEITAR: Pedidos pendentes de confirmação (ex: iFood / 99 / WhatsApp pendentes de aceite do lojista)
-  const colAccept = useMemo(() => {
-    return groupedOrders.filter(o => {
-      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
-                                (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
-      return isExternalPending;
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Helper para verificar se o pedido está na fase "Localizando Entregador" (Coluna 1)
+  const isLocatingCourier = (o: Order) => {
+    if (o.status === OrderStatus.DELIVERED || o.status === OrderStatus.CANCELED) return false;
+    // 1. Pedidos parceiros (iFood, 99Food, Anota AI) pendentes de confirmação/aceite da loja
+    const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
+                              (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
+    if (isExternalPending) return true;
+    // 2. Pedidos novos ou manuais enquanto nenhum entregador tiver aceito / sido vinculado
+    return !o.courier;
+  };
+
+  // 1. Coluna LOCALIZANDO ENTREGADOR: Pedidos parceiros pendentes de aceite ou pedidos sem entregador
+  const colLocating = useMemo(() => {
+    return groupedOrders.filter(o => isLocatingCourier(o))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [groupedOrders]);
 
-  // 2. Coluna EM PREPARO / BUSCANDO: Cozinha preparando, aguardando ou motoboy a caminho da loja
+  // Alias retrocompatível
+  const colAccept = colLocating;
+
+  // 2. Coluna EM PREPARO: Entregador já aceitou / atribuído, em preparação ou a caminho da loja
   const colPrep = useMemo(() => {
     return groupedOrders.filter(o => {
-      // Ignorar se estiver aguardando aceite na Coluna 1
-      const isExternalPending = (o.requestSource === 'IFOOD' || o.requestSource === '99FOOD' || o.requestSource === 'ANOTA_AI' || o.external_source) &&
-                                (o.status === OrderStatus.PENDING || o.rawStatus === 'created') && !o.acceptedAt;
-      if (isExternalPending) return false;
+      // Ignorar se estiver aguardando entregador na Coluna 1
+      if (isLocatingCourier(o)) return false;
 
       return (
         o.status === OrderStatus.PENDING ||
@@ -372,6 +381,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   // 3. Coluna PRONTO / GUEPARDO NA LOJA: Pedido embalado ou motoboy já no balcão aguardando entrega
   const colReady = useMemo(() => {
     return groupedOrders.filter(o => {
+      if (isLocatingCourier(o)) return false;
       return (
         o.status === OrderStatus.READY_FOR_PICKUP ||
         o.status === OrderStatus.ARRIVED_AT_STORE
@@ -652,35 +662,43 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
         /* ─── KANBAN BOARD (5 COLUNAS) ────────────────────────────────────────── */
         <div className="flex-1 overflow-x-auto overflow-y-hidden p-3 md:p-5 flex gap-3 md:gap-4 scrollbar-guepardo">
         
-        {/* ─── COLUNA 1: ACEITAR ─────────────────────────────────────────────── */}
-        <div className="flex-1 min-w-[270px] max-w-[340px] flex flex-col bg-[#120500]/70 rounded-2xl border border-red-500/20 backdrop-blur-md shadow-xl overflow-hidden">
+        {/* ─── COLUNA 1: LOCALIZANDO ENTREGADOR ───────────────────────────────── */}
+        <div className="flex-1 min-w-[270px] max-w-[340px] flex flex-col bg-[#120500]/70 rounded-2xl border border-orange-500/25 backdrop-blur-md shadow-xl overflow-hidden">
           {/* Header da Coluna */}
-          <div className="p-3.5 bg-gradient-to-r from-red-950/60 to-transparent border-b border-red-500/20 flex items-center justify-between shrink-0">
+          <div className="p-3.5 bg-gradient-to-r from-orange-950/60 to-transparent border-b border-orange-500/20 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping" />
-              <h2 className="text-xs font-black uppercase tracking-wider text-red-400">
-                1. Aceitar
+              <span className="w-2.5 h-2.5 rounded-full bg-[#FF6B00] animate-ping" />
+              <h2 className="text-xs font-black uppercase tracking-wider text-[#FF6B00]">
+                1. Localizando Entregador
               </h2>
             </div>
-            <span className="px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-300 text-[11px] font-black">
-              {colAccept.length}
+            <span className="px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-300 text-[11px] font-black">
+              {colLocating.length}
             </span>
           </div>
 
           {/* Lista de Cards da Coluna 1 */}
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 scrollbar-guepardo">
-            {colAccept.map(order => {
+            {colLocating.map(order => {
               const elapsedMin = getElapsedMinutes(order.createdAt);
               const isUrgent = elapsedMin >= 3;
+              const isExternalToAccept = (order.requestSource === 'IFOOD' || order.requestSource === '99FOOD' || order.requestSource === 'ANOTA_AI' || order.external_source) &&
+                                        (order.status === OrderStatus.PENDING || order.rawStatus === 'created') && !order.acceptedAt;
+              const isBatch = !!(order.isBatch && order.batchOrders && order.batchOrders.length > 1);
+              const selected = isOrderSelected(order);
 
               return (
                 <div
                   key={order.id}
                   onClick={() => onSelectOrder(order)}
-                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg hover:border-red-500/80 ${
-                    selectedOrderIds.includes(order.id)
+                  className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg hover:border-orange-500/80 ${
+                    selected
                       ? 'border-[#FF6B00] ring-2 ring-[#FF6B00]/50 bg-orange-950/20'
-                      : isUrgent ? 'border-red-500/70 ring-1 ring-red-500/50' : 'border-white/10'
+                      : isUrgent && isExternalToAccept
+                        ? 'border-red-500/70 ring-1 ring-red-500/50'
+                        : isBatch
+                          ? 'border-orange-500/40 bg-orange-950/10'
+                          : 'border-white/10 hover:border-orange-500/60'
                   }`}
                 >
                   {/* Topo do Card: ID, Origem, Tempo */}
@@ -688,59 +706,154 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={isOrderSelected(order)}
+                        checked={selected}
                         onChange={(e) => toggleSelectOrder(order, e)}
                         onClick={(e) => e.stopPropagation()}
                         className="w-3.5 h-3.5 rounded border-white/20 bg-black/60 text-[#FF6B00] checked:bg-[#FF6B00] focus:ring-0 cursor-pointer accent-[#FF6B00]"
                         title="Selecionar para agregar em lote"
                       />
-                      <span className="text-sm font-black text-white group-hover:text-red-400 transition-colors">
+                      <span className="text-sm font-black text-white group-hover:text-orange-400 transition-colors">
                         #{order.display_id || order.id.slice(-4)}
                       </span>
-                      {renderChannelBadge(order)}
+                      {isBatch ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-orange-500/20 text-orange-300 border border-orange-500/40 shadow-sm">
+                          <Layers size={10} />
+                          Lote ({order.batchOrders?.length})
+                        </span>
+                      ) : (
+                        renderChannelBadge(order)
+                      )}
                     </div>
-                    <div className={`flex items-center gap-1 text-[10px] font-bold ${isUrgent ? 'text-red-400 font-black' : 'text-white/40'}`}>
-                      <Clock size={11} className={isUrgent ? 'animate-spin' : ''} />
+                    <div className={`flex items-center gap-1 text-[10px] font-bold ${isUrgent && isExternalToAccept ? 'text-red-400 font-black' : 'text-white/40'}`}>
+                      <Clock size={11} className={isUrgent && isExternalToAccept ? 'animate-spin' : ''} />
                       <span>{formatElapsedTime(order.createdAt)}</span>
                     </div>
                   </div>
 
-                  {/* Nome do Cliente e Destino */}
-                  <p className="text-xs font-bold text-white truncate mb-1">
-                    {order.clientName || 'Cliente sem nome'}
-                  </p>
-                  <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-3">
-                    <MapPin size={10} className="shrink-0 text-white/30" />
-                    <span>{order.destination}</span>
-                  </p>
+                  {/* Nome do Cliente e Destino ou Roteiro Consolidado */}
+                  {isBatch ? (
+                    <div className="space-y-1.5 my-2">
+                      <div className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                        <p className="text-[10px] font-black text-orange-300 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                          <Layers size={12} />
+                          <span>Roteiro Consolidado ({order.batchOrders?.length} Entregas)</span>
+                        </p>
+                        <div className="space-y-1">
+                          {order.batchOrders?.map((subOrder, idx) => (
+                            <div key={subOrder.id} className="p-1.5 rounded bg-black/50 border border-white/5 flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5 truncate">
+                                <span className="w-4 h-4 rounded-full bg-orange-500/30 text-orange-300 text-[9px] font-black flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <div className="truncate">
+                                  <span className="font-bold text-white text-[11px] truncate">
+                                    #{subOrder.display_id || subOrder.id.slice(-4)} • {subOrder.clientName || 'Cliente'}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[10px] text-white/50 shrink-0 ml-1">
+                                R$ {(subOrder.deliveryValue || subOrder.estimatedPrice || 0).toFixed(2).replace('.', ',')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-white truncate mb-1">
+                        {order.clientName || 'Cliente sem nome'}
+                      </p>
+                      <p className="text-[10px] text-white/50 truncate flex items-center gap-1 mb-2">
+                        <MapPin size={10} className="shrink-0 text-white/30" />
+                        <span>{order.destination}</span>
+                      </p>
+                    </>
+                  )}
+
+                  {/* Status / Localização de Entregador */}
+                  <div className="my-2 p-2 bg-white/5 rounded-lg border border-white/5">
+                    {isExternalToAccept ? (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[10px] text-amber-400 font-bold">
+                          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                          <span>Aguardando Aceite da Loja</span>
+                        </div>
+                        <button
+                          onClick={(e) => handleQuickAccept(order, e)}
+                          disabled={acceptingOrderId === order.id}
+                          className="px-2.5 py-1 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 disabled:opacity-50 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-orange-500/40 flex items-center gap-1 active:scale-95 transition-all"
+                        >
+                          {acceptingOrderId === order.id ? (
+                            <RefreshCw size={11} className="animate-spin" />
+                          ) : (
+                            <Check size={11} strokeWidth={3} />
+                          )}
+                          <span>Aceitar</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[10px] text-[#FF6B00] font-bold">
+                          <Radio size={12} className="animate-pulse text-[#FF6B00]" />
+                          <span>Buscando Guepardo...</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssignModalOrders(order.batchOrders || [order]);
+                          }}
+                          className="px-2.5 py-1 bg-gradient-to-r from-orange-600/30 to-[#FF6B00]/30 hover:from-orange-600 hover:to-[#FF6B00] text-orange-300 hover:text-black border border-orange-500/40 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm"
+                          title="Agregar este pedido a um Guepardo"
+                        >
+                          <Layers size={11} strokeWidth={2.5} />
+                          <span>Agregar</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Valor e Ação Rápida */}
                   <div className="flex items-center justify-between pt-2 border-t border-white/5">
                     <div className="text-[11px] font-black text-white/70">
                       R$ {(order.deliveryValue || order.estimatedPrice || 0).toFixed(2).replace('.', ',')}
                     </div>
-                    <button
-                      onClick={(e) => handleQuickAccept(order, e)}
-                      disabled={acceptingOrderId === order.id}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-red-600/40 flex items-center gap-1.5 active:scale-95 transition-all"
-                    >
-                      {acceptingOrderId === order.id ? (
-                        <RefreshCw size={12} className="animate-spin" />
-                      ) : (
-                        <Check size={12} strokeWidth={3} />
-                      )}
-                      <span>Aceitar</span>
-                    </button>
+                    {isExternalToAccept ? (
+                      <button
+                        onClick={(e) => handleQuickAccept(order, e)}
+                        disabled={acceptingOrderId === order.id}
+                        className="px-3 py-1.5 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 disabled:opacity-50 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-orange-500/40 flex items-center gap-1.5 active:scale-95 transition-all"
+                      >
+                        {acceptingOrderId === order.id ? (
+                          <RefreshCw size={12} className="animate-spin" />
+                        ) : (
+                          <Check size={12} strokeWidth={3} />
+                        )}
+                        <span>Aceitar</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAssignModalOrders(order.batchOrders || [order]);
+                        }}
+                        className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-[#FF6B00] hover:from-orange-500 hover:to-orange-400 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shadow-md hover:shadow-orange-500/30 flex items-center gap-1.5 active:scale-95 transition-all"
+                        title="Vincular a um Guepardo disponível ou em rota"
+                      >
+                        <Zap size={12} fill="currentColor" />
+                        <span>Vincular Guepardo</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
 
-            {colAccept.length === 0 && (
+            {colLocating.length === 0 && (
               <div className="h-44 flex flex-col items-center justify-center text-center p-4 text-white/20">
-                <CheckCircle2 size={32} className="mb-2 opacity-30" />
-                <p className="text-[11px] font-bold uppercase tracking-wider">Tudo em dia</p>
-                <p className="text-[9px] text-white/20 mt-1">Nenhum pedido aguardando aceite</p>
+                <Radio size={32} className="mb-2 opacity-30 text-[#FF6B00]" />
+                <p className="text-[11px] font-bold uppercase tracking-wider text-white/40">Radar Limpo</p>
+                <p className="text-[9px] text-white/20 mt-1">Nenhum pedido aguardando entregador</p>
               </div>
             )}
           </div>
