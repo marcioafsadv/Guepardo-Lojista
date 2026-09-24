@@ -6,10 +6,11 @@ import {
   Bike, Clock, AlertTriangle, CheckCircle2, MessageSquare, MapPin, Search, Phone, 
   ExternalLink, ShoppingBag, Radio, ArrowRight, User, ShieldCheck, Flame, ChevronRight, 
   RefreshCw, X, Eye, EyeOff, Lock, Check, Send, Sparkles, Navigation, Layers, Plus, DollarSign, Zap,
-  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight
+  Store, Bell, QrCode, CreditCard, Banknote, HelpCircle, Utensils, ArrowLeftRight, Trash2
 } from 'lucide-react';
 import { PickupValidationModal } from './PickupValidationModal';
 import { ChatMultilateralModal } from './ChatMultilateralModal';
+import { CancellationModal } from './CancellationModal';
 import { LeafletMap } from './LeafletMap';
 
 interface GestorPedidosKanbanProps {
@@ -100,6 +101,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
   const [validatingOrder, setValidatingOrder] = useState<Order | null>(null);
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
+  const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
 
   // Modo Capinha de Números Grandes (com persistência em localStorage)
   const [showOrderCover, setShowOrderCover] = useState<boolean>(() => {
@@ -897,6 +899,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <Clock size={11} className={isUrgent && isExternalToAccept ? 'animate-spin' : ''} />
                         <span>{formatElapsedTime(order.createdAt)}</span>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCancellingOrder(order);
+                        }}
+                        className="p-1 hover:bg-red-500/20 text-white/30 hover:text-red-400 rounded-md transition-colors"
+                        title="Cancelar pedido"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
 
@@ -1123,6 +1135,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <Clock size={11} />
                         <span>{formatElapsedTime(order.createdAt)}</span>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCancellingOrder(order);
+                        }}
+                        className="p-1 hover:bg-red-500/20 text-white/30 hover:text-red-400 rounded-md transition-colors"
+                        title="Cancelar pedido"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
 
@@ -1363,6 +1385,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <Clock size={11} />
                         <span>{formatElapsedTime(order.createdAt)}</span>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCancellingOrder(order);
+                        }}
+                        className="p-1 hover:bg-red-500/20 text-white/30 hover:text-red-400 rounded-md transition-colors"
+                        title="Cancelar pedido"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
 
@@ -1617,6 +1649,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <Navigation size={11} className="animate-spin" />
                         <span>{isReturning ? 'Retornando' : 'A caminho'}</span>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCancellingOrder(order);
+                        }}
+                        className="p-1 hover:bg-red-500/20 text-white/30 hover:text-red-400 rounded-md transition-colors"
+                        title="Cancelar pedido"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
 
@@ -2307,6 +2349,21 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
           theme="dark"
           unreadMessages={unreadMessages[chatOrder.id] || {}}
           setUnreadMessages={() => {}}
+        />
+      )}
+
+      {cancellingOrder && (
+        <CancellationModal
+          order={cancellingOrder}
+          onClose={() => setCancellingOrder(null)}
+          onConfirm={(orderId, reason) => {
+            if (cancellingOrder.isBatch && cancellingOrder.batchOrders) {
+              cancellingOrder.batchOrders.forEach(o => onCancelOrder(o.id, reason));
+            } else {
+              onCancelOrder(orderId, reason);
+            }
+            setCancellingOrder(null);
+          }}
         />
       )}
     </div>

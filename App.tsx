@@ -11,6 +11,7 @@ import { SplashScreen } from './components/SplashScreen';
 
 import { OrderDetailsModal } from './components/OrderDetailsModal';
 import { ClientHistoryModal } from './components/ClientHistoryModal';
+import { CancellationModal } from './components/CancellationModal';
 import { classifyClient } from './utils/clientClassifier';
 import { GestaoDePedidos } from './components/GestaoDePedidos';
 import { GestorPedidosKanban } from './components/GestorPedidosKanban';
@@ -113,6 +114,7 @@ function App() {
     const [clientSearch, setClientSearch] = useState('');
     const [historyFilter, setHistoryFilter] = useState('all');
     const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+    const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
     const [unreadMessages, setUnreadMessages] = useState<Record<string, Partial<Record<ChatRoomType, number>>>>({});
     const [openChatId, setOpenChatId] = useState<string | null>(null);
@@ -4017,10 +4019,22 @@ function App() {
                 availableCouriers={availableCouriers}
                 onDirectAssignCourier={handleDirectAssignCourier}
                 onBulkAssign={handleBulkAssign}
-                onCancelClick={(order) => handleCancelOrder(order.id, "Cancelado pelo lojista")}
+                onCancelClick={(order) => setOrderToCancel(order)}
                 onConfirmReturn={handleConfirmReturn}
                 theme="dark"
             />
+
+            {orderToCancel && (
+                <CancellationModal
+                    order={orderToCancel}
+                    onClose={() => setOrderToCancel(null)}
+                    onConfirm={(orderId, reason) => {
+                        handleCancelOrder(orderId, reason);
+                        setOrderToCancel(null);
+                        if (selectedOrderDetails?.id === orderId) setSelectedOrderDetails(null);
+                    }}
+                />
+            )}
 
             <ClientHistoryModal
                 customer={selectedClientDetails}
