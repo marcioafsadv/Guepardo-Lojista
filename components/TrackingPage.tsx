@@ -20,7 +20,33 @@ export const TrackingPage: React.FC = () => {
     }>({});
     const [routeStats, setRouteStats] = useState<any>(null);
     const [isMinimized, setIsMinimized] = useState(false);
+    const [waitingRemaining, setWaitingRemaining] = useState<number>(0);
     const touchStartRef = useRef<number | null>(null);
+
+    // Countdown for 5-Minute Waiting Protocol
+    useEffect(() => {
+        const waitingStart = order?.items?.waitingStartedAt;
+        if (!waitingStart || order?.status === 'completed' || order?.status === 'cancelled') {
+            setWaitingRemaining(0);
+            return;
+        }
+
+        const calcRemaining = () => {
+            const started = new Date(waitingStart).getTime();
+            const elapsed = Math.floor((Date.now() - started) / 1000);
+            return Math.max(0, 300 - elapsed);
+        };
+
+        setWaitingRemaining(calcRemaining());
+
+        const timer = setInterval(() => {
+            const rem = calcRemaining();
+            setWaitingRemaining(rem);
+            if (rem <= 0) clearInterval(timer);
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, [order?.items?.waitingStartedAt, order?.status]);
 
     const handleTouchStart = (e: React.TouchEvent) => {
         touchStartRef.current = e.touches[0].clientY;
@@ -407,6 +433,33 @@ export const TrackingPage: React.FC = () => {
                                     </div>
                                 ))}
                             </div>
+
+                            {/* Alerta de Urgência: Entregador na Portaria (Protocolo de 5 Minutos) */}
+                            {order?.items?.waitingStartedAt && order.status !== 'completed' && order.status !== 'cancelled' && (
+                                <div className="mb-6 bg-red-600/20 border-2 border-red-500 rounded-3xl p-5 shadow-[0_0_30px_rgba(239,68,68,0.4)] animate-pulse">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-red-500 rounded-2xl flex items-center justify-center text-white shrink-0 text-2xl shadow-lg">
+                                            🚨
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Entregador na Portaria!</span>
+                                                <span className="font-mono text-base font-black text-amber-300 bg-black/50 px-2.5 py-0.5 rounded-lg border border-red-500/30">
+                                                    {Math.floor(waitingRemaining / 60).toString().padStart(2, '0')}:{(waitingRemaining % 60).toString().padStart(2, '0')}
+                                                </span>
+                                            </div>
+                                            <h4 className="text-white text-sm font-black leading-snug mt-1">
+                                                {waitingRemaining > 0 
+                                                    ? "Por favor, retire seu pedido nos próximos 5 minutos!" 
+                                                    : "Tempo regulamentar esgotado! Sujeito a devolução à loja."}
+                                            </h4>
+                                            <p className="text-white/70 text-[10px] font-medium mt-0.5">
+                                                O entregador está aguardando no endereço. Apresente o código abaixo para receber.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Código de Entrega (Apenas se o pedido não estiver finalizado ou cancelado) */}
                             {order.collection_code && order.status !== 'completed' && order.status !== 'cancelled' && (

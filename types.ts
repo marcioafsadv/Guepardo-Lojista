@@ -125,6 +125,10 @@ export interface Order {
   external_order_id?: string;
   external_source?: 'IFOOD' | '99FOOD' | 'ANOTA_AI';
   vehicleType?: 'moto' | 'bike' | 'carro';
+  customerMissing?: boolean;
+  waitingStatus?: string;
+  waitingStartedAt?: string;
+  rawItems?: any;
 }
 
 export interface SavedAddress {

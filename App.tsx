@@ -115,6 +115,7 @@ function App() {
     const [historyFilter, setHistoryFilter] = useState('all');
     const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
     const [orderToCancel, setOrderToCancel] = useState<Order | null>(null);
+    const [missingCustomerModalOrder, setMissingCustomerModalOrder] = useState<Order | null>(null);
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
     const [unreadMessages, setUnreadMessages] = useState<Record<string, Partial<Record<ChatRoomType, number>>>>({});
     const [openChatId, setOpenChatId] = useState<string | null>(null);
@@ -159,6 +160,7 @@ function App() {
     const playedArrivedAlertsRef = useRef<Set<string>>(new Set());
     const playedPickingUpAlertsRef = useRef<Set<string>>(new Set());
     const playedInTransitAlertsRef = useRef<Set<string>>(new Set());
+    const playedCustomerMissingAlertsRef = useRef<Set<string>>(new Set());
     const isFirstLoadDoneRef = useRef(false);
 
     // Keep Refs synced
@@ -540,7 +542,11 @@ function App() {
             scheduled_at: items.scheduledAt || null,
             external_order_id: d.external_order_id,
             external_source: d.external_source,
-            vehicleType: items.vehicleType || 'moto'
+            vehicleType: items.vehicleType || 'moto',
+            customerMissing: items.customer_missing === true,
+            waitingStatus: items.waiting_status || null,
+            waitingStartedAt: items.waitingStartedAt || null,
+            rawItems: items
         };
     }, [mapSupabaseStatusToLocal, synthesizeTimeline]);
 
@@ -808,6 +814,17 @@ function App() {
                             playedAcceptedAlertsRef.current.add(newOrder.id);
                             playAlert('courierAccepted');
                         }
+
+                        // Alerta urgente: Entregador aguardou 5 minutos e cliente não apareceu
+                        if (newOrder.customerMissing && newOrder.waitingStatus === 'awaiting_store_decision' && !playedCustomerMissingAlertsRef.current.has(newOrder.id)) {
+                            playedCustomerMissingAlertsRef.current.add(newOrder.id);
+                            playAlert('cheetah');
+                            setNotification({
+                                title: "🚨 Cliente Não Localizado!",
+                                message: `O entregador aguardou 5 min na portaria para ${newOrder.clientName}. Decida devolução ou descarte.`
+                            });
+                            setMissingCustomerModalOrder(newOrder);
+                        }
                     }
 
                     // Rank comparison to prevent status regression (never drop if courier is in picking_up)
@@ -976,6 +993,16 @@ function App() {
                     }
 
                     const updatedOrder = await processDeliveryRecord(delivery);
+
+                    if (delivery.items?.customer_missing === true && delivery.items?.waiting_status === 'awaiting_store_decision' && !playedCustomerMissingAlertsRef.current.has(delivery.id)) {
+                        playedCustomerMissingAlertsRef.current.add(delivery.id);
+                        playAlert('cheetah');
+                        setNotification({
+                            title: "🚨 Cliente Não Localizado!",
+                            message: `O entregador aguardou 5 min na portaria para ${delivery.customer_name || 'Cliente'}. Decida devolução ou descarte.`
+                        });
+                        setMissingCustomerModalOrder(updatedOrder);
+                    }
                     
                     setOrders(prev => {
                         const exists = prev.some(o => o.id === delivery.id);
@@ -2799,6 +2826,95 @@ function App() {
         setTimeout(() => setNotification(null), 5000);
     };
 
+    // --- DECISÃO DO LOJISTA: CLIENTE NÃO LOCALIZADO (DEVOLUÇÃO OU DESCARTE) ---
+    const handleStoreRequestReturn = async (targetOrder: Order) => {
+        try {
+            const returnFee = settings.returnFeeActive ? settings.baseFreight : 5.00;
+            const updatedItems = {
+                ...(targetOrder.rawItems || {}),
+                customer_missing_action: 'store_return',
+                isReturnRequired: true,
+                returnFee: returnFee,
+                waiting_status: 'store_requested_return'
+            };
+            const { error } = await supabase.from('deliveries').update({
+                status: 'returning',
+                items: updatedItems
+            }).eq('id', targetOrder.id);
+
+            if (error) throw error;
+
+            // Broadcast rápido ao entregador
+            try {
+                const channel = supabase.channel(`public:deliveries:${targetOrder.id}`);
+                await channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'mission_updated',
+                            payload: { id: targetOrder.id, status: 'returning' }
+                        });
+                        setTimeout(() => supabase.removeChannel(channel), 5000);
+                    }
+                });
+            } catch (e) {}
+
+            setMissingCustomerModalOrder(null);
+            setNotification({
+                title: "Devolução Solicitada",
+                message: `O entregador foi orientado a retornar com o pedido #${targetOrder.display_id || targetOrder.id.slice(-4).toUpperCase()}.`
+            });
+            setTimeout(() => setNotification(null), 5000);
+        } catch (err: any) {
+            console.error('❌ Erro ao solicitar devolução:', err);
+            alert('Erro ao solicitar devolução: ' + (err.message || 'Tente novamente'));
+        }
+    };
+
+    const handleStoreAuthorizeDiscard = async (targetOrder: Order) => {
+        try {
+            const updatedItems = {
+                ...(targetOrder.rawItems || {}),
+                customer_missing_action: 'discard_delivered',
+                discard_approved: true,
+                discard_approved_at: new Date().toISOString(),
+                waiting_status: 'discard_approved'
+            };
+            const { error } = await supabase.from('deliveries').update({
+                status: 'completed',
+                completed_at: new Date().toISOString(),
+                items: updatedItems
+            }).eq('id', targetOrder.id);
+
+            if (error) throw error;
+
+            // Broadcast rápido ao entregador
+            try {
+                const channel = supabase.channel(`public:deliveries:${targetOrder.id}`);
+                await channel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.send({
+                            type: 'broadcast',
+                            event: 'mission_updated',
+                            payload: { id: targetOrder.id, status: 'completed' }
+                        });
+                        setTimeout(() => supabase.removeChannel(channel), 5000);
+                    }
+                });
+            } catch (e) {}
+
+            setMissingCustomerModalOrder(null);
+            setNotification({
+                title: "Descarte Liberado",
+                message: `Pedido #${targetOrder.display_id || targetOrder.id.slice(-4).toUpperCase()} finalizado e entregador liberado.`
+            });
+            setTimeout(() => setNotification(null), 5000);
+        } catch (err: any) {
+            console.error('❌ Erro ao liberar descarte:', err);
+            alert('Erro ao liberar descarte: ' + (err.message || 'Tente novamente'));
+        }
+    };
+
     // Direct courier assignment - delegates to handleBulkAssign to ensure full batch grouping & pricing
     const handleDirectAssignCourier = async (order: Order, courierId: string) => {
         console.log("🚀 [handleDirectAssignCourier] Delegating to handleBulkAssign for order", order.id, "to courier", courierId);
@@ -4044,6 +4160,92 @@ function App() {
                         if (selectedOrderDetails?.id === orderId) setSelectedOrderDetails(null);
                     }}
                 />
+            )}
+
+            {missingCustomerModalOrder && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+                    <div className="w-full max-w-lg bg-[#18181b] border-2 border-red-500/40 rounded-[32px] p-6 sm:p-8 shadow-[0_0_60px_rgba(239,68,68,0.3)] relative text-white animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-14 h-14 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-500 text-2xl shrink-0 animate-pulse">
+                                🚨
+                            </div>
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Atenção Lojista</span>
+                                <h3 className="text-xl sm:text-2xl font-black text-white leading-tight">Cliente Não Localizado</h3>
+                                <p className="text-zinc-400 text-xs font-semibold">
+                                    Pedido #{missingCustomerModalOrder.display_id || missingCustomerModalOrder.id.slice(-4).toUpperCase()}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Order info summary */}
+                        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6 space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-zinc-400 font-bold">Cliente:</span>
+                                <span className="text-white font-black">{missingCustomerModalOrder.clientName}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-zinc-400 font-bold">Endereço:</span>
+                                <span className="text-zinc-200 font-bold text-right truncate max-w-[240px]">{missingCustomerModalOrder.destination}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="text-zinc-400 font-bold">Entregador no Local:</span>
+                                <span className="text-orange-400 font-black">{missingCustomerModalOrder.courier?.name || 'Entregador'}</span>
+                            </div>
+                            <div className="pt-2 border-t border-white/5 text-[11px] text-zinc-300 leading-snug">
+                                ⏳ O entregador aguardou <strong>mais de 5 minutos</strong> na portaria/endereço, tentou contato e o cliente não compareceu.
+                            </div>
+                        </div>
+
+                        <p className="text-xs font-bold text-zinc-200 mb-4">
+                            O que deseja fazer com o pedido?
+                        </p>
+
+                        {/* Action buttons */}
+                        <div className="space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => handleStoreRequestReturn(missingCustomerModalOrder)}
+                                className="w-full p-4 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black flex items-center space-x-4 shadow-lg active:scale-95 transition-all text-left"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-black/10 flex items-center justify-center text-2xl shrink-0">
+                                    📦
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-black uppercase tracking-wide">Solicitar Devolução para a Loja</div>
+                                    <div className="text-[10px] font-bold opacity-80 leading-tight mt-0.5">
+                                        O entregador traz o pedido de volta para o estabelecimento. (Soma taxa de retorno)
+                                    </div>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => handleStoreAuthorizeDiscard(missingCustomerModalOrder)}
+                                className="w-full p-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black flex items-center space-x-4 shadow-lg active:scale-95 transition-all text-left"
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl shrink-0">
+                                    🗑️
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-black uppercase tracking-wide">Liberar Descarte / Ficar com Entregador</div>
+                                    <div className="text-[10px] font-bold text-emerald-100 leading-tight mt-0.5">
+                                        Finaliza o pedido na hora. O entregador não precisa voltar e fica livre para novas entregas.
+                                    </div>
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setMissingCustomerModalOrder(null)}
+                                className="w-full py-3 text-zinc-400 hover:text-white text-xs font-bold uppercase tracking-wider transition-colors"
+                            >
+                                Decidir mais tarde (Fechar aviso)
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             <ClientHistoryModal
