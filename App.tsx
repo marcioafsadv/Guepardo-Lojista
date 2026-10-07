@@ -74,6 +74,81 @@ const SOUNDS = {
     sendTrackingLinkMasc: '/sounds/enviar-link-rastreio-masc.mp3'
 };
 
+// --- AUDIO UNLOCKER & WEB AUDIO SYNTH FOR LOJISTA ---
+let _lojistaAudioCtx: AudioContext | null = null;
+
+export const getLojistaAudioCtx = (): AudioContext | null => {
+    try {
+        if (!_lojistaAudioCtx && typeof window !== 'undefined') {
+            _lojistaAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        if (_lojistaAudioCtx && _lojistaAudioCtx.state === 'suspended') {
+            _lojistaAudioCtx.resume().catch(() => {});
+        }
+        return _lojistaAudioCtx;
+    } catch {
+        return null;
+    }
+};
+
+export const unlockLojistaAudio = () => {
+    try {
+        const ctx = getLojistaAudioCtx();
+        if (ctx) {
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            const buf = ctx.createBuffer(1, 1, 22050);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+        }
+    } catch {}
+};
+
+// Fallback de bipe sonoro sintético se o navegador barrar o elemento Audio HTML
+export const playSynthesizedChime = () => {
+    try {
+        const ctx = getLojistaAudioCtx();
+        if (!ctx) return;
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(659.25, now); // E5
+        gain1.gain.setValueAtTime(0.25, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.26);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, now + 0.15); // A5
+        gain2.gain.setValueAtTime(0.3, now + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.15);
+        osc2.stop(now + 0.52);
+    } catch {}
+};
+
+if (typeof window !== 'undefined') {
+    const handleFirstLojistaGesture = () => {
+        unlockLojistaAudio();
+        ['click', 'touchstart', 'touchend', 'keydown'].forEach(ev => {
+            window.removeEventListener(ev, handleFirstLojistaGesture);
+            document.removeEventListener(ev, handleFirstLojistaGesture);
+        });
+    };
+    ['click', 'touchstart', 'touchend', 'keydown'].forEach(ev => {
+        window.addEventListener(ev, handleFirstLojistaGesture, { passive: true });
+        document.addEventListener(ev, handleFirstLojistaGesture, { passive: true });
+    });
+}
+
 const moveTowards = (currentLat: number, currentLng: number, targetLat: number, targetLng: number, step: number) => {
     const dLat = targetLat - currentLat;
     const dLng = targetLng - currentLng;
@@ -119,6 +194,7 @@ function App() {
     const [selectedClientDetails, setSelectedClientDetails] = useState<Customer | null>(null);
     const [unreadMessages, setUnreadMessages] = useState<Record<string, Partial<Record<ChatRoomType, number>>>>({});
     const [openChatId, setOpenChatId] = useState<string | null>(null);
+    const [audioUnlocked, setAudioUnlocked] = useState(false);
     const [lastResetDate, setLastResetDate] = useState<string | null>(() => localStorage.getItem('guepardo_reset_date'));
     const [settings, setSettings] = useState<StoreSettings>(() => {
         const defaultSettings: StoreSettings = {
@@ -179,6 +255,24 @@ function App() {
     useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), 3000);
         return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        const unlock = () => {
+            unlockLojistaAudio();
+            setAudioUnlocked(true);
+            ['click', 'touchstart', 'keydown'].forEach(ev => {
+                window.removeEventListener(ev, unlock);
+            });
+        };
+        ['click', 'touchstart', 'keydown'].forEach(ev => {
+            window.addEventListener(ev, unlock, { passive: true });
+        });
+        return () => {
+            ['click', 'touchstart', 'keydown'].forEach(ev => {
+                window.removeEventListener(ev, unlock);
+            });
+        };
     }, []);
 
     // One-time robust iFood alert effect
@@ -360,6 +454,8 @@ function App() {
     }, []);
 
     const playAlert = useCallback((type: keyof typeof SOUNDS = 'cheetah') => {
+        unlockLojistaAudio();
+
         const isVoiceAlert = [
             'courierAccepted', 'courierArrived', 'confirmPickup', 'sendTrackingLink',
             'courierAcceptedMasc', 'courierArrivedMasc', 'confirmPickupMasc', 'sendTrackingLinkMasc'
@@ -386,10 +482,24 @@ function App() {
             }
         }
 
-        const soundPath = SOUNDS[type] || SOUNDS.default;
-        console.log("🔊 [App] Playing sound:", type, "Path:", soundPath);
+        let targetType = type;
+        if (targetType === 'cheetah' && settingsRef.current?.alertSound) {
+            targetType = settingsRef.current.alertSound as keyof typeof SOUNDS;
+        }
+
+        const soundPath = SOUNDS[targetType] || SOUNDS.default;
+        console.log("🔊 [App] Playing sound:", targetType, "Path:", soundPath);
+
+        // Vibração se suportado (útil em tablets e celulares de gestores)
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try { navigator.vibrate([400, 200, 400]); } catch (e) {}
+        }
+
         const audio = new Audio(soundPath);
-        audio.play().catch(e => console.warn('Could not play sound:', e));
+        audio.play().catch(e => {
+            console.warn('⚠️ [App] Audio.play bloqueado ou falhou. Tocando chime sintético de fallback:', e);
+            playSynthesizedChime();
+        });
     }, []);
 
     const synthesizeTimeline = useCallback((delivery: any): OrderEvent[] => {
@@ -4275,6 +4385,23 @@ function App() {
                             <p className="text-[10px] uppercase font-bold text-white/70 tracking-widest mt-1">Seu saldo foi atualizado instantaneamente.</p>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* FLOATING AUDIO UNLOCK PILL (Quando o navegador ainda não autorizou áudio por interação) */}
+            {!audioUnlocked && (
+                <div 
+                    onClick={() => {
+                        unlockLojistaAudio();
+                        playSynthesizedChime();
+                        setAudioUnlocked(true);
+                    }}
+                    className="fixed bottom-5 left-5 z-[290] bg-[#FF6B00] hover:bg-[#e05e00] text-white px-4 py-2.5 rounded-full shadow-[0_10px_25px_rgba(255,107,0,0.5)] border border-orange-400/50 flex items-center gap-2.5 cursor-pointer transition-all animate-bounce active:scale-95 text-xs font-black uppercase tracking-wider select-none"
+                    title="Clique para autorizar alertas sonoros no navegador"
+                >
+                    <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
+                    <i className="fas fa-volume-high text-sm"></i>
+                    <span>Ativar Som de Alertas</span>
                 </div>
             )}
 
