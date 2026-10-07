@@ -257,6 +257,18 @@ export const ActiveOrderCard: React.FC<ActiveOrderCardProps> = ({
                 {getCompactStatusLabel(order.status)}
             </span>
 
+            {order.customerMissing && order.waitingStatus === 'awaiting_store_decision' && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-600/30 text-red-400 text-[9px] font-black uppercase tracking-[0.15em] border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.4)] animate-pulse">
+                🚨 Cliente Ausente (5 Min)
+              </span>
+            )}
+
+            {order.waitingStartedAt && !order.customerMissing && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[9px] font-black uppercase tracking-[0.15em] border border-amber-500/30 animate-pulse">
+                ⏱️ Aguardando Morador
+              </span>
+            )}
+
             {order.vehicleType && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-orange-500/10 text-orange-400 text-[9px] font-black uppercase tracking-[0.2em] border border-orange-500/20 shadow-glow-sm">
                 {order.vehicleType === 'bike' ? <Bike size={10} strokeWidth={2.5} /> : order.vehicleType === 'carro' ? <Car size={10} strokeWidth={2.5} /> : <Bike size={10} strokeWidth={2.5} />}
