@@ -777,6 +777,18 @@ function App() {
 
                 const result = updatedOrdersList.map(newOrder => {
                     const existing = prevMap.get(newOrder.id);
+
+                    // Alerta urgente: Entregador aguardou 5 minutos e cliente não apareceu
+                    if (newOrder.customerMissing && newOrder.waitingStatus === 'awaiting_store_decision' && !playedCustomerMissingAlertsRef.current.has(newOrder.id)) {
+                        playedCustomerMissingAlertsRef.current.add(newOrder.id);
+                        playAlert('cheetah');
+                        setNotification({
+                            title: "🚨 Cliente Não Localizado!",
+                            message: `O entregador aguardou 5 min na portaria para ${newOrder.clientName}. Decida devolução ou descarte.`
+                        });
+                        setMissingCustomerModalOrder(newOrder);
+                    }
+
                     if (!existing) {
                         hasChanges = true;
                         return newOrder;
@@ -814,17 +826,6 @@ function App() {
                             playedAcceptedAlertsRef.current.add(newOrder.id);
                             playAlert('courierAccepted');
                         }
-
-                        // Alerta urgente: Entregador aguardou 5 minutos e cliente não apareceu
-                        if (newOrder.customerMissing && newOrder.waitingStatus === 'awaiting_store_decision' && !playedCustomerMissingAlertsRef.current.has(newOrder.id)) {
-                            playedCustomerMissingAlertsRef.current.add(newOrder.id);
-                            playAlert('cheetah');
-                            setNotification({
-                                title: "🚨 Cliente Não Localizado!",
-                                message: `O entregador aguardou 5 min na portaria para ${newOrder.clientName}. Decida devolução ou descarte.`
-                            });
-                            setMissingCustomerModalOrder(newOrder);
-                        }
                     }
 
                     // Rank comparison to prevent status regression (never drop if courier is in picking_up)
@@ -836,12 +837,15 @@ function App() {
                         return existing;
                     }
 
-                    // Check if anything meaningful changed (status or courier info)
+                    // Check if anything meaningful changed (status, courier info, or waiting/missing state)
                     if (existing.status !== newOrder.status || 
                         existing.rawStatus !== newOrder.rawStatus ||
                         existing.courier?.id !== newOrder.courier?.id ||
                         existing.pickupCode !== newOrder.pickupCode ||
-                        existing.batch_id !== newOrder.batch_id) {
+                        existing.batch_id !== newOrder.batch_id ||
+                        existing.customerMissing !== newOrder.customerMissing ||
+                        existing.waitingStatus !== newOrder.waitingStatus ||
+                        existing.waitingStartedAt !== newOrder.waitingStartedAt) {
                         hasChanges = true;
                         return newOrder;
                     }
@@ -4056,6 +4060,7 @@ function App() {
                                 mapboxToken={MAPBOX_TOKEN}
                                 onBulkAssign={handleBulkAssign}
                                 onDirectAssignCourier={handleDirectAssignCourier}
+                                onOpenMissingCustomerModal={setMissingCustomerModalOrder}
                             />
                         ) : null;
                     })()}

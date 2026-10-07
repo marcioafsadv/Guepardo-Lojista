@@ -38,6 +38,7 @@ interface GestorPedidosKanbanProps {
   mapboxToken?: string;
   onBulkAssign?: (orderIds: string[], courierId: string) => Promise<void> | void;
   onDirectAssignCourier?: (order: Order, courierId: string) => Promise<void>;
+  onOpenMissingCustomerModal?: (order: Order) => void;
 }
 
 // Helper para calcular tempo decorrido amigável
@@ -82,6 +83,7 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
   mapboxToken,
   onBulkAssign,
   onDirectAssignCourier,
+  onOpenMissingCustomerModal,
 }) => {
   // Modos de Visão e Rastreio
   const [viewMode, setViewMode] = useState<'kanban' | 'map'>('kanban');
@@ -1632,9 +1634,17 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
               return (
                 <div
                   key={order.id}
-                  onClick={() => onSelectOrder(order)}
+                  onClick={() => {
+                    if (order.customerMissing && order.waitingStatus === 'awaiting_store_decision') {
+                      onOpenMissingCustomerModal?.(order);
+                    } else {
+                      onSelectOrder(order);
+                    }
+                  }}
                   className={`group relative bg-black/80 hover:bg-black border rounded-xl p-3.5 transition-all cursor-pointer shadow-lg overflow-hidden ${
-                    isBatch
+                    order.customerMissing && order.waitingStatus === 'awaiting_store_decision'
+                      ? 'border-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.25)] ring-1 ring-red-500/40'
+                      : isBatch
                       ? 'border-emerald-500/50 hover:border-emerald-400 bg-emerald-950/10'
                       : 'border border-white/10 hover:border-emerald-500/60'
                   }`}
@@ -1652,6 +1662,16 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         </span>
                       ) : (
                         renderChannelBadge(order)
+                      )}
+                      {order.customerMissing && order.waitingStatus === 'awaiting_store_decision' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-600/30 text-red-300 border border-red-500/50 animate-pulse">
+                          🚨 Ausente
+                        </span>
+                      )}
+                      {order.waitingStartedAt && !order.customerMissing && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                          ⏱️ Espera
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5">
@@ -1736,6 +1756,38 @@ export const GestorPedidosKanban: React.FC<GestorPedidosKanbanProps> = ({
                         <span>{order.destination}</span>
                       </p>
                     </>
+                  )}
+
+                  {/* Alerta de Decisão: Cliente Ausente ou Contagem de Espera */}
+                  {order.customerMissing && order.waitingStatus === 'awaiting_store_decision' && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenMissingCustomerModal?.(order);
+                      }}
+                      className="my-2 p-2.5 rounded-xl bg-gradient-to-r from-red-600/30 to-red-950/60 border border-red-500/60 shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse flex items-center justify-between cursor-pointer hover:border-red-400 transition-all"
+                      title="Clique para decidir Devolução ou Descarte"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base animate-bounce shrink-0">🚨</span>
+                        <div className="truncate">
+                          <p className="text-[10px] font-black text-red-300 uppercase tracking-wider">Cliente Ausente (5 Min)</p>
+                          <p className="text-[9px] text-white/70 font-semibold truncate">Decida devolução ou descarte</p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-[9px] font-black rounded-lg uppercase tracking-wider shadow shrink-0">
+                        Decidir
+                      </span>
+                    </div>
+                  )}
+
+                  {order.waitingStartedAt && !order.customerMissing && (
+                    <div className="my-1.5 p-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center gap-2">
+                      <Clock size={12} className="text-amber-400 shrink-0 animate-spin" />
+                      <span className="text-[9px] font-bold text-amber-300 uppercase tracking-wider">
+                        Aguardando Morador na Portaria (5m)
+                      </span>
+                    </div>
                   )}
 
                   {/* Detalhes do Piloto em Rota */}
