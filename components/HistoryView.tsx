@@ -64,6 +64,63 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         }
     };
 
+    const getOrderDetailedStatus = (order: Order) => {
+        const rawItems = order.rawItems || {};
+        const isCustomerMissing = order.customerMissing || rawItems.customer_missing === true;
+        const missingAction = rawItems.customer_missing_action;
+        const waitingStatus = order.waitingStatus || rawItems.waiting_status;
+
+        if (isCustomerMissing) {
+            if (missingAction === 'store_return' || waitingStatus === 'store_requested_return' || order.status === OrderStatus.RETURNING || order.rawStatus === 'returned' || order.rawStatus === 'closed') {
+                return {
+                    label: 'Devolvido à Loja',
+                    badgeColor: 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.2)]',
+                    subtitle: 'Morador ausente (> 5 min) • Devolução à loja',
+                    isSpecial: true
+                };
+            }
+            if (missingAction === 'discard_delivered' || rawItems.discard_approved === true || waitingStatus === 'discard_approved') {
+                return {
+                    label: 'Não Entregue (Cliente Ausente)',
+                    badgeColor: 'bg-red-500/15 text-red-400 border-red-500/40 shadow-[0_0_15px_rgba(239,68,68,0.2)]',
+                    subtitle: 'Morador ausente (> 5 min) • Descarte autorizado',
+                    isSpecial: true
+                };
+            }
+            return {
+                label: 'Cliente Ausente (Aguardando Decisão)',
+                badgeColor: 'bg-red-600/20 text-red-300 border-red-500/50 animate-pulse',
+                subtitle: 'Morador não compareceu na portaria (> 5 min)',
+                isSpecial: true
+            };
+        }
+
+        if (order.status === OrderStatus.DELIVERED) {
+            return {
+                label: 'Finalizado',
+                badgeColor: 'bg-green-500/10 text-green-400 border-green-500/20',
+                subtitle: null,
+                isSpecial: false
+            };
+        }
+
+        if (order.status === OrderStatus.CANCELED) {
+            return {
+                label: 'Cancelado',
+                badgeColor: 'bg-red-500/10 text-red-400 border-red-500/20',
+                subtitle: null,
+                isSpecial: false
+            };
+        }
+
+        return {
+            label: getStatusLabel(order.status),
+            badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+            subtitle: null,
+            isSpecial: false
+        };
+    };
+
     const filteredOrders = useMemo(() => {
         return orders.filter(o => {
             // Category Filter
@@ -71,7 +128,12 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
             if (statusCategory === 'finished' && (o.status !== OrderStatus.DELIVERED && o.status !== OrderStatus.CANCELED)) return false;
 
             // Specific Status Filter
-            if (selectedStatus !== 'all' && o.status !== selectedStatus) return false;
+            if (selectedStatus === 'MISSING_CUSTOMER') {
+                const isMissing = o.customerMissing || o.rawItems?.customer_missing === true;
+                if (!isMissing) return false;
+            } else if (selectedStatus !== 'all' && o.status !== selectedStatus) {
+                return false;
+            }
 
             // Search Filter (ID or Client Name)
             if (searchTerm) {
@@ -117,16 +179,18 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
         doc.text(`Gerado em: ${new Date().toLocaleString()}`, 14, 30);
         doc.text(`Período: ${startDate ? new Date(startDate).toLocaleDateString() : 'Início'} até ${endDate ? new Date(endDate).toLocaleDateString() : 'Hoje'}`, 14, 36);
 
-        const tableColumn = ["ID", "Data/Hora", "Cliente", "Endereço", "Status", "Valor (R$)", "Taxa (R$)"];
+        const tableColumn = ["ID", "Data/Hora", "Cliente", "Endereço", "Status / Ocorrência", "Valor (R$)", "Taxa (R$)"];
         const tableRows: any[] = [];
 
         filteredOrders.forEach(order => {
+            const detailed = getOrderDetailedStatus(order);
+            const statusWithObs = detailed.subtitle ? `${detailed.label} (${detailed.subtitle})` : detailed.label;
             tableRows.push([
-                order.id.slice(-4),
+                order.display_id || order.id.slice(-4),
                 `${new Date(order.createdAt).toLocaleDateString()} ${new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
                 order.clientName,
                 order.destination,
-                order.status,
+                statusWithObs,
                 (Number(order.deliveryValue) || 0).toFixed(2),
                 (Number(order.storeFreight) || 0).toFixed(2)
             ]);
@@ -144,19 +208,23 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
     const handleExportExcel = () => {
         const wb = XLSX.utils.book_new();
         const wsData = [
-            ["ID", "Data", "Hora", "Cliente", "Telefone", "Endereço", "Status", "Valor Pedido", "Taxa de Entrega", "Pagamento"],
-            ...filteredOrders.map(order => [
-                order.id,
-                new Date(order.createdAt).toLocaleDateString(),
-                new Date(order.createdAt).toLocaleTimeString(),
-                order.clientName,
-                order.clientPhone || '',
-                order.destination,
-                order.status,
-                order.deliveryValue || 0,
-                order.storeFreight || 0,
-                order.paymentMethod
-            ])
+            ["ID", "Data", "Hora", "Cliente", "Telefone", "Endereço", "Status", "Ocorrência / Obs", "Valor Pedido", "Taxa de Entrega", "Pagamento"],
+            ...filteredOrders.map(order => {
+                const detailed = getOrderDetailedStatus(order);
+                return [
+                    order.display_id || order.id,
+                    new Date(order.createdAt).toLocaleDateString(),
+                    new Date(order.createdAt).toLocaleTimeString(),
+                    order.clientName,
+                    order.clientPhone || '',
+                    order.destination,
+                    detailed.label,
+                    detailed.subtitle || 'Normal',
+                    order.deliveryValue || 0,
+                    order.storeFreight || 0,
+                    order.paymentMethod
+                ];
+            })
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -255,7 +323,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                 <option value="PENDING" className="bg-[#1A0900]">Pendentes</option>
                                 <option value="ACCEPTED" className="bg-[#1A0900]">Aceitos</option>
                                 <option value="IN_TRANSIT" className="bg-[#1A0900]">Em Rota</option>
-                                <option value="DELIVERED" className="bg-[#1A0900]">Concluídos</option>
+                                <option value="DELIVERED" className="bg-[#1A0900]">Concluídos (Entregues)</option>
+                                <option value="MISSING_CUSTOMER" className="bg-[#1A0900]">🚨 Cliente Ausente / Devoluções</option>
                                 <option value="CANCELED" className="bg-[#1A0900]">Cancelados</option>
                             </select>
                         </div>
@@ -323,13 +392,21 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ orders, onSelectOrder 
                                         </h4>
                                     </div>
                                     <div className="flex flex-col items-end lg:items-start gap-1 lg:mt-2">
-                                        <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${
-                                            order.status === OrderStatus.DELIVERED ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-                                            order.status === OrderStatus.CANCELED ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                                            'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                        }`}>
-                                            {getStatusLabel(order.status)}
-                                        </span>
+                                        {(() => {
+                                            const detailed = getOrderDetailedStatus(order);
+                                            return (
+                                                <>
+                                                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${detailed.badgeColor}`}>
+                                                        {detailed.label}
+                                                    </span>
+                                                    {detailed.subtitle && (
+                                                        <span className="text-[8.5px] font-bold text-white/50 max-w-[200px] truncate" title={detailed.subtitle}>
+                                                            {detailed.subtitle}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
                                         <span className="text-[10px] text-white/40 font-bold flex items-center gap-1">
                                             <Clock size={10} /> {new Date(order.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
