@@ -172,9 +172,9 @@ export const TrackingPage: React.FC = () => {
                 attributionControl: false
             });
 
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
-                subdomains: 'abcd'
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(map);
 
             mapInstanceRef.current = map;
@@ -292,8 +292,10 @@ export const TrackingPage: React.FC = () => {
             case 'pending': return { label: 'Aguardando Entregador', color: 'text-yellow-500', bg: 'bg-yellow-500/10', step: 1 };
             case 'accepted':
             case 'ready_for_pickup':
-            case 'arrived_pickup': return { label: 'Em Coleta', color: 'text-blue-500', bg: 'bg-blue-500/10', step: 2 };
+            case 'arrived_pickup':
+            case 'picking_up': return { label: 'Em Coleta', color: 'text-blue-500', bg: 'bg-blue-500/10', step: 2 };
             case 'in_transit': return { label: 'A caminho de você', color: 'text-orange-500', bg: 'bg-orange-500/10', step: 3 };
+            case 'arrived_at_customer': return { label: 'Entregador no local!', color: 'text-emerald-400', bg: 'bg-emerald-500/10', step: 4 };
             case 'completed': return { label: 'Entregue', color: 'text-green-500', bg: 'bg-green-500/10', step: 4 };
             case 'cancelled': return { label: 'Cancelado', color: 'text-red-500', bg: 'bg-red-500/10', step: 0 };
             default: return { label: 'Processando', color: 'text-gray-400', bg: 'bg-gray-400/10', step: 1 };
@@ -380,8 +382,10 @@ export const TrackingPage: React.FC = () => {
                                 </div>
                                 <h1 className="text-white text-2xl font-black tracking-tight leading-none">
                                     {order.status === 'completed' ? 'Pedido Entregue!' :
+                                        order.status === 'arrived_at_customer' ? 'Entregador no local!' :
                                         order.status === 'in_transit' ? 'Chegando em breve' :
-                                            'Preparando tudo'}
+                                        ['accepted', 'ready_for_pickup', 'arrived_pickup', 'picking_up'].includes(order.status) ? 'Entregador retirando na loja' :
+                                        'Preparando tudo'}
                                 </h1>
                                 {order.status === 'in_transit' && routeStats && (
                                     <div className="mt-2 flex items-center gap-2">
@@ -462,7 +466,7 @@ export const TrackingPage: React.FC = () => {
                             )}
 
                             {/* Código de Entrega (Apenas se o pedido não estiver finalizado ou cancelado) */}
-                            {order.collection_code && order.status !== 'completed' && order.status !== 'cancelled' && (
+                            {(order.collection_code || order.customer_phone_suffix) && order.status !== 'completed' && order.status !== 'cancelled' && (
                                 <div className="mb-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl p-4 flex items-center justify-between shadow-glow-sm">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 bg-orange-500/15 rounded-xl flex items-center justify-center text-orange-500 shadow-glow-sm">
@@ -474,7 +478,7 @@ export const TrackingPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="bg-orange-500 text-white font-mono font-black tracking-widest text-base px-3.5 py-1.5 rounded-xl shadow-glow">
-                                        {order.collection_code}
+                                        {order.collection_code || order.customer_phone_suffix}
                                     </div>
                                 </div>
                             )}
